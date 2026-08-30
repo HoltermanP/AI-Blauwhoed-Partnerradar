@@ -6,6 +6,7 @@ import { geocodeer } from "./domain/geocode";
 import { geocode as lokaalGeocode } from "./domain/geo";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "./domain/partnerimport";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
+import { HUIDIGE_VERSIE, maakSeedIdGenerator, migreerDatabase } from "./domain/migratie";
 import houtbouwers from "@/data/houtbouwers-seed.json";
 import type { Geo } from "./domain/types";
 import type { AuditEntry, Database, Gebruiker } from "./domain/types";
@@ -49,7 +50,10 @@ export async function getDb(): Promise<Database> {
     g.__partnerDbGeladen = (async () => {
       // Standaard leeg (echte data via invoer/import/discovery). DEMO_DATA=1 laadt de fictieve demoset.
       const uitNeon = await laadUitNeon();
-      if (uitNeon) g.__partnerDb = uitNeon;
+      if (uitNeon) {
+        g.__partnerDb = uitNeon;
+        await migreerOpgeslagen(uitNeon);
+      }
       else if (process.env.DEMO_DATA === "1") g.__partnerDb = maakSeedDatabase();
       else g.__partnerDb = await maakStartDatabase();
     })();
@@ -58,17 +62,45 @@ export async function getDb(): Promise<Database> {
   return g.__partnerDb!;
 }
 
+/** Migreert een opgeslagen database naar de huidige versie (stabiele IDs, aanvullende dataset) en schrijft direct terug. */
+async function migreerOpgeslagen(db: Database) {
+  if ((db.versie ?? 1) >= HUIDIGE_VERSIE) return;
+  const plaatsen = aanvullingPlaatsen();
+  const locaties = new Map<string, Geo | null>(plaatsen.map((pl) => [pl, lokaalGeocode(pl)]));
+  const u = migreerDatabase(db, locaties);
+  if (!u) return;
+  console.info(`Database gemigreerd ${u.van} → ${u.naar}: ${u.hernoemd} IDs hernoemd`, u.aanvulling);
+  geocodeerOpAchtergrond(db, plaatsen.filter((pl) => !locaties.get(pl)));
+  await schrijfNaarNeon(db);
+}
+
+/** PDOK-geocoding voor plaatsen buiten de lokale lijst; werkt de database bij zodra resultaten binnen zijn. */
+function geocodeerOpAchtergrond(db: Database, plaatsen: string[]) {
+  void Promise.all(
+    plaatsen.map(async (pl) => {
+      const r = await geocodeer(pl);
+      if (!r) return;
+      db.partners.forEach((p) => {
+        if (p.vestigingsplaats === pl) {
+          p.locatie = r.locatie;
+          p.tags = p.tags.filter((t) => t !== "locatie onbekend");
+        }
+      });
+      db.projecten.forEach((pr) => {
+        if (pr.locatie.plaats === pl) pr.locatie = { ...pr.locatie, ...r.locatie };
+      });
+      planOpslaan(db);
+    })
+  );
+}
+
 /** Eerste start zonder opgeslagen staat: lege database plus de echte partners uit het Blauwhoed-overzicht houtbouwers en de aanvullende dataset (partners, projecten, websites). */
 async function maakStartDatabase(): Promise<Database> {
   const db = maakLegeDatabase();
   // Deterministische IDs: op serverless-hosting (bijv. Vercel) bouwt elke instantie zijn eigen in-memory database op.
   // Met tijdstempel-IDs zou een link van instantie A op instantie B een 404 geven; met vaste IDs zijn ze overal gelijk.
-  const tellers = new Map<string, number>();
-  const seedId = (prefix: string) => {
-    const n = (tellers.get(prefix) ?? 0) + 1;
-    tellers.set(prefix, n);
-    return `${prefix}-seed-${n}`;
-  };
+  const seedId = maakSeedIdGenerator();
+  db.versie = HUIDIGE_VERSIE;
   const bron = houtbouwers as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
   const partners = voegRijenSamen(bron.partners.map((p) => rijNaarPartner(p.values)).filter((p): p is NonNullable<typeof p> => Boolean(p)));
   // Eerst de lokale plaatsenlijst (direct), daarna op de achtergrond PDOK voor onbekende plaatsen zodat de eerste pagina niet wacht.
@@ -76,24 +108,7 @@ async function maakStartDatabase(): Promise<Database> {
   const locaties = new Map<string, Geo | null>(plaatsen.map((pl) => [pl, lokaalGeocode(pl)]));
   const u = voegPartnersToe(db, partners, locaties, bron.sourceFile, seedId);
   const a = laadAanvulling(db, locaties, seedId);
-  void Promise.all(
-    plaatsen
-      .filter((pl) => !locaties.get(pl))
-      .map(async (pl) => {
-        const r = await geocodeer(pl);
-        if (!r) return;
-        db.partners.forEach((p) => {
-          if (p.vestigingsplaats === pl) {
-            p.locatie = r.locatie;
-            p.tags = p.tags.filter((t) => t !== "locatie onbekend");
-          }
-        });
-        db.projecten.forEach((pr) => {
-          if (pr.locatie.plaats === pl) pr.locatie = { ...pr.locatie, ...r.locatie };
-        });
-        planOpslaan(db);
-      })
-  );
+  geocodeerOpAchtergrond(db, plaatsen.filter((pl) => !locaties.get(pl)));
   db.audit.unshift({ id: seedId("audit"), op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "partner", entiteitId: "import", actie: "houtbouwersoverzicht en aanvulling geladen bij eerste start", details: `${u.nieuw} organisaties uit ${bron.sourceFile}; aanvulling: ${a.partnersNieuw} partners, ${a.projectenNieuw} projecten, ${a.websitesAangevuld} websites` });
   // Direct wegschrijven (niet met vertraging): in een serverless-functie bestaat de timer na het antwoord mogelijk niet meer.
   await schrijfNaarNeon(db);

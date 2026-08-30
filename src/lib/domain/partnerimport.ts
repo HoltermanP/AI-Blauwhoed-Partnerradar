@@ -175,7 +175,7 @@ export function voegRijenSamen(partners: GeimporteerdePartner[]): GeimporteerdeP
 export type ImportUitkomst = { gelezen: number; nieuw: number; bijgewerkt: number; overgeslagen: Array<{ naam: string; reden: string }>; zonderLocatie: number };
 
 /** Voegt geïmporteerde partners toe aan de database (synchroon; geocoding is vooraf gedaan). Bestaande partners worden alleen aangevuld. */
-export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], locaties: Map<string, Geo | null>, bronnaam: string, nieuwId: (prefix: string) => string): ImportUitkomst {
+export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], locaties: Map<string, Geo | null>, bronnaam: string, nieuwId: (prefix: string, hint?: string) => string): ImportUitkomst {
   const uitkomst: ImportUitkomst = { gelezen: partners.length, nieuw: 0, bijgewerkt: 0, overgeslagen: [], zonderLocatie: 0 };
   const nu = new Date().toISOString();
   partners.forEach((p) => {
@@ -200,7 +200,7 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
     }
     if (!geo) uitkomst.zonderLocatie++;
     db.partners.push({
-      id: nieuwId("p"),
+      id: nieuwId("p", p.naam),
       naam: p.naam,
       kvk: p.kvk ?? "",
       rechtsvorm: p.naam.match(/\bB\.?V\.?\b/i) ? "B.V." : p.naam.match(/\bN\.?V\.?\b/i) ? "N.V." : "Onbekend",

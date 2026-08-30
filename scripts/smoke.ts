@@ -13,6 +13,7 @@ import { AANVULLING, laadAanvulling } from "../src/lib/domain/aanvulling";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "../src/lib/domain/partnerimport";
 import houtbouwers from "../src/data/houtbouwers-seed.json";
 import { kiesSubpaginas, leesReferenties, pastBijNaam } from "../src/lib/domain/webverrijking";
+import { maakSeedIdGenerator, migreerDatabase } from "../src/lib/domain/migratie";
 
 let fouten = 0;
 function check(naam: string, ok: boolean, detail?: unknown) {
@@ -96,6 +97,25 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   const u2 = laadAanvulling(leeg, new Map(), id);
   check("Aanvulling: herladen is idempotent", u2.partnersNieuw === 0 && u2.projectenNieuw === 0 && u2.engagementsNieuw === 0 && leeg.partners.length === voor + u.partnersNieuw, u2);
   check("Aanvulling: geen dubbele partners op naam", new Set(leeg.partners.map((p) => p.naam.toLowerCase())).size === leeg.partners.length);
+}
+
+// Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs
+{
+  const oud = maakLegeDatabase();
+  oud.versie = 1;
+  let t = 0;
+  const tijdId = (p: string) => `${p}-m${Date.now().toString(36)}${(++t).toString(36)}`;
+  const bron = houtbouwers as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
+  voegPartnersToe(oud, voegRijenSamen(bron.partners.map((p) => rijNaarPartner(p.values)).filter((p): p is NonNullable<typeof p> => Boolean(p))), new Map(), bron.sourceFile, tijdId);
+  const giesbers = oud.partners.find((p) => p.naam === "Giesbers")!;
+  oud.engagements.push({ id: "eng-x", partnerId: giesbers.id, projectId: "proj-x", rol: "aannemer", periode: { van: "2024-01-01" }, contractwaarde: 1, bron: "handmatig" });
+  const u = migreerDatabase(oud, new Map())!;
+  check("Migratie: versie en hernoemde IDs", oud.versie === 2 && u.hernoemd === 103 && giesbers.id === "p-giesbers", { versie: oud.versie, hernoemd: u.hernoemd, id: giesbers.id });
+  check("Migratie: verwijzingen meegeschreven", oud.engagements[0].partnerId === "p-giesbers");
+  check("Migratie: aanvulling geladen met stabiele IDs", oud.projecten.some((p) => p.id === "proj-casa-vita") && oud.partners.some((p) => p.id === "p-kow"), oud.projecten.map((p) => p.id).slice(0, 3));
+  check("Migratie: tweede keer geen effect", migreerDatabase(oud, new Map()) === null);
+  const gen = maakSeedIdGenerator(["p-kow"]);
+  check("Migratie: botsende naam krijgt volgnummer", gen("p", "KOW") === "p-kow-2" && gen("audit") === "audit-seed-1");
 }
 
 // Internetverrijking (pure delen)

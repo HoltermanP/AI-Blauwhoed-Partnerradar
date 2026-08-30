@@ -14,6 +14,7 @@ import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type I
 import { webzoekConnector } from "./domain/webzoek";
 import { BASISVELDEN, verrijkVanuitInternet } from "./domain/webverrijking";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
+import { maakSeedIdGenerator } from "./domain/migratie";
 import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting } from "./ai";
 import type { BronConnector } from "./domain/discovery";
 import { slaNuOp } from "./store";
@@ -309,7 +310,7 @@ export async function laadAanvullendeData() {
     const plaatsen = aanvullingPlaatsen();
     const locaties = new Map<string, Geo | null>();
     await Promise.all(plaatsen.map(async (pl) => locaties.set(pl, (await geocodeer(pl))?.locatie ?? null)));
-    const u = await muteer(g, { entiteit: "database", entiteitId: "aanvulling", actie: "aanvullende dataset geladen" }, (db) => laadAanvulling(db, locaties, nieuwId));
+    const u = await muteer(g, { entiteit: "database", entiteitId: "aanvulling", actie: "aanvullende dataset geladen" }, (db) => laadAanvulling(db, locaties, maakSeedIdGenerator([...db.partners, ...db.projecten, ...db.engagements].map((x) => x.id))));
     await slaNuOp();
     ["/partners", "/projecten", "/kaart", "/historie", "/beheer"].forEach((p) => revalidatePath(p));
     return u;

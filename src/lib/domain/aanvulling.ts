@@ -74,7 +74,7 @@ function vindPartner(db: Database, naam: string) {
 export type AanvullingUitkomst = { partnersNieuw: number; partnersAangevuld: number; projectenNieuw: number; engagementsNieuw: number; websitesAangevuld: number };
 
 /** Pure functie: voegt de aanvulling toe aan de database. `locaties` bevat vooraf gegeocodeerde plaatsen (PDOK); anders de lokale lijst. */
-export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, nieuwId: (prefix: string) => string, nu = new Date()): AanvullingUitkomst {
+export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, nieuwId: (prefix: string, hint?: string) => string, nu = new Date()): AanvullingUitkomst {
   const u: AanvullingUitkomst = { partnersNieuw: 0, partnersAangevuld: 0, projectenNieuw: 0, engagementsNieuw: 0, websitesAangevuld: 0 };
   const iso = nu.toISOString();
   const vandaag = iso.slice(0, 10);
@@ -158,7 +158,7 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
     }
     const g = geo(a.vestigingsplaats);
     const partner: Partner = {
-      id: nieuwId("p"),
+      id: nieuwId("p", a.naam),
       naam: a.naam,
       kvk: a.kvk ?? "",
       rechtsvorm: a.rechtsvorm ?? (a.naam.match(/\bB\.?V\.?\b/i) ? "B.V." : a.naam.match(/\bN\.?V\.?\b/i) ? "N.V." : "Onbekend"),
@@ -194,7 +194,7 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
     if (!project) {
       const g = geo(a.plaats) ?? { lat: 51.92, lng: 4.48 };
       project = {
-        id: nieuwId("proj"),
+        id: nieuwId("proj", a.naam),
         naam: a.naam,
         type: a.type,
         locatie: { ...g, plaats: a.plaats, adres: a.adres },
@@ -217,7 +217,7 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
       const p = vindPartner(db, b.naam);
       if (!p || db.engagements.some((e) => e.partnerId === p.id && e.projectId === project!.id)) return;
       const eng: Engagement = {
-        id: nieuwId("eng"),
+        id: nieuwId("eng", `${p.naam} ${a.naam}`),
         partnerId: p.id,
         projectId: project!.id,
         rol: b.rol,

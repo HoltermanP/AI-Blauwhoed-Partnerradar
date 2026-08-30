@@ -15,6 +15,8 @@ npm run typecheck
 
 ## Productiegebruik (echte data)
 
+**Hosting**: stel op productie `DATABASE_URL` (Neon) in. Zonder die variabele bouwt elke serverless-instantie zijn eigen in-memory database op; lezen werkt (IDs zijn stabiel en naam-gebaseerd, bijv. `p-giesbers`), maar wijzigingen gaan verloren zodra een instantie wordt gerecycled. Een opgeslagen database wordt bij het laden automatisch gemigreerd naar de huidige versie (`src/lib/domain/migratie.ts`: tijdstempel-IDs → stabiele IDs, aanvullende dataset) en direct teruggeschreven.
+
 De database start **leeg** (alleen het factorenmodel en de gewichtsprofielen). Vul hem met:
 
 - **Partners → Importeren (Excel/CSV)** — herkent de kolommen van het Blauwhoed-overzicht houtbouwers en generieke lijsten (Organisatie, KVK, Plaats, Website, Rol, kenmerkkolommen); één klik laadt het meegeleverde overzicht (116 rijen, 103 organisaties).

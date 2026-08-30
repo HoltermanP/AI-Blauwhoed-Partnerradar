@@ -553,7 +553,7 @@ export function maakLegeDatabase(): Database {
 
 export function maakSeedDatabase(): Database {
   return {
-    versie: 1,
+    versie: 2,
     factoren: FACTOREN.map((x) => ({ ...x })),
     partners: SEED_PARTNERS,
     projecten: SEED_PROJECTEN,
