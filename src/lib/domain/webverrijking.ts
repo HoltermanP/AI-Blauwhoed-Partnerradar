@@ -1,7 +1,7 @@
 // Verrijking vanuit internet (US-29/US-31): zoekt de bedrijfswebsite als die ontbreekt, leest een paar openbare pagina's
 // (home, over ons, projecten, duurzaamheid) en doet voorstellen voor basisgegevens (website, KVK, plaats, omschrijving,
 // referenties) én factorwaarden. Alles komt als voorstel in de wachtrij; niets wordt automatisch overgenomen.
-import { extraheerVoorstellen, haalWebsiteOp, striptHtml } from "./enrichment";
+import { extraheerVoorstellen, striptHtml } from "./enrichment";
 import { leesBedrijfsgegevens } from "./webzoek";
 import type { EnrichmentVoorstel, Partner } from "./types";
 
@@ -29,7 +29,7 @@ export function pastBijNaam(naam: string, url: string) {
   return ts.some((t) => host.includes(t)) || host.includes(ts.join(""));
 }
 
-async function haalHtml(url: string, timeoutMs = 7000): Promise<string | null> {
+async function haalHtml(url: string, timeoutMs = 5000): Promise<string | null> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs), headers: { "user-agent": UA, accept: "text/html" }, redirect: "follow" });
     if (!res.ok || !/text\/html/i.test(res.headers.get("content-type") ?? "text/html")) return null;
@@ -43,7 +43,7 @@ async function haalHtml(url: string, timeoutMs = 7000): Promise<string | null> {
 export async function zoekWebsite(naam: string, plaats?: string): Promise<string | null> {
   const query = `"${naam}" ${plaats ?? ""} bouw woningbouw`.replace(/\s+/g, " ").trim();
   try {
-    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=nl-nl`, { headers: { "user-agent": `Mozilla/5.0 (compatible; ${UA})`, accept: "text/html" }, signal: AbortSignal.timeout(8000) });
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=nl-nl`, { headers: { "user-agent": `Mozilla/5.0 (compatible; ${UA})`, accept: "text/html" }, signal: AbortSignal.timeout(6000) });
     if (!res.ok) return null;
     const html = await res.text();
     const kandidaten: string[] = [];
@@ -90,8 +90,18 @@ export type WebVerrijkingResultaat = {
   voorstellen: EnrichmentVoorstel[];
 };
 
-/** Volledige internetverrijking van één partner. Netwerkfouten leveren gewoon minder voorstellen op. */
-export async function verrijkVanuitInternet(partner: Partner, nu = new Date()): Promise<WebVerrijkingResultaat> {
+/** Volledige internetverrijking van één partner, met een totaalbudget in ms. Netwerkfouten of tijdnood leveren gewoon minder voorstellen op. */
+export async function verrijkVanuitInternet(partner: Partner, nu = new Date(), budgetMs = 20000): Promise<WebVerrijkingResultaat> {
+  const leeg: WebVerrijkingResultaat = { website: partner.website ?? null, websiteGevonden: false, paginas: [], tekst: "", voorstellen: [] };
+  try {
+    return await Promise.race([verrijkIntern(partner, nu), new Promise<WebVerrijkingResultaat>((r) => setTimeout(() => r(leeg), budgetMs))]);
+  } catch (e) {
+    console.warn("Internetverrijking mislukt voor", partner.naam, e instanceof Error ? e.message : e);
+    return leeg;
+  }
+}
+
+async function verrijkIntern(partner: Partner, nu: Date): Promise<WebVerrijkingResultaat> {
   const voorstellen: EnrichmentVoorstel[] = [];
   const stempel = nu.getTime().toString(36);
   const maak = (veld: string, voorgesteld: EnrichmentVoorstel["voorgesteld"], huidig: EnrichmentVoorstel["huidig"], bronUrl: string, citaat: string, betrouwbaarheid: number, aantoonbaar = true): EnrichmentVoorstel => ({

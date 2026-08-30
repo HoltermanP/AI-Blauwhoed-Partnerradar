@@ -9,6 +9,9 @@ import type { EnrichmentVoorstel } from "@/lib/domain/types";
 import { datumTijd, waardeTekst } from "@/lib/format";
 import { getDb } from "@/lib/store";
 
+// Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
+export const maxDuration = 60;
+
 type VStatus = EnrichmentVoorstel["status"];
 const STATUSSEN: Array<{ id: VStatus; label: string }> = [
   { id: "open", label: "Open" },

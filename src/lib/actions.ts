@@ -279,7 +279,6 @@ export async function slaFinancieelOp(partnerId: string, fin: Omit<Financieel, "
 }
 
 // ---------- Partners importeren (Excel/CSV) ----------
-export type { ImportUitkomst };
 
 export async function importeerPartners(rijen: ImportRij[], bronnaam: string) {
   return veilig(async (): Promise<ImportUitkomst> => {
@@ -768,10 +767,14 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     await Promise.all(
       Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
         for (let p = wachtrij.shift(); p; p = wachtrij.shift()) {
-          const r = await verzamelVoorstellen(p, db, tekst);
-          nieuweVoorstellen.push(...r.voorstellen);
-          if (r.websiteGevonden) websitesGevonden++;
-          geraadpleegd.push({ partnerId: p.id, paginas: r.paginas });
+          try {
+            const r = await verzamelVoorstellen(p, db, tekst);
+            nieuweVoorstellen.push(...r.voorstellen);
+            if (r.websiteGevonden) websitesGevonden++;
+            geraadpleegd.push({ partnerId: p.id, paginas: r.paginas });
+          } catch (e) {
+            console.warn("Verrijking overgeslagen voor", p.naam, e instanceof Error ? e.message : e);
+          }
         }
       })
     );

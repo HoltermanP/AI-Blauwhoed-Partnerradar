@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import readXlsxFile, { readSheetNames } from "read-excel-file";
-import { importeerPartners, laadHoutbouwersOverzicht, type ImportUitkomst } from "@/lib/actions";
+import { importeerPartners, laadHoutbouwersOverzicht } from "@/lib/actions";
+import type { ImportUitkomst } from "@/lib/domain/partnerimport";
 import type { ImportRij } from "@/lib/domain/partnerimport";
 import { Melding } from "@/components/ui";
 

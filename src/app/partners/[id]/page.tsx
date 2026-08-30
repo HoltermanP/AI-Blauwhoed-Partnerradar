@@ -18,6 +18,9 @@ import StatusBeheer from "@/components/partners/StatusBeheer";
 import PartnerVerrijken from "@/components/partners/PartnerVerrijken";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
 
+// Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
+export const maxDuration = 60;
+
 const TABS = [
   { id: "profiel", label: "Profiel" },
   { id: "factoren", label: "Factoren" },
