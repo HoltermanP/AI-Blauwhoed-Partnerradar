@@ -26,18 +26,21 @@ async function laadUitNeon(): Promise<Database | null> {
   }
 }
 
+async function schrijfNaarNeon(db: Database) {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const sql = neon(process.env.DATABASE_URL);
+    await sql`insert into partnerdb_state (id, state, updated_at) values (1, ${JSON.stringify(db)}::jsonb, now()) on conflict (id) do update set state = excluded.state, updated_at = now()`;
+  } catch (e) {
+    console.warn("Neon opslaan mislukt:", e);
+  }
+}
+
 let opslaanTimer: ReturnType<typeof setTimeout> | null = null;
 function planOpslaan(db: Database) {
   if (!process.env.DATABASE_URL) return;
   if (opslaanTimer) clearTimeout(opslaanTimer);
-  opslaanTimer = setTimeout(async () => {
-    try {
-      const sql = neon(process.env.DATABASE_URL!);
-      await sql`insert into partnerdb_state (id, state, updated_at) values (1, ${JSON.stringify(db)}::jsonb, now()) on conflict (id) do update set state = excluded.state, updated_at = now()`;
-    } catch (e) {
-      console.warn("Neon opslaan mislukt:", e);
-    }
-  }, 500);
+  opslaanTimer = setTimeout(() => void schrijfNaarNeon(db), 500);
 }
 
 export async function getDb(): Promise<Database> {
@@ -58,13 +61,21 @@ export async function getDb(): Promise<Database> {
 /** Eerste start zonder opgeslagen staat: lege database plus de echte partners uit het Blauwhoed-overzicht houtbouwers en de aanvullende dataset (partners, projecten, websites). */
 async function maakStartDatabase(): Promise<Database> {
   const db = maakLegeDatabase();
+  // Deterministische IDs: op serverless-hosting (bijv. Vercel) bouwt elke instantie zijn eigen in-memory database op.
+  // Met tijdstempel-IDs zou een link van instantie A op instantie B een 404 geven; met vaste IDs zijn ze overal gelijk.
+  const tellers = new Map<string, number>();
+  const seedId = (prefix: string) => {
+    const n = (tellers.get(prefix) ?? 0) + 1;
+    tellers.set(prefix, n);
+    return `${prefix}-seed-${n}`;
+  };
   const bron = houtbouwers as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
   const partners = voegRijenSamen(bron.partners.map((p) => rijNaarPartner(p.values)).filter((p): p is NonNullable<typeof p> => Boolean(p)));
   // Eerst de lokale plaatsenlijst (direct), daarna op de achtergrond PDOK voor onbekende plaatsen zodat de eerste pagina niet wacht.
   const plaatsen = Array.from(new Set([...partners.map((p) => p.plaats).filter((x): x is string => Boolean(x)), ...aanvullingPlaatsen()]));
   const locaties = new Map<string, Geo | null>(plaatsen.map((pl) => [pl, lokaalGeocode(pl)]));
-  const u = voegPartnersToe(db, partners, locaties, bron.sourceFile, nieuwId);
-  const a = laadAanvulling(db, locaties, nieuwId);
+  const u = voegPartnersToe(db, partners, locaties, bron.sourceFile, seedId);
+  const a = laadAanvulling(db, locaties, seedId);
   void Promise.all(
     plaatsen
       .filter((pl) => !locaties.get(pl))
@@ -83,8 +94,9 @@ async function maakStartDatabase(): Promise<Database> {
         planOpslaan(db);
       })
   );
-  db.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "partner", entiteitId: "import", actie: "houtbouwersoverzicht en aanvulling geladen bij eerste start", details: `${u.nieuw} organisaties uit ${bron.sourceFile}; aanvulling: ${a.partnersNieuw} partners, ${a.projectenNieuw} projecten, ${a.websitesAangevuld} websites` });
-  planOpslaan(db);
+  db.audit.unshift({ id: seedId("audit"), op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "partner", entiteitId: "import", actie: "houtbouwersoverzicht en aanvulling geladen bij eerste start", details: `${u.nieuw} organisaties uit ${bron.sourceFile}; aanvulling: ${a.partnersNieuw} partners, ${a.projectenNieuw} projecten, ${a.websitesAangevuld} websites` });
+  // Direct wegschrijven (niet met vertraging): in een serverless-functie bestaat de timer na het antwoord mogelijk niet meer.
+  await schrijfNaarNeon(db);
   return db;
 }
 
@@ -115,10 +127,5 @@ export async function resetNaarSeed(gebruiker: Gebruiker, modus: "demo" | "leeg"
 export async function slaNuOp() {
   if (!process.env.DATABASE_URL || !g.__partnerDb) return;
   if (opslaanTimer) clearTimeout(opslaanTimer);
-  try {
-    const sql = neon(process.env.DATABASE_URL);
-    await sql`insert into partnerdb_state (id, state, updated_at) values (1, ${JSON.stringify(g.__partnerDb)}::jsonb, now()) on conflict (id) do update set state = excluded.state, updated_at = now()`;
-  } catch (e) {
-    console.warn("Neon opslaan mislukt:", e);
-  }
+  await schrijfNaarNeon(g.__partnerDb);
 }
