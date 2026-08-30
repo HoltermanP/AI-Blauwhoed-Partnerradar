@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import {
   ArrowDownUp,
+  ArrowUpRight,
   Building2,
   CheckCircle2,
   Database,
@@ -296,9 +297,9 @@ export default function PartnerApp({ initialDataset }: Props) {
   return (
     <main>
       <header className="topbar">
-        <div className="brandMark" aria-label="Blauwhoed">
-          <span />
-          Blauwhoed
+        <div className="brandMark">
+          <img src="/brand/logo.png" alt="Blauwhoed" width={188} height={20} />
+          <span>Partner Radar</span>
         </div>
         <nav aria-label="Hoofdnavigatie">
           <a>Werkwijze</a>
@@ -634,6 +635,26 @@ export default function PartnerApp({ initialDataset }: Props) {
           )}
         </section>
       </section>
+
+      <section className="footerBand" aria-label="Over Blauwhoed">
+        <div>
+          <p className="eyebrow">Samen ontwikkelen</p>
+          <h2>Wij ontwikkelen buurten waar mensen graag wonen.</h2>
+          <p>
+            Partner Radar helpt onze projectteams om per opgave snel de juiste bouwers, architecten en adviseurs te
+            vinden en actueel te houden.
+          </p>
+        </div>
+        <a href="https://www.blauwhoed.nl" target="_blank" rel="noreferrer">
+          Meer over Blauwhoed
+          <ArrowUpRight size={18} />
+        </a>
+      </section>
+
+      <footer className="siteFooter">
+        <img src="/brand/logo.png" alt="Blauwhoed" width={188} height={20} />
+        <span>Interne tool voor partnerselectie</span>
+      </footer>
     </main>
   );
 }

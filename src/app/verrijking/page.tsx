@@ -1,0 +1,132 @@
+// Epic 6: verrijking en AI-extractie (US-29 t/m US-31, US-48).
+import Link from "next/link";
+import ClaimsSplitser from "@/components/verrijking/ClaimsSplitser";
+import VerrijkingStart from "@/components/verrijking/VerrijkingStart";
+import VoorstelActies from "@/components/verrijking/VoorstelActies";
+import { Badge, Definities, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
+import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
+import type { EnrichmentVoorstel } from "@/lib/domain/types";
+import { datumTijd, waardeTekst } from "@/lib/format";
+import { getDb } from "@/lib/store";
+
+type VStatus = EnrichmentVoorstel["status"];
+const STATUSSEN: Array<{ id: VStatus; label: string }> = [
+  { id: "open", label: "Open" },
+  { id: "geaccepteerd", label: "Geaccepteerd" },
+  { id: "afgewezen", label: "Afgewezen" }
+];
+
+export default async function VerrijkingPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const { status: statusParam } = await searchParams;
+  const status: VStatus = STATUSSEN.some((s) => s.id === statusParam) ? (statusParam as VStatus) : "open";
+  const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
+  const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
+  const partners = db.partners.filter((p) => p.status !== "geblokkeerd").map((p) => ({ id: p.id, naam: p.naam }));
+  const voorstellen = db.verrijkingsvoorstellen.filter((v) => v.status === status);
+  const partnerNaam = (id: string) => db.partners.find((p) => p.id === id)?.naam ?? id;
+  const i = db.instellingen;
+
+  return (
+    <>
+      <PaginaKop eyebrow="Epic 6" titel="Verrijking" intro="Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Extracties krijgen bron 'web' met lage betrouwbaarheid en worden pas na controle overgenomen." />
+
+      <div className="raster raster-zij">
+        <Kaart titel="Verrijkingsronde">
+          <VerrijkingStart partners={partners} magBewerken={magBewerken} />
+        </Kaart>
+        <Kaart titel="Instellingen en beleid">
+          <Definities
+            items={[
+              ["Laatste ronde", datumTijd(i.laatsteVerrijking)],
+              ["Externe bronnen", i.externeBronnenToegestaan ? "toegestaan (website wordt opgehaald)" : "uit (alleen profieltekst of geplakte tekst)"],
+              ["Afgeschermde omgeving", i.afgeschermdeOmgeving ? "ja" : "nee"],
+              ["AI-provider", i.aiProvider]
+            ]}
+          />
+          <Melding soort="info">
+            US-48: de extractie draait lokaal met regels uit de taxonomie. Er gaan geen brongegevens naar modelleveranciers. Instellingen wijzig je onder <Link href="/beheer">Beheer</Link>.
+          </Melding>
+          <h4>Periodiek (US-31)</h4>
+          <p className="muted">
+            Een cron-job draait dezelfde ronde via <code>POST /api/verrijking/run</code> met header <code>x-cron-secret</code> (waarde uit <code>CRON_SECRET</code>). Alleen wijzigingen ten opzichte van het huidige profiel komen in de wachtrij.
+          </p>
+        </Kaart>
+      </div>
+
+      <Kaart titel="Wachtrij voorstellen">
+        <nav className="tabs" aria-label="Status">
+          {STATUSSEN.map((s) => (
+            <Link key={s.id} href={`/verrijking?status=${s.id}`} className={s.id === status ? "active" : ""} scroll={false}>
+              {s.label}
+              <span>{db.verrijkingsvoorstellen.filter((v) => v.status === s.id).length}</span>
+            </Link>
+          ))}
+        </nav>
+        {voorstellen.length ? (
+          <div className="tabelWrap">
+            <table className="tabel">
+              <thead>
+                <tr>
+                  <th>Partner</th>
+                  <th>Veld</th>
+                  <th>Huidig → voorgesteld</th>
+                  <th>Soort</th>
+                  <th className="num">Betrouwb.</th>
+                  <th>Bron en citaat</th>
+                  <th>Gevonden</th>
+                  {status === "open" ? <th /> : null}
+                </tr>
+              </thead>
+              <tbody>
+                {voorstellen.map((v) => (
+                  <tr key={v.id}>
+                    <td>
+                      <Link href={`/partners/${v.partnerId}`}>{partnerNaam(v.partnerId)}</Link>
+                    </td>
+                    <td>{v.veld}</td>
+                    <td>
+                      <span className="muted">{waardeTekst(v.huidig)}</span> → <b>{waardeTekst(v.voorgesteld)}</b>
+                    </td>
+                    <td>
+                      <Badge kleur={v.soort === "aantoonbaar" ? "groen" : "geel"}>{v.soort}</Badge>
+                    </td>
+                    <td className="num">{Math.round(v.betrouwbaarheid * 100)}%</td>
+                    <td className="citaatCel">
+                      <span className="muted">{v.bron}</span>
+                      {v.bronUrl ? (
+                        <>
+                          {" · "}
+                          {/^https?:/.test(v.bronUrl) ? (
+                            <a href={v.bronUrl} target="_blank" rel="noreferrer">
+                              {v.bronUrl}
+                            </a>
+                          ) : (
+                            v.bronUrl
+                          )}
+                        </>
+                      ) : null}
+                      <blockquote>{v.citaat}</blockquote>
+                    </td>
+                    <td>{datumTijd(v.gevondenOp)}</td>
+                    {status === "open" ? (
+                      <td>
+                        <VoorstelActies id={v.id} magBewerken={magBewerken} />
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Leeg titel={`Geen ${STATUSSEN.find((s) => s.id === status)?.label.toLowerCase()} voorstellen`} tekst={status === "open" ? "Start een verrijkingsronde om voorstellen te verzamelen." : undefined} />
+        )}
+      </Kaart>
+
+      <Kaart titel="Claims splitsen (US-30)">
+        <p className="muted">Scheid duurzaamheidsclaims in aantoonbaar (certificaat, meting, berekening) en geclaimd (marketingtekst). Draait volledig in de browser.</p>
+        <ClaimsSplitser />
+      </Kaart>
+    </>
+  );
+}
