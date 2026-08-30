@@ -239,14 +239,12 @@ export default function ProjectFormulier({ id, initieel, plaatsen, herkomstBesta
         <div className="rij">
           <label>
             Plaats
-            <select value={w.plaats} onChange={(e) => zet("plaats", e.target.value)} required>
-              <option value="">– kies –</option>
+            <input required list="project-plaatsen" value={w.plaats} onChange={(e) => zet("plaats", e.target.value)} placeholder="Plaats of adres (PDOK-geocoding)" />
+            <datalist id="project-plaatsen">
               {plaatsen.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
+                <option key={p} value={p} />
               ))}
-            </select>
+            </datalist>
           </label>
           <label>
             Aantal woningen

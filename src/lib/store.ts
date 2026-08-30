@@ -1,7 +1,7 @@
 // Opslag: in-memory database met optionele Neon-snapshot (JSONB). Elke mutatie loopt via `muteer` en schrijft een auditregel (US-46).
 // Het genormaliseerde Postgres-schema (PostGIS + pgvector) staat in db/schema.sql voor de productiefase.
 import { neon } from "@neondatabase/serverless";
-import { maakSeedDatabase } from "./domain/seed";
+import { maakLegeDatabase, maakSeedDatabase } from "./domain/seed";
 import type { AuditEntry, Database, Gebruiker } from "./domain/types";
 
 type Globaal = typeof globalThis & { __partnerDb?: Database; __partnerDbGeladen?: Promise<void> };
@@ -38,7 +38,8 @@ export async function getDb(): Promise<Database> {
   if (g.__partnerDb) return g.__partnerDb;
   if (!g.__partnerDbGeladen) {
     g.__partnerDbGeladen = (async () => {
-      g.__partnerDb = (await laadUitNeon()) ?? maakSeedDatabase();
+      // Standaard leeg (echte data via invoer/import/discovery). DEMO_DATA=1 laadt de fictieve demoset.
+      g.__partnerDb = (await laadUitNeon()) ?? (process.env.DEMO_DATA === "1" ? maakSeedDatabase() : maakLegeDatabase());
     })();
   }
   await g.__partnerDbGeladen;
@@ -61,8 +62,21 @@ export async function muteer<T>(gebruiker: Gebruiker, audit: Omit<AuditEntry, "i
   return resultaat;
 }
 
-export async function resetNaarSeed(gebruiker: Gebruiker) {
-  g.__partnerDb = maakSeedDatabase();
-  g.__partnerDb.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: gebruiker.naam, gebruikersrol: gebruiker.rol, entiteit: "database", entiteitId: "seed", actie: "reset naar demodata" });
+export async function resetNaarSeed(gebruiker: Gebruiker, modus: "demo" | "leeg" = "leeg") {
+  g.__partnerDb = modus === "demo" ? maakSeedDatabase() : maakLegeDatabase();
+  g.__partnerDb.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: gebruiker.naam, gebruikersrol: gebruiker.rol, entiteit: "database", entiteitId: "seed", actie: modus === "demo" ? "demodata geladen" : "database leeggemaakt" });
   planOpslaan(g.__partnerDb);
+  await slaNuOp();
+}
+
+/** Direct wegschrijven naar Neon (na grote wijzigingen zoals import of reset). */
+export async function slaNuOp() {
+  if (!process.env.DATABASE_URL || !g.__partnerDb) return;
+  if (opslaanTimer) clearTimeout(opslaanTimer);
+  try {
+    const sql = neon(process.env.DATABASE_URL);
+    await sql`insert into partnerdb_state (id, state, updated_at) values (1, ${JSON.stringify(g.__partnerDb)}::jsonb, now()) on conflict (id) do update set state = excluded.state, updated_at = now()`;
+  } catch (e) {
+    console.warn("Neon opslaan mislukt:", e);
+  }
 }

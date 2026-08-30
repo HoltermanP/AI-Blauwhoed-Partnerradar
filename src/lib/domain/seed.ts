@@ -537,6 +537,20 @@ export const SEED_EVALUATIES: Evaluatie[] = [
   ev({ id: "ev11", engagementId: "e19", partnerId: "p-installo", projectId: "proj-breezicht", datum: "2025-02-01", kwaliteit: 3, planning: 2, budget: 2, samenwerking: 3, duurzaamheid: 3, toelichting: "Late oplevering, 18% meerwerk, capaciteitsproblemen." })
 ];
 
+/** Lege productiedatabase: alleen configuratie (factorenmodel, gewichtsprofielen), geen partners of projecten. */
+export function maakLegeDatabase(): Database {
+  const db = maakSeedDatabase();
+  return {
+    ...db,
+    partners: [],
+    projecten: [],
+    engagements: [],
+    evaluaties: [],
+    audit: [{ id: "a0", op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "init", actie: "lege database aangemaakt" }],
+    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true }
+  };
+}
+
 export function maakSeedDatabase(): Database {
   return {
     versie: 1,

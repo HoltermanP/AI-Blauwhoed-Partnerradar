@@ -2,7 +2,8 @@
 // US-09: rollen aanvinken en per rol eisen scherpstellen. US-10: gewichten per project (som = 100 per rol), gewichtsprofiel als startpunt.
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { slaProjectEisenOp } from "@/lib/actions";
+import Link from "next/link";
+import { leidProjectEisenAfActie, slaProjectEisenOp } from "@/lib/actions";
 import { valideerGewichten } from "@/lib/domain/matching";
 import type { Factor, FactorWaarde, Gewichtsprofiel, ProjectRequirement, RequirementFactor, Rol } from "@/lib/domain/types";
 import { ROLLEN } from "@/lib/domain/types";
@@ -100,6 +101,25 @@ export default function EisenEditor({ projectId, eisen, gewichtsprofielId, profi
   const [fout, setFout] = useState<string | null>(null);
   const [succes, setSucces] = useState<string | null>(null);
   const [bezig, start] = useTransition();
+  const [afleidToelichting, setAfleidToelichting] = useState<string[]>([]);
+
+  // Factoren vaststellen op basis van projectinformatie; het voorstel landt in de editor en wordt pas opgeslagen na bevestiging.
+  function leidAf() {
+    setFout(null);
+    setSucces(null);
+    start(async () => {
+      const res = await leidProjectEisenAfActie(projectId);
+      if (!res.ok || !res.data) return setFout(res.ok ? "Geen voorstel." : res.fout);
+      const v = res.data;
+      setProfielId(v.profielId);
+      setStaat(() => {
+        const n = {} as RolStaat;
+        ROLLEN.forEach((r) => (n[r] = v.eisen.find((e) => e.rol === r)));
+        return n;
+      });
+      setAfleidToelichting(v.toelichting);
+    });
+  }
 
   const actieveFactoren = useMemo(() => factoren.filter((f) => f.actief && f.type !== "semantisch"), [factoren]);
   const factorenVoorRol = (rol: Rol) => actieveFactoren.filter((f) => !f.rollen.length || f.rollen.includes(rol));
@@ -173,6 +193,24 @@ export default function EisenEditor({ projectId, eisen, gewichtsprofielId, profi
     <div className="eisenEditor">
       {!magBewerken ? <Melding soort="info">U heeft geen recht om eisen te bewerken (rol zonder &apos;bewerken&apos;). De editor is alleen-lezen.</Melding> : null}
       <fieldset disabled={!magBewerken} className="formulier" style={{ border: 0, padding: 0, margin: 0 }}>
+        <div className="formulierActies">
+          <button type="button" className="knop knop-secundair klein" onClick={leidAf} disabled={bezig}>
+            Factoren vaststellen uit projectinformatie
+          </button>
+          <Link href={`/partners?project=${projectId}`} className="knop knop-tekst klein">
+            Partners filteren op dit project →
+          </Link>
+          <span className="muted klein-tekst">Type, omvang, bouwstijl, prijssegment, ambitie en omschrijving worden vertaald naar eisen per rol; u controleert en slaat op.</span>
+        </div>
+        {afleidToelichting.length ? (
+          <Melding soort="info">
+            <ul className="lijst klein-tekst" style={{ margin: 0 }}>
+              {afleidToelichting.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </Melding>
+        ) : null}
         <div className="rij">
           <label>
             Gewichtsprofiel als startpunt (US-10)

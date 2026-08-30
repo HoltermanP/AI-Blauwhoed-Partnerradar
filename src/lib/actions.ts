@@ -3,11 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { GEBRUIKERS, vereisRecht } from "./auth";
-import { afwijsPenalty, demoConnector, kandidaatNaarPartner, samenvattingVoor, vindDubbel } from "./domain/discovery";
+import { afwijsPenalty, demoConnector, kandidaatNaarPartner, normaliseerNaam, samenvattingVoor, vindDubbel } from "./domain/discovery";
 import { extraheerVoorstellen, haalWebsiteOp } from "./domain/enrichment";
 import { extraheerProjectprofiel } from "./domain/extractie";
+import { kvkConnector } from "./domain/kvk";
+import { leidEisenAf } from "./domain/projectfactoren";
 import { importeerEngagements } from "./domain/csv";
-import { geocode } from "./domain/geo";
+import { geocodeer } from "./domain/geocode";
+import { rijNaarPartner, voegRijenSamen, type ImportRij } from "./domain/partnerimport";
+import { webzoekConnector } from "./domain/webzoek";
+import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting } from "./ai";
+import type { BronConnector } from "./domain/discovery";
+import { slaNuOp } from "./store";
 import { matchProject, valideerGewichten } from "./domain/matching";
 import { risicoklasse } from "./domain/signalen";
 import { stelTeamSamen } from "./domain/team";
@@ -52,10 +59,10 @@ export async function wisselGebruiker(id: string) {
   revalidatePath("/", "layout");
 }
 
-export async function resetDemo() {
+export async function resetDemo(modus: "demo" | "leeg" = "leeg") {
   return veilig(async () => {
     const g = await vereisRecht("beheer");
-    await resetNaarSeed(g);
+    await resetNaarSeed(g, modus);
     revalidatePath("/", "layout");
   });
 }
@@ -83,12 +90,13 @@ export async function slaPartnerOp(id: string | null, invoer: PartnerInvoer) {
   return veilig(async () => {
     const g = await vereisRecht("bewerken");
     const kvk = invoer.kvk.replace(/\D/g, "");
-    if (kvk.length !== 8) throw new Error("KVK-nummer moet uit 8 cijfers bestaan.");
+    if (kvk && kvk.length !== 8) throw new Error("KVK-nummer moet uit 8 cijfers bestaan (of leeg blijven tot het bekend is).");
     const db = await getDb();
-    const dubbel = db.partners.find((p) => p.kvk === kvk && p.id !== id);
-    if (dubbel) throw new Error(`KVK ${kvk} bestaat al: ${dubbel.naam} (${dubbel.id}).`);
-    const geo = geocode(invoer.vestigingsplaats);
-    if (!geo) throw new Error(`Vestigingsplaats '${invoer.vestigingsplaats}' is niet bekend in de geocoder. Gebruik een grote plaats of voeg deze toe in geo.ts.`);
+    const dubbel = kvk ? db.partners.find((p) => p.kvk === kvk && p.id !== id) : db.partners.find((p) => normaliseerNaam(p.naam) === normaliseerNaam(invoer.naam) && p.id !== id);
+    if (dubbel) throw new Error(`${kvk ? `KVK ${kvk}` : "Deze naam"} bestaat al: ${dubbel.naam} (${dubbel.id}).`);
+    const gevonden = (invoer.adres ? await geocodeer(`${invoer.adres}, ${invoer.vestigingsplaats}`) : null) ?? (await geocodeer(invoer.vestigingsplaats));
+    if (!gevonden) throw new Error(`Vestigingsplaats '${invoer.vestigingsplaats}' kon niet worden gevonden (PDOK Locatieserver). Controleer de spelling.`);
+    const geo = gevonden.locatie;
     return muteer(g, { entiteit: "partner", entiteitId: id ?? "nieuw", actie: id ? "bijgewerkt" : "aangemaakt", details: invoer.naam }, (db) => {
       const nu = new Date().toISOString();
       if (id) {
@@ -264,6 +272,81 @@ export async function slaFinancieelOp(partnerId: string, fin: Omit<Financieel, "
   });
 }
 
+// ---------- Partners importeren (Excel/CSV) ----------
+export type ImportUitkomst = { gelezen: number; nieuw: number; bijgewerkt: number; overgeslagen: Array<{ naam: string; reden: string }>; zonderLocatie: number };
+
+export async function importeerPartners(rijen: ImportRij[], bronnaam: string) {
+  return veilig(async (): Promise<ImportUitkomst> => {
+    const g = await vereisRecht("bewerken");
+    const db = await getDb();
+    const gelezen = rijen.map((r) => rijNaarPartner(r)).filter((p): p is NonNullable<typeof p> => Boolean(p));
+    const partners = voegRijenSamen(gelezen);
+    const uitkomst: ImportUitkomst = { gelezen: rijen.length, nieuw: 0, bijgewerkt: 0, overgeslagen: [], zonderLocatie: 0 };
+    // Geocodeer vooraf (PDOK, met cache); onbekende plaats -> midden van Nederland met tag.
+    const locaties = new Map<string, Awaited<ReturnType<typeof geocodeer>>>();
+    for (const p of partners) if (p.plaats && !locaties.has(p.plaats)) locaties.set(p.plaats, await geocodeer(p.plaats));
+    const nu = new Date().toISOString();
+    await muteer(g, { entiteit: "partner", entiteitId: "import", actie: "partners geïmporteerd", details: `${bronnaam}: ${partners.length} organisaties` }, (db) => {
+      partners.forEach((p) => {
+        const bestaand = db.partners.find((x) => (p.kvk && x.kvk === p.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(p.naam));
+        const geo = p.plaats ? locaties.get(p.plaats) : null;
+        const factoren: PartnerFactor[] = p.factoren.map((f) => ({ ...f, peildatum: nu.slice(0, 10) }));
+        if (bestaand) {
+          // Alleen aanvullen, nooit overschrijven wat al vastligt.
+          bestaand.website = bestaand.website || p.website;
+          bestaand.kvk = bestaand.kvk || p.kvk || "";
+          bestaand.rollen = Array.from(new Set([...bestaand.rollen, ...p.rollen]));
+          bestaand.omschrijving = bestaand.omschrijving || p.omschrijving;
+          bestaand.tags = Array.from(new Set([...bestaand.tags, ...p.tags]));
+          factoren.forEach((f) => {
+            if (!bestaand.factoren.some((x) => x.factorId === f.factorId && (x.optieId ?? "") === (f.optieId ?? ""))) bestaand.factoren.push(f);
+          });
+          bestaand.bronnen.push({ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" });
+          bestaand.bijgewerktOp = nu;
+          uitkomst.bijgewerkt++;
+          return;
+        }
+        if (!geo) uitkomst.zonderLocatie++;
+        db.partners.push({
+          id: nieuwId("p"),
+          naam: p.naam,
+          kvk: p.kvk ?? "",
+          rechtsvorm: p.naam.match(/\bB\.?V\.?\b/i) ? "B.V." : p.naam.match(/\bN\.?V\.?\b/i) ? "N.V." : "Onbekend",
+          vestigingsplaats: p.plaats ?? "",
+          locatie: geo?.locatie ?? { lat: 52.15, lng: 5.38 },
+          werkgebiedKm: 150,
+          status: "bekend",
+          rollen: p.rollen,
+          website: p.website,
+          omschrijving: p.omschrijving,
+          referenties: p.referenties,
+          medewerkers: p.medewerkers,
+          omzet: p.omzet,
+          beschikbaarheid: [],
+          factoren,
+          certificaten: [],
+          contactpersonen: [],
+          kwalificatie: [],
+          bronnen: [{ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" }, ...p.bronvermelding.map((b) => ({ url: b, opgehaaldOp: nu.slice(0, 10), soort: "bronvermelding" }))],
+          tags: [...p.tags, ...(geo ? [] : ["locatie onbekend"])],
+          aangemaaktOp: nu,
+          bijgewerktOp: nu
+        });
+        uitkomst.nieuw++;
+      });
+    });
+    await slaNuOp();
+    revalidatePath("/partners");
+    return uitkomst;
+  });
+}
+
+/** Laadt het Blauwhoed-overzicht houtbouwers (uit de meegeleverde Excel-export) als echte partners. */
+export async function laadHoutbouwersOverzicht() {
+  const seed = (await import("@/data/houtbouwers-seed.json")).default as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
+  return importeerPartners(seed.partners.map((p) => p.values), seed.sourceFile);
+}
+
 // ---------- Factorbeheer (US-04) ----------
 export async function slaFactorOp(factor: Factor) {
   return veilig(async () => {
@@ -356,8 +439,9 @@ export type ProjectInvoer = Omit<Project, "id" | "locatie" | "aangemaaktOp" | "b
 export async function slaProjectOp(id: string | null, invoer: ProjectInvoer) {
   return veilig(async () => {
     const g = await vereisRecht("bewerken");
-    const geo = geocode(invoer.plaats);
-    if (!geo) throw new Error(`Plaats '${invoer.plaats}' is niet bekend in de geocoder.`);
+    const gevonden = await geocodeer(invoer.plaats);
+    if (!gevonden) throw new Error(`Plaats '${invoer.plaats}' kon niet worden gevonden (PDOK Locatieserver).`);
+    const geo = gevonden.locatie;
     return muteer(g, { entiteit: "project", entiteitId: id ?? "nieuw", actie: id ? "bijgewerkt" : "aangemaakt", details: invoer.naam }, (db) => {
       const nu = new Date().toISOString();
       const { plaats, eisen, ...rest } = invoer;
@@ -399,7 +483,39 @@ export async function slaProjectEisenOp(projectId: string, eisen: ProjectRequire
 export async function extraheerProject(tekst: string) {
   return veilig(async () => {
     await vereisRecht("bewerken");
-    return extraheerProjectprofiel(tekst);
+    const regels = extraheerProjectprofiel(tekst);
+    const ai = await aiProjectExtractie(tekst);
+    if (!ai) return regels;
+    const types = ["grondgebonden", "appartementen", "hoogbouw", "transformatie", "zorgwonen", "gebiedsontwikkeling"];
+    const stijlen = ["traditioneel", "modern", "industrieel", "dorps", "hoogstedelijk"];
+    const segmenten = ["sociaal", "middenhuur", "koop", "vrije sector"];
+    return {
+      velden: {
+        naam: ai.naam ?? regels.velden.naam,
+        type: (types.includes(ai.type ?? "") ? ai.type : regels.velden.type) as typeof regels.velden.type,
+        plaats: ai.plaats ?? regels.velden.plaats,
+        woningen: ai.woningen ?? regels.velden.woningen,
+        prijssegment: (ai.prijssegment?.filter((x) => segmenten.includes(x)) as typeof regels.velden.prijssegment) ?? regels.velden.prijssegment,
+        bouwstijl: (stijlen.includes(ai.bouwstijl ?? "") ? ai.bouwstijl : regels.velden.bouwstijl) as typeof regels.velden.bouwstijl,
+        ambitieDuurzaamheid: (ai.ambitieDuurzaamheid && ai.ambitieDuurzaamheid >= 1 && ai.ambitieDuurzaamheid <= 5 ? ai.ambitieDuurzaamheid : regels.velden.ambitieDuurzaamheid) as typeof regels.velden.ambitieDuurzaamheid,
+        start: ai.start ?? regels.velden.start,
+        eind: ai.eind ?? regels.velden.eind,
+        omschrijving: ai.omschrijving ?? regels.velden.omschrijving
+      },
+      herkomst: ai.herkomst.length ? ai.herkomst : regels.herkomst,
+      provider: "Claude (claude-opus-5)"
+    };
+  });
+}
+
+/** Factoren vaststellen op basis van projectinformatie; geeft een voorstel terug dat de gebruiker in de editor bevestigt. */
+export async function leidProjectEisenAfActie(projectId: string) {
+  return veilig(async () => {
+    await vereisRecht("bewerken");
+    const db = await getDb();
+    const project = db.projecten.find((p) => p.id === projectId);
+    if (!project) throw new Error("Project niet gevonden.");
+    return leidEisenAf(project, db.factoren, db.gewichtsprofielen);
   });
 }
 
@@ -513,29 +629,52 @@ export async function slaEvaluatieOp(ev: Omit<Evaluatie, "id" | "door" | "datum"
 }
 
 // ---------- Discovery (Epic 5) ----------
-export async function startDiscovery(projectId: string | null, rollen: Rol[], trefwoorden: string) {
-  return veilig(async () => {
+export type DiscoveryUitkomst = { gevonden: number; nieuw: number; alInWachtrij: number; mogelijkeDubbelen: number; bronnen: string[]; regio?: string };
+
+export async function startDiscovery(projectId: string | null, rollen: Rol[], trefwoorden: string, regio?: string) {
+  return veilig(async (): Promise<DiscoveryUitkomst> => {
     const g = await vereisRecht("bewerken");
     const db = await getDb();
     const project = projectId ? db.projecten.find((p) => p.id === projectId) : undefined;
     const woorden = [trefwoorden, project?.omschrijving ?? "", project?.type ?? ""].join(" ").split(/\s+/).filter(Boolean);
-    const gevonden = await demoConnector.zoek({ rollen, trefwoorden: woorden });
+    const connectors: BronConnector[] = [];
+    if (db.instellingen.externeBronnenToegestaan) connectors.push(webzoekConnector);
+    if (process.env.KVK_API_KEY && db.instellingen.externeBronnenToegestaan) connectors.push(kvkConnector(process.env.KVK_API_KEY));
+    if (process.env.DEMO_DATA === "1") connectors.push(demoConnector);
+    if (!connectors.length) throw new Error("Geen bronnen actief: sta externe bronnen toe in Beheer (webzoek) en/of zet KVK_API_KEY.");
+    const gevonden = (await Promise.all(connectors.map((c) => c.zoek({ rollen, trefwoorden: woorden, regio: regio || undefined })))).flat();
+    // Locatie en AI-samenvatting vóór de mutatie (async), zodat de mutatie zelf synchroon blijft.
+    const verrijkt = await Promise.all(
+      gevonden.map(async (k) => {
+        const locatie = k.locatie ?? (k.vestigingsplaats ? (await geocodeer(k.vestigingsplaats))?.locatie : undefined);
+        const tekst = String(k.ruweData.websiteTekst ?? k.ruweData.profiel ?? "");
+        const samenvatting = aiBeschikbaar() && tekst ? await aiSamenvatting({ ...k, id: "", status: "nieuw", opgehaaldOp: "" }, project, tekst) : null;
+        return { ...k, locatie, samenvatting: samenvatting ?? undefined };
+      })
+    );
     const nu = new Date().toISOString();
-    const aantal = await muteer(g, { entiteit: "discovery", entiteitId: projectId ?? "algemeen", actie: "zoekopdracht gestart", details: `${rollen.join(", ")}; ${trefwoorden}` }, (db) => {
-      let nieuw = 0;
-      gevonden.forEach((k) => {
-        if (db.kandidaten.some((x) => x.kvk && x.kvk === k.kvk && x.status !== "afgewezen")) return;
+    const uitkomst = await muteer(g, { entiteit: "discovery", entiteitId: projectId ?? "algemeen", actie: "zoekopdracht gestart", details: `${rollen.join(", ")}; ${trefwoorden}${regio ? `; regio ${regio}` : ""}` }, (db) => {
+      const u: DiscoveryUitkomst = { gevonden: gevonden.length, nieuw: 0, alInWachtrij: 0, mogelijkeDubbelen: 0, bronnen: connectors.map((c) => c.naam), regio: regio || undefined };
+      verrijkt.forEach((k) => {
+        const bestaand = db.kandidaten.find((x) => (x.kvk && x.kvk === k.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(k.naam));
+        if (bestaand) {
+          u.alInWachtrij++;
+          // Koppel een bestaande, nog open kandidaat ook aan dit project zodat hij in de projectcontext verschijnt.
+          if (projectId && bestaand.status === "nieuw" && !bestaand.projectId) bestaand.projectId = projectId;
+          return;
+        }
         const dubbel = vindDubbel(k, db.partners);
+        if (dubbel) u.mogelijkeDubbelen++;
         const penalty = afwijsPenalty(k, db.afwijsredenen);
         const kandidaat = { ...k, id: nieuwId("kand"), status: "nieuw" as const, opgehaaldOp: nu, projectId: projectId ?? undefined, mogelijkeDubbelVan: dubbel ? `${dubbel.partner.id}|${dubbel.reden}` : undefined, voorlopigeScore: Math.max(0, (k.voorlopigeScore ?? 0) - penalty) };
-        kandidaat.samenvatting = samenvattingVoor(kandidaat, project);
+        kandidaat.samenvatting = k.samenvatting ?? samenvattingVoor(kandidaat, project);
         db.kandidaten.push(kandidaat);
-        nieuw++;
+        u.nieuw++;
       });
-      return nieuw;
+      return u;
     });
     revalidatePath("/discovery");
-    return aantal;
+    return uitkomst;
   });
 }
 
@@ -593,6 +732,17 @@ export async function startVerrijking(partnerId?: string, tekst?: string) {
       const v = extraheerVoorstellen(p, bronTekst, bronUrl);
       nieuweVoorstellen.push(...v);
       totaal += v.length;
+      if (aiBeschikbaar()) {
+        const ai = await aiFactorExtractie(p.naam, bronTekst, db.factoren);
+        (ai ?? []).forEach((a) => {
+          const f = db.factoren.find((x) => x.id === a.factorId)!;
+          const optieLabel = a.optieId ? f.opties?.find((o) => o.id === a.optieId)?.label : undefined;
+          const huidig = p.factoren.find((x) => x.factorId === a.factorId && (x.optieId ?? "") === (a.optieId ?? ""));
+          if (huidig && JSON.stringify(huidig.waarde) === JSON.stringify(a.waarde)) return;
+          nieuweVoorstellen.push({ id: nieuwId("ev-ai"), partnerId: p.id, factorId: a.factorId, veld: optieLabel ? `${f.naam}: ${optieLabel}` : f.naam, huidig: huidig?.waarde ?? null, voorgesteld: a.waarde, bron: "web", bronUrl, betrouwbaarheid: a.aantoonbaar ? 0.6 : 0.35, soort: a.aantoonbaar ? "aantoonbaar" : "geclaimd", citaat: `[Claude] ${a.citaat}`, status: "open", gevondenOp: new Date().toISOString() });
+          totaal++;
+        });
+      }
     }
     await muteer(g, { entiteit: "verrijking", entiteitId: partnerId ?? "alle", actie: "verrijkingsronde", details: `${totaal} voorstellen` }, (db) => {
       const bestaand = new Set(db.verrijkingsvoorstellen.filter((x) => x.status === "open").map((x) => `${x.partnerId}|${x.factorId}|${JSON.stringify(x.voorgesteld)}`));

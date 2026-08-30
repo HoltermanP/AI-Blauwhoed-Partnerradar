@@ -5,6 +5,7 @@ import KandidaatKaart from "@/components/discovery/KandidaatKaart";
 import { Badge, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { demoConnector } from "@/lib/domain/discovery";
+import { webzoekConnector } from "@/lib/domain/webzoek";
 import { signalenVoor } from "@/lib/domain/signalen";
 import type { DiscoveryStatus } from "@/lib/domain/types";
 import { datumTijd } from "@/lib/format";
@@ -43,8 +44,22 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
         <Kaart titel="Bronnen en beleid">
           <ul className="lijst">
             <li>
-              <b>{demoConnector.naam}</b>
-              <p className="muted">{demoConnector.omschrijving}</p>
+              <b>{webzoekConnector.naam}</b> {db.instellingen.externeBronnenToegestaan ? <Badge kleur="groen">actief</Badge> : <Badge kleur="geel">uit</Badge>}
+              <p className="muted">{webzoekConnector.omschrijving}</p>
+            </li>
+            <li>
+              <b>KVK Zoeken API</b> {process.env.KVK_API_KEY && db.instellingen.externeBronnenToegestaan ? <Badge kleur="groen">actief</Badge> : <Badge kleur="grijs">KVK_API_KEY niet gezet</Badge>}
+              <p className="muted">Officieel handelsregister (developers.kvk.nl); zoekt op branchetermen per rol, trefwoorden en regio.</p>
+            </li>
+            {process.env.DEMO_DATA === "1" ? (
+              <li>
+                <b>{demoConnector.naam}</b> <Badge kleur="geel">demo</Badge>
+                <p className="muted">{demoConnector.omschrijving}</p>
+              </li>
+            ) : null}
+            <li>
+              <b>AI-samenvatting</b> {process.env.ANTHROPIC_API_KEY ? <Badge kleur="groen">Claude actief</Badge> : <Badge kleur="grijs">regels (ANTHROPIC_API_KEY niet gezet)</Badge>}
+              <p className="muted">Per kandidaat: wat doet het bedrijf, referenties, waarom past het, wat is onzeker — op basis van de openbare websitetekst.</p>
             </li>
           </ul>
           <Melding soort="info">
@@ -52,7 +67,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
           </Melding>
           <p>
             Externe bronnen: {db.instellingen.externeBronnenToegestaan ? <Badge kleur="groen">toegestaan</Badge> : <Badge kleur="geel">uit</Badge>}{" "}
-            <span className="muted">— aan/uit via <Link href="/beheer">Beheer</Link>. Zolang externe bronnen uit staan, levert alleen de demo-connector kandidaten.</span>
+            <span className="muted">— aan/uit via <Link href="/beheer">Beheer</Link>. Zolang externe bronnen uit staan, worden er geen websites of registers geraadpleegd.</span>
           </p>
           <p className="muted">
             Afgeschermde omgeving: {db.instellingen.afgeschermdeOmgeving ? "ja" : "nee"} · AI-provider: {db.instellingen.aiProvider} (US-48)

@@ -6,8 +6,13 @@ import { afstandKm, geocode, PLAATSEN } from "@/lib/domain/geo";
 import { ROLLEN, type CertificaatType, type Partner, type PartnerStatus, type Rol } from "@/lib/domain/types";
 import { getal, hoofdletter, ROL_LABEL, STATUS_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
-import { Badge, Kaart, Knop, Leeg, PaginaKop, StatusBadge } from "@/components/ui";
+import { Badge, Kaart, Knop, Leeg, Melding, PaginaKop, StatusBadge } from "@/components/ui";
 import { CERTIFICAAT_TYPEN, certificaatStatus } from "@/components/partners/certificaten";
+import KenmerkFilters from "@/components/partners/KenmerkFilters";
+import PartnerImport from "@/components/partners/PartnerImport";
+import { parseKenmerken, type KenmerkEis } from "@/components/partners/kenmerken";
+import { leidEisenAf } from "@/lib/domain/projectfactoren";
+
 
 const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd"];
 
@@ -24,18 +29,36 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
   const plaats = (sp.plaats ?? "").trim();
   const straal = sp.straal ? Number(sp.straal) : undefined;
   const centrum = plaats ? geocode(plaats) : null;
-  const factorId = sp.factor && db.factoren.some((f) => f.id === sp.factor) ? sp.factor : undefined;
-  const minimum = sp.min !== undefined && sp.min !== "" ? Number(sp.min) : undefined;
-  const factor = factorId ? db.factoren.find((f) => f.id === factorId) : undefined;
+  // Kenmerken: meerdere factoren tegelijk (EN). Oud formaat factor+min blijft werken. Met ?project= worden ze uit het project afgeleid.
+  const project = sp.project ? db.projecten.find((p) => p.id === sp.project) : undefined;
+  const afgeleid = project ? leidEisenAf(project, db.factoren, db.gewichtsprofielen) : null;
+  let kenmerken: KenmerkEis[] = parseKenmerken(sp.k);
+  if (!kenmerken.length && sp.factor) kenmerken = [{ factorId: sp.factor, optieId: "", min: sp.min ?? "" }];
+  if (!kenmerken.length && afgeleid) kenmerken = afgeleid.kenmerken.map((k) => ({ factorId: k.factorId, optieId: k.optieId ?? "", min: k.min !== undefined ? String(k.min) : "" }));
+  kenmerken = kenmerken.filter((k) => db.factoren.some((f) => f.id === k.factorId));
+  const kenmerkFactorenActief = kenmerken.map((k) => db.factoren.find((f) => f.id === k.factorId)!);
+  const kmode: "alle" | "een" = sp.kmode === "een" ? "een" : "alle";
+  const factorId = kenmerken.length ? "meerdere" : undefined;
+  const factor = kenmerken.length ? { naam: kenmerken.map((k, i) => `${kenmerkFactorenActief[i].naam}${k.optieId ? ` (${k.optieId})` : ""}${k.min ? ` ${"lagerIsBeter" in kenmerkFactorenActief[i].schaal && (kenmerkFactorenActief[i].schaal as { lagerIsBeter?: boolean }).lagerIsBeter ? "≤" : "≥"} ${k.min}` : ""}`).join(" én "), omschrijving: "alle kenmerken moeten kloppen" } : undefined;
+  const voldoetAan = (f: { waarde: unknown; optieId?: string }, k: KenmerkEis, fac: (typeof db.factoren)[number]) => {
+    if (k.optieId && f.optieId !== k.optieId) return false;
+    if (k.min === "") return true;
+    if (typeof f.waarde !== "number") return false;
+    const lager = "lagerIsBeter" in fac.schaal && (fac.schaal as { lagerIsBeter?: boolean }).lagerIsBeter;
+    return lager ? f.waarde <= Number(k.min) : f.waarde >= Number(k.min);
+  };
 
   const rijen = db.partners
     .map((p) => {
       const afgeleid = leidFactorenAf(p, db, nu);
-      const eff = factorId ? effectieveFactoren(p, db, nu).filter((f) => f.factorId === factorId) : [];
+      const alle = kenmerken.length ? effectieveFactoren(p, db, nu) : [];
+      const eff = alle.filter((f) => kenmerken.some((k) => k.factorId === f.factorId && (!k.optieId || f.optieId === k.optieId)));
+      const perKenmerk = kenmerken.map((k, i) => alle.some((f) => f.factorId === k.factorId && voldoetAan(f, k, kenmerkFactorenActief[i])));
+      const voldoet = kmode === "een" ? perKenmerk.some(Boolean) : perKenmerk.every(Boolean);
       const afstand = centrum ? afstandKm(centrum, p.locatie) : null;
-      return { p, afgeleid, eff, afstand };
+      return { p, afgeleid, eff, afstand, voldoet, perKenmerk };
     })
-    .filter(({ p, eff, afstand }) => {
+    .filter(({ p, afstand, voldoet }) => {
       if (q) {
         const tekst = [p.naam, p.vestigingsplaats, p.kvk, p.omschrijving, ...p.tags].join(" ").toLowerCase();
         if (!tekst.includes(q)) return false;
@@ -44,16 +67,14 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       if (status && p.status !== status) return false;
       if (cert && !p.certificaten.some((c) => c.type === cert && new Date(c.geldigTot) >= nu)) return false;
       if (centrum && afstand !== null && straal && afstand > straal) return false;
-      if (factorId) {
-        if (!eff.length) return false;
-        if (minimum !== undefined && !eff.some((f) => typeof f.waarde === "number" && f.waarde >= minimum)) return false;
-      }
+      if (kenmerken.length && !voldoet) return false;
       return true;
     })
     .sort((a, b) => a.p.naam.localeCompare(b.p.naam));
 
+  const telling = kenmerken.map((k, i) => db.partners.filter((p) => effectieveFactoren(p, db, nu).some((f) => f.factorId === k.factorId && voldoetAan(f, k, kenmerkFactorenActief[i]))).length);
   const kenmerkFactoren = db.factoren.filter((f) => f.actief && (f.schaal.soort === "niveau" || f.schaal.soort === "getal" || f.schaal.soort === "percentage"));
-  const gefilterd = !!(q || rol || status || cert || plaats || factorId);
+  const gefilterd = !!(q || rol || status || cert || plaats || factorId || project);
 
   return (
     <>
@@ -61,8 +82,23 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
         eyebrow="Partners"
         titel="Partneroverzicht"
         intro={`${rijen.length} van ${db.partners.length} partners. Filter op rol, regio, kenmerk, certificaat en status; combineer vrij.`}
-        acties={magBewerken ? <Knop href="/partners/nieuw">Nieuwe partner</Knop> : <span className="muted klein-tekst">Uw rol mag geen partners toevoegen.</span>}
+        acties={
+          magBewerken ? (
+            <>
+              <PartnerImport magBewerken={magBewerken} />
+              <Knop href="/partners/nieuw">Nieuwe partner</Knop>
+            </>
+          ) : (
+            <span className="muted klein-tekst">Uw rol mag geen partners toevoegen.</span>
+          )
+        }
       />
+      {project && afgeleid ? (
+        <Melding soort="info">
+          Kenmerken afgeleid uit project <Link href={`/projecten/${project.id}`}><b>{project.naam}</b></Link>: {afgeleid.kenmerken.map((k) => k.label).join(", ")}. Pas ze hieronder aan of{" "}
+          <Link href={`/projecten/${project.id}/match`}>voer de volledige matching uit</Link> voor een gerangschikt advies met uitleg.
+        </Melding>
+      ) : null}
       <Kaart titel="Filters" acties={gefilterd ? <Link href="/partners">Wis filters</Link> : null}>
         <form method="get" className="formulier partnerFilters">
           <div className="rij">
@@ -120,21 +156,22 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
               Straal (km)
               <input type="number" name="straal" min={1} max={500} defaultValue={sp.straal ?? "50"} />
             </label>
-            <label>
-              Kenmerk (factor)
-              <select name="factor" defaultValue={factorId ?? ""}>
-                <option value="">Geen eis</option>
-                {kenmerkFactoren.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.code} {f.naam}
-                  </option>
-                ))}
+          </div>
+          <div className="veld">
+            Kenmerken (meerdere tegelijk)
+            <KenmerkFilters factoren={kenmerkFactoren} initieel={kenmerken} />
+            <label style={{ maxWidth: 320 }}>
+              Combinatie
+              <select name="kmode" defaultValue={kmode}>
+                <option value="alle">Alle kenmerken moeten kloppen (EN)</option>
+                <option value="een">Minstens één kenmerk (OF)</option>
               </select>
             </label>
-            <label>
-              Minimumwaarde
-              <input type="number" name="min" step="any" defaultValue={sp.min ?? ""} placeholder="bijv. 3" />
-            </label>
+            {kenmerken.length ? (
+              <p className="muted klein-tekst" style={{ margin: 0, textTransform: "none", fontWeight: 400 }}>
+                Per kenmerk voldoen: {kenmerken.map((k, i) => `${kenmerkFactorenActief[i].naam}${k.optieId ? ` (${k.optieId})` : ""}${k.min ? ` ${k.min}` : ""}: ${telling[i]}`).join(" · ")}
+              </p>
+            ) : null}
           </div>
           <div className="formulierActies">
             <button type="submit" className="knop klein">
@@ -164,7 +201,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
                   {centrum ? <th className="num">Afstand</th> : null}
                   <th className="num">Medewerkers</th>
                   <th>Certificaten</th>
-                  {factor ? <th className="num">{factor.naam}</th> : null}
+                  {factor ? <th className="num">Kenmerken</th> : null}
                   <th className="num">Evaluatie</th>
                   <th className="num">Projecten</th>
                 </tr>

@@ -11,7 +11,6 @@ import { SignaalLijst } from "@/components/dashboard/SignaalLijst";
 
 const SOORTEN: Array<{ id: Signaal["soort"] | "alle"; label: string }> = [
   { id: "alle", label: "Alle" },
-  { id: "certificaat", label: "Certificaten" },
   { id: "risico", label: "Risico" },
   { id: "afhankelijkheid", label: "Afhankelijkheid" },
   { id: "evaluatie", label: "Evaluaties" },
@@ -27,7 +26,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const perStatus = (s: string) => db.partners.filter((p) => p.status === s).length;
   const openKandidaten = db.kandidaten.filter((k) => k.status === "nieuw").length;
   const openVoorstellen = db.verrijkingsvoorstellen.filter((v) => v.status === "open").length;
-  const alleSignalen = signalenVoor(db);
+  // Certificaatsignalen staan bewust niet op het dashboard: ze verschijnen bij de kandidaat in een matchrun en in het partnerdossier.
+  const alleSignalen = signalenVoor(db).filter((s) => s.soort !== "certificaat");
   const kritiek = alleSignalen.filter((s) => s.ernst === "kritiek").length;
   const signalen = soort && soort !== "alle" ? alleSignalen.filter((s) => s.soort === soort) : alleSignalen;
 

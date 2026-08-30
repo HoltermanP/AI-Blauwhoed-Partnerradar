@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { startDiscovery } from "@/lib/actions";
 import { ROLLEN, type Rol } from "@/lib/domain/types";
-import { ROL_LABEL } from "@/lib/format";
+import { hoofdletter, ROL_LABEL } from "@/lib/format";
+import { PLAATSEN } from "@/lib/domain/geo";
 import { Melding } from "@/components/ui";
 
 type ProjectOptie = { id: string; naam: string; rollen: Rol[]; omschrijving: string };
@@ -27,6 +28,7 @@ export default function DiscoveryStart({ projecten, magStarten }: { projecten: P
     }
   };
 
+  const [regio, setRegio] = useState("");
   const toggleRol = (rol: Rol) => setRollen((r) => (r.includes(rol) ? r.filter((x) => x !== rol) : [...r, rol]));
 
   const verzend = (e: React.FormEvent) => {
@@ -35,9 +37,13 @@ export default function DiscoveryStart({ projecten, magStarten }: { projecten: P
     setSucces(null);
     if (!rollen.length) return setFout("Kies minstens één rol.");
     start(async () => {
-      const r = await startDiscovery(projectId || null, rollen, trefwoorden);
+      const r = await startDiscovery(projectId || null, rollen, trefwoorden, regio);
       if (!r.ok) return setFout(r.fout);
-      setSucces(`${r.data ?? 0} nieuwe kandidaat(en) toegevoegd aan de wachtrij.`);
+      const u = r.data!;
+      setSucces(
+        `${u.gevonden} kandidaat(en) gevonden via ${u.bronnen.join(" + ")}${u.regio ? ` in ${u.regio}` : ""}: ${u.nieuw} nieuw in de wachtrij, ${u.alInWachtrij} stonden er al (gekoppeld aan dit project), ${u.mogelijkeDubbelen} mogelijk dubbel met een bestaande partner.` +
+          (u.gevonden === 0 ? " Tip: kies meer rollen of laat de regio leeg." : "")
+      );
       router.refresh();
     });
   };
@@ -67,6 +73,17 @@ export default function DiscoveryStart({ projecten, magStarten }: { projecten: P
           ))}
         </div>
       </div>
+      <label>
+        Regio (optioneel, vestigingsplaats)
+        <select value={regio} onChange={(e) => setRegio(e.target.value)}>
+          <option value="">Heel Nederland</option>
+          {Object.keys(PLAATSEN).map((pl) => (
+            <option key={pl} value={pl}>
+              {hoofdletter(pl)}
+            </option>
+          ))}
+        </select>
+      </label>
       <label>
         Trefwoorden / projectomschrijving
         <textarea value={trefwoorden} onChange={(e) => setTrefwoorden(e.target.value)} placeholder="bijv. circulaire houtbouw, demontabele gevel, middenhuur" />

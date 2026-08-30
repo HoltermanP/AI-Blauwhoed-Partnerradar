@@ -1,4 +1,5 @@
 // Epic 5: discovery van onbekende partners. Alleen bedrijfsgegevens, elke kandidaat met bron-URL en ophaaldatum.
+import { DEMO_BEDRIJVEN_EXTRA } from "./bronnen-demo";
 import { semantischeGelijkenis } from "./embedding";
 import { geocode } from "./geo";
 import type { AISamenvatting, Database, DiscoveryCandidate, Partner, Project, Rol } from "./types";
@@ -64,7 +65,10 @@ export const demoConnector: BronConnector = {
   omschrijving: "Gecureerde demo-instroom. Vervang door echte connectors zodra het beleid op externe bronnen is vastgesteld (punt 5).",
   async zoek(vraag) {
     const tekst = vraag.trefwoorden.join(" ");
-    return DEMO_BEDRIJVEN.filter((b) => b.rollen.some((r) => vraag.rollen.includes(r)))
+    const regio = vraag.regio?.toLowerCase();
+    return [...DEMO_BEDRIJVEN, ...DEMO_BEDRIJVEN_EXTRA]
+      .filter((b) => b.rollen.some((r) => vraag.rollen.includes(r)))
+      .filter((b) => !regio || b.plaats.toLowerCase() === regio)
       .map((b) => ({
         naam: b.naam,
         kvk: b.kvk,

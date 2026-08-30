@@ -1179,3 +1179,133 @@ tr.inlineFormulierRij td { background: var(--soft) !important; padding: 14px; }
 .paginering { display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 14px; }
 details.uitklap.kaart summary { margin-bottom: 8px; }
 .auditTabel td { font-size: 13px; }
+
+/* factoren-overzicht en kenmerkfilters */
+.factorTabel td { font-size: 13px; }
+.factorTabel .lijst li { padding: 3px 0; }
+.kenmerkFilters { display: grid; gap: 8px; text-transform: none; font-weight: 400; }
+.kenmerkRij { grid-template-columns: 2fr 1.4fr 1.2fr auto !important; align-items: end; }
+.kenmerkVerwijder { min-width: 40px; justify-content: center; }
+
+/* =====================================================================
+   Blauwhoed-laag voor de partnerdatabase-shell
+   Overschrijft de vlakke app-stijl hierboven: pill-knoppen, afgeronde
+   kaarten, blauw accent, beeldbanden. Staat bewust onderaan.
+   ===================================================================== */
+:root {
+  --mint: #cae9df;
+  --schaduw: 0 6px 20px rgba(0, 40, 70, 0.06);
+}
+
+/* Topbar */
+.topbar { min-height: 76px; padding: 0 34px; border-bottom: 1px solid var(--line); }
+.brandMark { gap: 12px; flex: 0 0 auto; }
+.brandMark img { display: block; height: 20px; width: auto; }
+.brandMark em {
+  border-left: 1px solid var(--line); color: var(--muted); font-size: 12px; font-style: normal;
+  font-weight: 700; letter-spacing: 0.08em; margin-left: 0; padding-left: 12px; text-transform: uppercase;
+}
+.hoofdNav { gap: 0; flex: 1; justify-content: center; flex-wrap: nowrap; overflow-x: auto; }
+.hoofdNav a { font-size: 14px; font-weight: 700; padding: 8px 11px; border-bottom: 2px solid transparent; white-space: nowrap; }
+.hoofdNav a.active, .hoofdNav a:hover { border-bottom-color: var(--blue); color: var(--blue); }
+.rolWisselaar { flex: 0 0 auto; }
+.rolWisselaar select { border-radius: var(--pill); border-color: #ccc; padding: 7px 12px; }
+
+/* Paginakop als beeldband (full-bleed binnen .pagina) */
+.pagina { padding-top: 0; }
+.paginaKop {
+  align-items: flex-end;
+  background:
+    linear-gradient(90deg, rgba(0, 40, 70, 0.86) 0%, rgba(0, 40, 70, 0.6) 55%, rgba(0, 40, 70, 0.3) 100%),
+    url("/brand/amsterdam.jpg") center / cover no-repeat;
+  color: white;
+  margin: 0 -34px 28px;
+  min-height: 240px;
+  padding: 56px 34px 34px;
+}
+.paginaKop .eyebrow { color: white; opacity: 0.85; }
+.paginaKop h1 { color: white; letter-spacing: -1px; }
+.paginaKop .intro { color: white; opacity: 0.92; font-size: 17px; }
+.paginaKop a:not(.knop) { color: white; text-decoration: underline; }
+.paginaKop .muted { color: rgba(255, 255, 255, 0.8); }
+.paginaKop .knop-secundair, .paginaKop button.knop-secundair { background: white; border-color: white; color: var(--blue); }
+.paginaKop .knop-secundair:hover { background: var(--blue-soft); border-color: var(--blue-soft); color: var(--blue-dark); }
+.paginaKop .knop-tekst, .paginaKop button.knop-tekst { color: white; background: transparent; border-color: rgba(255, 255, 255, 0.5); }
+.paginaKop .badge { background: rgba(255, 255, 255, 0.15); color: white; border-color: rgba(255, 255, 255, 0.5); }
+
+/* Knoppen: blauwe pills, secundair wit */
+.knop, button.knop, button:not(.knop):not(.knop-tekst) {
+  background: var(--blue); border: 2px solid var(--blue); border-radius: var(--pill); color: white; font-weight: 700; padding: 8px 18px;
+}
+.knop:hover, button.knop:hover { background: var(--blue-dark); border-color: var(--blue-dark); color: white; }
+.knop-secundair, button.knop-secundair { background: white; border-color: #ccc; color: var(--ink); }
+.knop-secundair:hover, button.knop-secundair:hover { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-dark); }
+.knop-tekst, button.knop-tekst, button.knop.knop-tekst { background: transparent; border-color: transparent; color: var(--blue); padding: 6px 10px; min-height: 32px; }
+.knop-tekst:hover, button.knop-tekst:hover { background: var(--blue-soft); border-color: var(--blue-soft); color: var(--blue-dark); }
+.knop-gevaar, button.knop-gevaar { background: var(--red); border-color: var(--red); color: white; }
+.knop-gevaar:hover, button.knop-gevaar:hover { background: #b51919; border-color: #b51919; }
+.knop.klein, button.knop.klein, button.klein { min-height: 32px; padding: 4px 12px; font-size: 13px; }
+
+/* Kaarten, metrieken, badges, meldingen */
+.kaart { border-radius: var(--radius); box-shadow: var(--schaduw); }
+.kaart.donker {
+  background:
+    linear-gradient(90deg, rgba(0, 95, 138, 0.94) 0%, rgba(0, 154, 222, 0.85) 100%),
+    url("/brand/samen.jpg") center / cover no-repeat;
+  border-color: transparent; color: white;
+}
+.kaart.donker .eyebrow, .kaart.donker small { color: white; opacity: 0.85; }
+.kaart.donker a { color: white; text-decoration: underline; }
+.kaartKop h2 { font-size: 20px; }
+.metriekRij { border-radius: var(--radius); background: white; box-shadow: var(--schaduw); }
+.metriek span { color: var(--blue); }
+.metriek small a { color: var(--blue); font-weight: 700; }
+.badge { border-radius: var(--pill); padding: 3px 9px; }
+.badge-blauw { background: var(--blue-soft); border-color: var(--blue-line); }
+.melding { border-radius: var(--radius); border-width: 1px; border-left-width: 4px; }
+.melding-info { background: var(--blue-soft); border-color: var(--blue); }
+.leeg { border-radius: var(--radius); }
+.chip, a.chip { border-radius: var(--pill); padding: 4px 10px; }
+.tabs a.active, .tabs a:hover { border-bottom-color: var(--blue); }
+.tabs a span { border-radius: var(--pill); }
+.soortFilter a { border-radius: var(--pill); padding: 4px 10px; }
+.soortFilter a.active { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+.hitrate span, .printOnly h1 { color: var(--blue); }
+table.tabel th { border-bottom-color: var(--line); color: var(--muted); letter-spacing: 0.06em; }
+table.tabel a { color: var(--blue); font-weight: 700; }
+.scoreBalkSpoor, .bijdrageBalk, .gewichtBalk { border-radius: var(--pill); overflow: hidden; }
+.kandidaatRij, .kandidaatKaart, .inlineFormulier, .eisenEditor .rolBlok { border-radius: var(--radius); }
+.kandidaatRij .rang { color: var(--blue); }
+.formulier input, .formulier select, .formulier textarea, .veld input, .veld select, .veld textarea, .inlineInvoer, .feedbackRij .redenVeld input {
+  border-radius: var(--radius); border-color: #ccc;
+}
+.formulier input:focus, .formulier select:focus, .formulier textarea:focus, .veld input:focus, .veld select:focus { border-color: var(--blue); outline: none; }
+.eyebrow { color: var(--blue); }
+a:not(.knop):not(.chip):not(.badge) { color: var(--blue); }
+.hoofdNav a, .brandMark, .partnerRow, .tabs a, .soortFilter a, .kandidaatKop a, .lijst a, .signaal a { color: var(--ink); }
+.signaal strong, .kandidaatKop a { color: var(--ink); }
+
+/* Footer-band en voet */
+.footerBand { margin-top: 20px; }
+.voet { align-items: center; font-size: 13px; padding: 22px 34px; }
+.voet img { height: 16px; width: auto; }
+
+@media (max-width: 1040px) {
+  .paginaKop { margin: 0 -20px 24px; padding: 40px 20px 26px; min-height: 200px; }
+}
+@media (max-width: 900px) {
+  .brandMark em { display: none; }
+  .hoofdNav { justify-content: flex-start; }
+}
+@media print {
+  .paginaKop { background: none; color: var(--ink); margin: 0; padding: 0; min-height: 0; }
+  .paginaKop h1, .paginaKop .intro { color: var(--ink); }
+  .footerBand { display: none !important; }
+}
+
+/* Topbar: alles op één regel houden */
+.topbar { gap: 16px; }
+.hoofdNav { overflow: visible; flex-wrap: wrap; justify-content: flex-start; }
+.hoofdNav a { font-size: 13px; padding: 8px 9px; }
+.rolWisselaar select { font-size: 12px; max-width: 220px; }
+@media (max-width: 1360px) { .brandMark em { display: none; } }

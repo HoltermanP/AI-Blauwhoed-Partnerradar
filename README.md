@@ -13,7 +13,18 @@ npm run smoke      # rooktest van de domeinlogica (matching, team, afleiding, di
 npm run typecheck
 ```
 
-Zonder `DATABASE_URL` draait de app op in-memory demodata (fictieve partners en projecten; reset bij herstart of via Beheer → Demo resetten). Met `DATABASE_URL` (Neon) wordt de volledige staat als JSONB-snapshot bewaard in `partnerdb_state`. Het genormaliseerde doelschema met PostGIS en pgvector staat in [db/schema.sql](db/schema.sql).
+## Productiegebruik (echte data)
+
+De database start **leeg** (alleen het factorenmodel en de gewichtsprofielen). Vul hem met:
+
+- **Partners → Importeren (Excel/CSV)** — herkent de kolommen van het Blauwhoed-overzicht houtbouwers en generieke lijsten (Organisatie, KVK, Plaats, Website, Rol, kenmerkkolommen); één klik laadt het meegeleverde overzicht (116 rijen, 103 organisaties).
+- **Discovery** — keyless webzoek-connector (zoekt bedrijfswebsites op branchetermen/regio en leest naam, KVK, plaats en profiel) en de **KVK Zoeken API** zodra `KVK_API_KEY` is gezet. Kandidaten komen in de wachtrij; pas na acceptatie worden ze prospect.
+- **Verrijking** — leest de website van elke partner en stelt factorwaarden voor (bron `web`, aantoonbaar vs geclaimd); met `ANTHROPIC_API_KEY` doet Claude de extractie, samenvattingen en projectextractie uit documenten.
+- **Historie → CSV-import** van de projectadministratie (match op KVK of crediteurnummer).
+
+Geocoding loopt via de PDOK Locatieserver (Kadaster, gratis, geen sleutel); elke plaats of adres in Nederland werkt. Persistentie: zet `DATABASE_URL` (Neon) — de staat wordt direct na elke wijziging weggeschreven in `partnerdb_state`. Zonder `DATABASE_URL` leeft de data alleen in het procesgeheugen. Het genormaliseerde doelschema met PostGIS en pgvector staat in [db/schema.sql](db/schema.sql).
+
+Demodata (fictieve bedrijven) is alleen voor demonstraties: `DEMO_DATA=1` bij het starten of Beheer → "Demodata laden".
 
 ## Structuur
 
@@ -47,7 +58,7 @@ Wissel rechtsboven van gebruiker: lezer, ontwikkelingsmanager (bewerker), inkope
 
 ## AI en externe bronnen
 
-Extractie, samenvatting en semantiek draaien lokaal met regels en een deterministische embedding; er verlaten geen brongegevens de omgeving. Externe bronnen (websites) worden pas opgehaald als de beheerder dat aanzet. Een externe modelprovider is voorbereid als instelling, niet aangesloten.
+Zonder `ANTHROPIC_API_KEY` draaien extractie, samenvatting en semantiek lokaal met regels en een deterministische embedding. Met sleutel gebruikt `src/lib/ai.ts` Claude (`claude-opus-5`, structured outputs) voor kandidaat-samenvattingen, factor-extractie uit websites en projectextractie uit documenten; er gaan uitsluitend openbare bedrijfs- en projectteksten mee, nooit contactpersonen. Externe bronnen (websites, registers) staan standaard aan en zijn uit te zetten in Beheer.
 
 ## Periodieke verrijking
 

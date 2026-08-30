@@ -95,13 +95,12 @@ export default function PartnerFormulier({ id, begin, plaatsen }: Props) {
       <div className="rij">
         <label>
           Vestigingsplaats
-          <select value={plaats} onChange={(e) => setPlaats(e.target.value)}>
+          <input required list="plaatsen-lijst" value={plaats} onChange={(e) => setPlaats(e.target.value)} placeholder="Plaats of adres (PDOK-geocoding)" />
+          <datalist id="plaatsen-lijst">
             {plaatsen.map((p) => (
-              <option key={p} value={p}>
-                {hoofdletter(p)}
-              </option>
+              <option key={p} value={hoofdletter(p)} />
             ))}
-          </select>
+          </datalist>
         </label>
         <label>
           Adres
