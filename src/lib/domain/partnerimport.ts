@@ -1,6 +1,7 @@
 // Partners importeren uit Excel/CSV (o.a. het Blauwhoed-overzicht houtbouwers). Kolommen worden soepel herkend;
 // bruikbare kenmerken worden als factorwaarde met bron 'opgave' vastgelegd, de rest als tags/omschrijving.
-import type { Bron, PartnerFactor, Rol } from "./types";
+import { normaliseerNaam } from "./discovery";
+import type { Bron, Database, Geo, PartnerFactor, Rol } from "./types";
 
 export type ImportRij = Record<string, string | number | boolean | null | undefined>;
 
@@ -166,4 +167,60 @@ export function voegRijenSamen(partners: GeimporteerdePartner[]): GeimporteerdeP
     });
   });
   return Array.from(map.values());
+}
+
+export type ImportUitkomst = { gelezen: number; nieuw: number; bijgewerkt: number; overgeslagen: Array<{ naam: string; reden: string }>; zonderLocatie: number };
+
+/** Voegt geïmporteerde partners toe aan de database (synchroon; geocoding is vooraf gedaan). Bestaande partners worden alleen aangevuld. */
+export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], locaties: Map<string, Geo | null>, bronnaam: string, nieuwId: (prefix: string) => string): ImportUitkomst {
+  const uitkomst: ImportUitkomst = { gelezen: partners.length, nieuw: 0, bijgewerkt: 0, overgeslagen: [], zonderLocatie: 0 };
+  const nu = new Date().toISOString();
+  partners.forEach((p) => {
+    const bestaand = db.partners.find((x) => (p.kvk && x.kvk === p.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(p.naam));
+    const geo = p.plaats ? locaties.get(p.plaats) ?? null : null;
+    const factoren: PartnerFactor[] = p.factoren.map((f) => ({ ...f, peildatum: nu.slice(0, 10) }));
+    if (bestaand) {
+      // Alleen aanvullen, nooit overschrijven wat al vastligt.
+      bestaand.website = bestaand.website || p.website;
+      bestaand.kvk = bestaand.kvk || p.kvk || "";
+      bestaand.rollen = Array.from(new Set([...bestaand.rollen, ...p.rollen]));
+      bestaand.omschrijving = bestaand.omschrijving || p.omschrijving;
+      bestaand.tags = Array.from(new Set([...bestaand.tags, ...p.tags]));
+      factoren.forEach((f) => {
+        if (!bestaand.factoren.some((x) => x.factorId === f.factorId && (x.optieId ?? "") === (f.optieId ?? ""))) bestaand.factoren.push(f);
+      });
+      bestaand.bronnen.push({ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" });
+      bestaand.bijgewerktOp = nu;
+      uitkomst.bijgewerkt++;
+      return;
+    }
+    if (!geo) uitkomst.zonderLocatie++;
+    db.partners.push({
+      id: nieuwId("p"),
+      naam: p.naam,
+      kvk: p.kvk ?? "",
+      rechtsvorm: p.naam.match(/\bB\.?V\.?\b/i) ? "B.V." : p.naam.match(/\bN\.?V\.?\b/i) ? "N.V." : "Onbekend",
+      vestigingsplaats: p.plaats ?? "",
+      locatie: geo ?? { lat: 52.15, lng: 5.38 },
+      werkgebiedKm: 150,
+      status: "bekend",
+      rollen: p.rollen,
+      website: p.website,
+      omschrijving: p.omschrijving,
+      referenties: p.referenties,
+      medewerkers: p.medewerkers,
+      omzet: p.omzet,
+      beschikbaarheid: [],
+      factoren,
+      certificaten: [],
+      contactpersonen: [],
+      kwalificatie: [],
+      bronnen: [{ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" }, ...p.bronvermelding.map((b) => ({ url: b, opgehaaldOp: nu.slice(0, 10), soort: "bronvermelding" }))],
+      tags: [...p.tags, ...(geo ? [] : ["locatie onbekend"])],
+      aangemaaktOp: nu,
+      bijgewerktOp: nu
+    });
+    uitkomst.nieuw++;
+  });
+  return uitkomst;
 }

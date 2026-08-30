@@ -2,6 +2,10 @@
 // Het genormaliseerde Postgres-schema (PostGIS + pgvector) staat in db/schema.sql voor de productiefase.
 import { neon } from "@neondatabase/serverless";
 import { maakLegeDatabase, maakSeedDatabase } from "./domain/seed";
+import { geocodeer } from "./domain/geocode";
+import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "./domain/partnerimport";
+import houtbouwers from "@/data/houtbouwers-seed.json";
+import type { Geo } from "./domain/types";
 import type { AuditEntry, Database, Gebruiker } from "./domain/types";
 
 type Globaal = typeof globalThis & { __partnerDb?: Database; __partnerDbGeladen?: Promise<void> };
@@ -39,11 +43,27 @@ export async function getDb(): Promise<Database> {
   if (!g.__partnerDbGeladen) {
     g.__partnerDbGeladen = (async () => {
       // Standaard leeg (echte data via invoer/import/discovery). DEMO_DATA=1 laadt de fictieve demoset.
-      g.__partnerDb = (await laadUitNeon()) ?? (process.env.DEMO_DATA === "1" ? maakSeedDatabase() : maakLegeDatabase());
+      const uitNeon = await laadUitNeon();
+      if (uitNeon) g.__partnerDb = uitNeon;
+      else if (process.env.DEMO_DATA === "1") g.__partnerDb = maakSeedDatabase();
+      else g.__partnerDb = await maakStartDatabase();
     })();
   }
   await g.__partnerDbGeladen;
   return g.__partnerDb!;
+}
+
+/** Eerste start zonder opgeslagen staat: lege database plus de echte partners uit het Blauwhoed-overzicht houtbouwers. */
+async function maakStartDatabase(): Promise<Database> {
+  const db = maakLegeDatabase();
+  const bron = houtbouwers as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
+  const partners = voegRijenSamen(bron.partners.map((p) => rijNaarPartner(p.values)).filter((p): p is NonNullable<typeof p> => Boolean(p)));
+  const locaties = new Map<string, Geo | null>();
+  await Promise.all(Array.from(new Set(partners.map((p) => p.plaats).filter((x): x is string => Boolean(x)))).map(async (plaats) => locaties.set(plaats, (await geocodeer(plaats))?.locatie ?? null)));
+  const u = voegPartnersToe(db, partners, locaties, bron.sourceFile, nieuwId);
+  db.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "partner", entiteitId: "import", actie: "houtbouwersoverzicht geladen bij eerste start", details: `${u.nieuw} organisaties uit ${bron.sourceFile}` });
+  planOpslaan(db);
+  return db;
 }
 
 let teller = 0;

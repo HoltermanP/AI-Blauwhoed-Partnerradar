@@ -10,7 +10,7 @@ import { kvkConnector } from "./domain/kvk";
 import { leidEisenAf } from "./domain/projectfactoren";
 import { importeerEngagements } from "./domain/csv";
 import { geocodeer } from "./domain/geocode";
-import { rijNaarPartner, voegRijenSamen, type ImportRij } from "./domain/partnerimport";
+import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type ImportUitkomst } from "./domain/partnerimport";
 import { webzoekConnector } from "./domain/webzoek";
 import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting } from "./ai";
 import type { BronConnector } from "./domain/discovery";
@@ -27,6 +27,7 @@ import type {
   FactorOption,
   FactorWaarde,
   Financieel,
+  Geo,
   KwalificatieItem,
   MatchFeedback,
   Partner,
@@ -273,68 +274,18 @@ export async function slaFinancieelOp(partnerId: string, fin: Omit<Financieel, "
 }
 
 // ---------- Partners importeren (Excel/CSV) ----------
-export type ImportUitkomst = { gelezen: number; nieuw: number; bijgewerkt: number; overgeslagen: Array<{ naam: string; reden: string }>; zonderLocatie: number };
+export type { ImportUitkomst };
 
 export async function importeerPartners(rijen: ImportRij[], bronnaam: string) {
   return veilig(async (): Promise<ImportUitkomst> => {
     const g = await vereisRecht("bewerken");
-    const db = await getDb();
     const gelezen = rijen.map((r) => rijNaarPartner(r)).filter((p): p is NonNullable<typeof p> => Boolean(p));
     const partners = voegRijenSamen(gelezen);
-    const uitkomst: ImportUitkomst = { gelezen: rijen.length, nieuw: 0, bijgewerkt: 0, overgeslagen: [], zonderLocatie: 0 };
     // Geocodeer vooraf (PDOK, met cache); onbekende plaats -> midden van Nederland met tag.
-    const locaties = new Map<string, Awaited<ReturnType<typeof geocodeer>>>();
-    for (const p of partners) if (p.plaats && !locaties.has(p.plaats)) locaties.set(p.plaats, await geocodeer(p.plaats));
-    const nu = new Date().toISOString();
-    await muteer(g, { entiteit: "partner", entiteitId: "import", actie: "partners geïmporteerd", details: `${bronnaam}: ${partners.length} organisaties` }, (db) => {
-      partners.forEach((p) => {
-        const bestaand = db.partners.find((x) => (p.kvk && x.kvk === p.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(p.naam));
-        const geo = p.plaats ? locaties.get(p.plaats) : null;
-        const factoren: PartnerFactor[] = p.factoren.map((f) => ({ ...f, peildatum: nu.slice(0, 10) }));
-        if (bestaand) {
-          // Alleen aanvullen, nooit overschrijven wat al vastligt.
-          bestaand.website = bestaand.website || p.website;
-          bestaand.kvk = bestaand.kvk || p.kvk || "";
-          bestaand.rollen = Array.from(new Set([...bestaand.rollen, ...p.rollen]));
-          bestaand.omschrijving = bestaand.omschrijving || p.omschrijving;
-          bestaand.tags = Array.from(new Set([...bestaand.tags, ...p.tags]));
-          factoren.forEach((f) => {
-            if (!bestaand.factoren.some((x) => x.factorId === f.factorId && (x.optieId ?? "") === (f.optieId ?? ""))) bestaand.factoren.push(f);
-          });
-          bestaand.bronnen.push({ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" });
-          bestaand.bijgewerktOp = nu;
-          uitkomst.bijgewerkt++;
-          return;
-        }
-        if (!geo) uitkomst.zonderLocatie++;
-        db.partners.push({
-          id: nieuwId("p"),
-          naam: p.naam,
-          kvk: p.kvk ?? "",
-          rechtsvorm: p.naam.match(/\bB\.?V\.?\b/i) ? "B.V." : p.naam.match(/\bN\.?V\.?\b/i) ? "N.V." : "Onbekend",
-          vestigingsplaats: p.plaats ?? "",
-          locatie: geo?.locatie ?? { lat: 52.15, lng: 5.38 },
-          werkgebiedKm: 150,
-          status: "bekend",
-          rollen: p.rollen,
-          website: p.website,
-          omschrijving: p.omschrijving,
-          referenties: p.referenties,
-          medewerkers: p.medewerkers,
-          omzet: p.omzet,
-          beschikbaarheid: [],
-          factoren,
-          certificaten: [],
-          contactpersonen: [],
-          kwalificatie: [],
-          bronnen: [{ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" }, ...p.bronvermelding.map((b) => ({ url: b, opgehaaldOp: nu.slice(0, 10), soort: "bronvermelding" }))],
-          tags: [...p.tags, ...(geo ? [] : ["locatie onbekend"])],
-          aangemaaktOp: nu,
-          bijgewerktOp: nu
-        });
-        uitkomst.nieuw++;
-      });
-    });
+    const locaties = new Map<string, Geo | null>();
+    for (const p of partners) if (p.plaats && !locaties.has(p.plaats)) locaties.set(p.plaats, (await geocodeer(p.plaats))?.locatie ?? null);
+    const uitkomst = await muteer(g, { entiteit: "partner", entiteitId: "import", actie: "partners geïmporteerd", details: `${bronnaam}: ${partners.length} organisaties` }, (db) => voegPartnersToe(db, partners, locaties, bronnaam, nieuwId));
+    uitkomst.gelezen = rijen.length;
     await slaNuOp();
     revalidatePath("/partners");
     return uitkomst;
