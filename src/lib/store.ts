@@ -3,6 +3,7 @@
 import { neon } from "@neondatabase/serverless";
 import { maakLegeDatabase, maakSeedDatabase } from "./domain/seed";
 import { geocodeer } from "./domain/geocode";
+import { geocode as lokaalGeocode } from "./domain/geo";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "./domain/partnerimport";
 import houtbouwers from "@/data/houtbouwers-seed.json";
 import type { Geo } from "./domain/types";
@@ -58,9 +59,25 @@ async function maakStartDatabase(): Promise<Database> {
   const db = maakLegeDatabase();
   const bron = houtbouwers as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
   const partners = voegRijenSamen(bron.partners.map((p) => rijNaarPartner(p.values)).filter((p): p is NonNullable<typeof p> => Boolean(p)));
-  const locaties = new Map<string, Geo | null>();
-  await Promise.all(Array.from(new Set(partners.map((p) => p.plaats).filter((x): x is string => Boolean(x)))).map(async (plaats) => locaties.set(plaats, (await geocodeer(plaats))?.locatie ?? null)));
+  // Eerst de lokale plaatsenlijst (direct), daarna op de achtergrond PDOK voor onbekende plaatsen zodat de eerste pagina niet wacht.
+  const plaatsen = Array.from(new Set(partners.map((p) => p.plaats).filter((x): x is string => Boolean(x))));
+  const locaties = new Map<string, Geo | null>(plaatsen.map((pl) => [pl, lokaalGeocode(pl)]));
   const u = voegPartnersToe(db, partners, locaties, bron.sourceFile, nieuwId);
+  void Promise.all(
+    plaatsen
+      .filter((pl) => !locaties.get(pl))
+      .map(async (pl) => {
+        const r = await geocodeer(pl);
+        if (!r) return;
+        db.partners.forEach((p) => {
+          if (p.vestigingsplaats === pl) {
+            p.locatie = r.locatie;
+            p.tags = p.tags.filter((t) => t !== "locatie onbekend");
+          }
+        });
+        planOpslaan(db);
+      })
+  );
   db.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "partner", entiteitId: "import", actie: "houtbouwersoverzicht geladen bij eerste start", details: `${u.nieuw} organisaties uit ${bron.sourceFile}` });
   planOpslaan(db);
   return db;

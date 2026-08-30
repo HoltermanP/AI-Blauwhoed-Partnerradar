@@ -209,6 +209,8 @@ export type Partner = {
   kwalificatie: Kwalificatie[];
   financieel?: Financieel;
   bronnen: Array<{ url: string; opgehaaldOp: string; soort: string }>;
+  /** Ruwe brondata per geïmporteerde rij (bijv. per woningconcept uit het Excel-overzicht): alle oorspronkelijke kolommen. */
+  brongegevens?: Array<{ bron: string; op: string; titel?: string; velden: Record<string, string> }>;
   tags: string[];
   aangemaaktOp: string;
   bijgewerktOp: string;

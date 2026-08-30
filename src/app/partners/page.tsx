@@ -3,7 +3,7 @@ import Link from "next/link";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { leidFactorenAf, effectieveFactoren } from "@/lib/domain/derive";
 import { afstandKm, geocode, PLAATSEN } from "@/lib/domain/geo";
-import { ROLLEN, type CertificaatType, type Partner, type PartnerStatus, type Rol } from "@/lib/domain/types";
+import { ROLLEN, type CertificaatType, type Factor, type Partner, type PartnerFactor, type PartnerStatus, type Rol } from "@/lib/domain/types";
 import { getal, hoofdletter, ROL_LABEL, STATUS_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { Badge, Kaart, Knop, Leeg, Melding, PaginaKop, StatusBadge } from "@/components/ui";
@@ -51,12 +51,12 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
   const rijen = db.partners
     .map((p) => {
       const afgeleid = leidFactorenAf(p, db, nu);
-      const alle = kenmerken.length ? effectieveFactoren(p, db, nu) : [];
+      const alle = effectieveFactoren(p, db, nu);
       const eff = alle.filter((f) => kenmerken.some((k) => k.factorId === f.factorId && (!k.optieId || f.optieId === k.optieId)));
       const perKenmerk = kenmerken.map((k, i) => alle.some((f) => f.factorId === k.factorId && voldoetAan(f, k, kenmerkFactorenActief[i])));
       const voldoet = kmode === "een" ? perKenmerk.some(Boolean) : perKenmerk.every(Boolean);
       const afstand = centrum ? afstandKm(centrum, p.locatie) : null;
-      return { p, afgeleid, eff, afstand, voldoet, perKenmerk };
+      return { p, afgeleid, eff, alle, afstand, voldoet, perKenmerk };
     })
     .filter(({ p, afstand, voldoet }) => {
       if (q) {
@@ -200,14 +200,17 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
                   <th>Plaats</th>
                   {centrum ? <th className="num">Afstand</th> : null}
                   <th className="num">Medewerkers</th>
+                  {KERNFACTOREN.map((k) => (
+                    <th key={k.id}>{k.label}</th>
+                  ))}
                   <th>Certificaten</th>
-                  {factor ? <th className="num">Kenmerken</th> : null}
                   <th className="num">Evaluatie</th>
                   <th className="num">Projecten</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {rijen.map(({ p, afgeleid, eff, afstand }) => (
+                {rijen.map(({ p, afgeleid, alle, afstand }) => (
                   <tr key={p.id}>
                     <td>
                       <Link href={`/partners/${p.id}`}>
@@ -223,12 +226,21 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
                     <td>{p.vestigingsplaats}</td>
                     {centrum ? <td className="num">{afstand !== null ? `${afstand} km` : "–"}</td> : null}
                     <td className="num">{getal(p.medewerkers)}</td>
+                    {KERNFACTOREN.map((k) => (
+                      <td key={k.id}>
+                        <KernFactor factorId={k.id} factoren={db.factoren} alle={alle} />
+                      </td>
+                    ))}
                     <td>
                       <CertificaatChips partner={p} />
                     </td>
-                    {factor ? <td className="num">{eff.map((f) => `${f.optieId ? `${f.optieId}: ` : ""}${String(f.waarde)}`).join("; ") || "–"}</td> : null}
                     <td className="num">{afgeleid.statistieken.evaluatiescore !== null ? getal(afgeleid.statistieken.evaluatiescore, 1) : <span className="muted">–</span>}</td>
                     <td className="num">{afgeleid.statistieken.aantalProjecten}</td>
+                    <td>
+                      <Link href={`/partners/${p.id}?tab=brondata`} className="klein-tekst">
+                        Alle data →
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -237,6 +249,37 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
         )}
       </Kaart>
     </>
+  );
+}
+
+// Belangrijke factoren in het overzicht: compact per partner, met bron in de title.
+const KERNFACTOREN: Array<{ id: string; label: string }> = [
+  { id: "bouwsysteem", label: "Bouwsysteem" },
+  { id: "projecttype", label: "Projecttype" },
+  { id: "projectomvang", label: "Omvang" },
+  { id: "mpg", label: "MPG" },
+  { id: "prefabricage", label: "Prefab" },
+  { id: "conceptbouw", label: "Concept" },
+  { id: "demontabel", label: "Demontabel" }
+];
+
+function KernFactor({ factorId, factoren, alle }: { factorId: string; factoren: Factor[]; alle: PartnerFactor[] }) {
+  const f = factoren.find((x) => x.id === factorId);
+  const waarden = alle.filter((x) => x.factorId === factorId && !(typeof x.waarde === "number" && x.waarde === 0));
+  if (!f || !waarden.length) return <span className="muted">–</span>;
+  return (
+    <span className="kernFactor">
+      {waarden.map((w) => {
+        const optie = w.optieId ? f.opties?.find((o) => o.id === w.optieId)?.label ?? w.optieId : "";
+        const tekst = typeof w.waarde === "object" && !Array.isArray(w.waarde) ? `${w.waarde.min}–${w.waarde.max}` : String(w.waarde);
+        return (
+          <span key={`${w.factorId}-${w.optieId ?? ""}`} className="chip" title={`${f.naam}${optie ? ` · ${optie}` : ""}: ${tekst} · bron ${w.bron} (${Math.round(w.betrouwbaarheid * 100)}%)${w.afgeleid ? " · afgeleid" : ""}`}>
+            {optie ? `${optie} ` : ""}
+            <b>{tekst}</b>
+          </span>
+        );
+      })}
+    </span>
   );
 }
 

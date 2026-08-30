@@ -18,6 +18,7 @@ export type GeimporteerdePartner = {
   omzet?: number;
   factoren: Array<Omit<PartnerFactor, "peildatum">>;
   bronvermelding: string[];
+  ruweRijen: Array<{ titel?: string; velden: Record<string, string> }>;
 };
 
 const kolom = (r: ImportRij, ...namen: string[]) => {
@@ -139,7 +140,8 @@ export function rijNaarPartner(r: ImportRij, bron: Bron = "opgave", betrouwbaarh
     medewerkers: medewerkers ?? undefined,
     omzet: omzet ?? undefined,
     factoren: f,
-    bronvermelding: bronnen.filter((b) => !/^https?:\/\//i.test(b))
+    bronvermelding: bronnen.filter((b) => !/^https?:\/\//i.test(b)),
+    ruweRijen: [{ titel: kolom(r, "conceptnaam") || undefined, velden: Object.fromEntries(Object.entries(r).filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== "").map(([k, v]) => [k, typeof v === "number" ? String(Math.round(v * 1000) / 1000) : String(v)])) }]
   };
 }
 
@@ -157,6 +159,7 @@ export function voegRijenSamen(partners: GeimporteerdePartner[]): GeimporteerdeP
     b.omschrijving = [b.omschrijving, p.omschrijving].filter(Boolean).join(" | ");
     b.referenties = Array.from(new Set([...b.referenties, ...p.referenties]));
     b.tags = Array.from(new Set([...b.tags, ...p.tags]));
+    b.ruweRijen = [...b.ruweRijen, ...p.ruweRijen];
     p.factoren.forEach((f) => {
       const idx = b.factoren.findIndex((x) => x.factorId === f.factorId && (x.optieId ?? "") === (f.optieId ?? ""));
       if (idx < 0) b.factoren.push(f);
@@ -190,6 +193,7 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
         if (!bestaand.factoren.some((x) => x.factorId === f.factorId && (x.optieId ?? "") === (f.optieId ?? ""))) bestaand.factoren.push(f);
       });
       bestaand.bronnen.push({ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" });
+      bestaand.brongegevens = [...(bestaand.brongegevens ?? []), ...p.ruweRijen.map((r) => ({ bron: bronnaam, op: nu.slice(0, 10), titel: r.titel, velden: r.velden }))];
       bestaand.bijgewerktOp = nu;
       uitkomst.bijgewerkt++;
       return;
@@ -216,6 +220,7 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
       contactpersonen: [],
       kwalificatie: [],
       bronnen: [{ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" }, ...p.bronvermelding.map((b) => ({ url: b, opgehaaldOp: nu.slice(0, 10), soort: "bronvermelding" }))],
+      brongegevens: p.ruweRijen.map((r) => ({ bron: bronnaam, op: nu.slice(0, 10), titel: r.titel, velden: r.velden })),
       tags: [...p.tags, ...(geo ? [] : ["locatie onbekend"])],
       aangemaaktOp: nu,
       bijgewerktOp: nu

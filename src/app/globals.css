@@ -1309,3 +1309,10 @@ a:not(.knop):not(.chip):not(.badge) { color: var(--blue); }
 .hoofdNav a { font-size: 13px; padding: 8px 9px; }
 .rolWisselaar select { font-size: 12px; max-width: 220px; }
 @media (max-width: 1360px) { .brandMark em { display: none; } }
+
+/* partneroverzicht: kernfactoren en brondata */
+.partnerTabel .kernFactor .chip { padding: 2px 6px; font-size: 11px; white-space: nowrap; }
+.partnerTabel td { font-size: 13px; }
+.brondataBlok h3 { font-size: 15px; margin-bottom: 8px; }
+.brondataTabel td { padding: 4px 8px; font-size: 12px; overflow-wrap: anywhere; }
+.brondataTabel td:first-child { width: 40%; }

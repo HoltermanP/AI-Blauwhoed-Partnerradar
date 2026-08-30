@@ -23,7 +23,8 @@ const TABS = [
   { id: "capaciteit", label: "Capaciteit" },
   { id: "historie", label: "Historie" },
   { id: "kwalificatie", label: "Kwalificatie" },
-  { id: "contact", label: "Contact" }
+  { id: "contact", label: "Contact" },
+  { id: "brondata", label: "Brondata" }
 ];
 
 export default async function PartnerDossier({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
@@ -47,7 +48,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   const tabItems = TABS.map((t) => ({
     ...t,
     aantal:
-      t.id === "certificaten" ? p.certificaten.length : t.id === "historie" ? engagements.length : t.id === "contact" ? p.contactpersonen.length : t.id === "factoren" ? effectieveFactoren(p, db, nu).length : undefined
+      t.id === "certificaten" ? p.certificaten.length : t.id === "historie" ? engagements.length : t.id === "contact" ? p.contactpersonen.length : t.id === "factoren" ? effectieveFactoren(p, db, nu).length : t.id === "brondata" ? (p.brongegevens?.length ?? 0) : undefined
   }));
 
   return (
@@ -137,6 +138,35 @@ export default async function PartnerDossier({ params, searchParams }: { params:
             </Kaart>
           </div>
         </div>
+      ) : null}
+      {tab === "brondata" ? (
+        <Kaart titel="Alle brondata (oorspronkelijke kolommen per geïmporteerde rij)">
+          {!p.brongegevens?.length ? (
+            <Leeg titel="Geen brondata" tekst="Deze partner is niet uit een import afkomstig, of de import bevatte geen extra kolommen." />
+          ) : (
+            <div className="raster raster-2">
+              {p.brongegevens.map((b, i) => (
+                <section key={i} className="brondataBlok">
+                  <h3>
+                    {b.titel ? `Concept: ${b.titel}` : `Rij ${i + 1}`} <small className="muted">· {b.bron} · {datum(b.op)}</small>
+                  </h3>
+                  <div className="tabelWrap">
+                    <table className="tabel brondataTabel">
+                      <tbody>
+                        {Object.entries(b.velden).map(([k, v]) => (
+                          <tr key={k}>
+                            <td className="muted">{k}</td>
+                            <td>{/^https?:\/\//.test(v) ? <a href={v} target="_blank" rel="noreferrer">{v}</a> : v}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+        </Kaart>
       ) : null}
       {tab === "contact" ? (
         <Kaart titel="Contactpersonen (US-47)">
