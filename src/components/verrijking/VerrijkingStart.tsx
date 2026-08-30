@@ -1,11 +1,11 @@
 "use client";
-// US-29/US-31: verrijkingsronde starten (alle partners of één partner met geplakte openbare tekst).
+// US-29/US-31: verrijkingsronde starten (alle partners via internet, of één partner met geplakte openbare tekst).
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { startVerrijking } from "@/lib/actions";
 import { Melding } from "@/components/ui";
 
-export default function VerrijkingStart({ partners, magBewerken }: { partners: Array<{ id: string; naam: string }>; magBewerken: boolean }) {
+export default function VerrijkingStart({ partners, magBewerken, externeBronnen }: { partners: Array<{ id: string; naam: string }>; magBewerken: boolean; externeBronnen: boolean }) {
   const router = useRouter();
   const [bezig, start] = useTransition();
   const [partnerId, setPartnerId] = useState("");
@@ -19,7 +19,8 @@ export default function VerrijkingStart({ partners, magBewerken }: { partners: A
     start(async () => {
       const r = await startVerrijking(id, t);
       if (!r.ok) return setFout(r.fout);
-      setSucces(`${r.data ?? 0} voorstel(len) gevonden; nieuwe voorstellen staan in de wachtrij ter controle.`);
+      const u = r.data!;
+      setSucces(`${u.partners} partner(s) geraadpleegd, ${u.voorstellen} voorstel(len) gevonden waarvan ${u.nieuw} nieuw in de wachtrij${u.websitesGevonden ? `; ${u.websitesGevonden} website(s) gevonden` : ""}${u.nogTeGaan ? `. Nog ${u.nogTeGaan} partner(s) te gaan — start de ronde opnieuw.` : "."}`);
       router.refresh();
     });
   };
@@ -28,9 +29,14 @@ export default function VerrijkingStart({ partners, magBewerken }: { partners: A
     <div className="formulier">
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
       {succes ? <Melding soort="succes">{succes}</Melding> : null}
+      <p className="muted klein-tekst">
+        {externeBronnen
+          ? "Per ronde worden maximaal 20 partners via internet verrijkt (minst recent geraadpleegde eerst): website opzoeken als die ontbreekt, home/over ons/projecten/duurzaamheid lezen, en voorstellen doen voor website, KVK, plaats, omschrijving, referenties en factorwaarden."
+          : "Externe bronnen staan uit: alleen de vastgelegde profieltekst of geplakte tekst wordt gebruikt."}
+      </p>
       <div className="formulierActies">
         <button type="button" className="knop" disabled={bezig || !magBewerken} onClick={() => draai()}>
-          {bezig ? "Bezig…" : "Alle partners verrijken"}
+          {bezig ? "Bezig…" : externeBronnen ? "Volgende 20 partners verrijken via internet" : "Alle partners verrijken"}
         </button>
         {!magBewerken ? <span className="muted">Recht &lsquo;bewerken&rsquo; vereist.</span> : null}
       </div>
@@ -48,11 +54,11 @@ export default function VerrijkingStart({ partners, magBewerken }: { partners: A
       </label>
       <label>
         Openbare tekst plakken (bijv. van website) — optioneel
-        <textarea value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Plak hier openbare bedrijfsinformatie. Zonder tekst wordt de profieltekst gebruikt, of de website als externe bronnen aan staan." />
+        <textarea value={tekst} onChange={(e) => setTekst(e.target.value)} placeholder="Plak hier openbare bedrijfsinformatie. Zonder tekst wordt de website via internet gelezen (als externe bronnen aan staan), anders de profieltekst." />
       </label>
       <div className="formulierActies">
         <button type="button" className="knop knop-secundair" disabled={bezig || !magBewerken || !partnerId} onClick={() => draai(partnerId, tekst.trim() || undefined)}>
-          Partner verrijken
+          {bezig ? "Bezig…" : "Partner verrijken"}
         </button>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { maakLegeDatabase, maakSeedDatabase } from "./domain/seed";
 import { geocodeer } from "./domain/geocode";
 import { geocode as lokaalGeocode } from "./domain/geo";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "./domain/partnerimport";
+import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import houtbouwers from "@/data/houtbouwers-seed.json";
 import type { Geo } from "./domain/types";
 import type { AuditEntry, Database, Gebruiker } from "./domain/types";
@@ -54,15 +55,16 @@ export async function getDb(): Promise<Database> {
   return g.__partnerDb!;
 }
 
-/** Eerste start zonder opgeslagen staat: lege database plus de echte partners uit het Blauwhoed-overzicht houtbouwers. */
+/** Eerste start zonder opgeslagen staat: lege database plus de echte partners uit het Blauwhoed-overzicht houtbouwers en de aanvullende dataset (partners, projecten, websites). */
 async function maakStartDatabase(): Promise<Database> {
   const db = maakLegeDatabase();
   const bron = houtbouwers as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
   const partners = voegRijenSamen(bron.partners.map((p) => rijNaarPartner(p.values)).filter((p): p is NonNullable<typeof p> => Boolean(p)));
   // Eerst de lokale plaatsenlijst (direct), daarna op de achtergrond PDOK voor onbekende plaatsen zodat de eerste pagina niet wacht.
-  const plaatsen = Array.from(new Set(partners.map((p) => p.plaats).filter((x): x is string => Boolean(x))));
+  const plaatsen = Array.from(new Set([...partners.map((p) => p.plaats).filter((x): x is string => Boolean(x)), ...aanvullingPlaatsen()]));
   const locaties = new Map<string, Geo | null>(plaatsen.map((pl) => [pl, lokaalGeocode(pl)]));
   const u = voegPartnersToe(db, partners, locaties, bron.sourceFile, nieuwId);
+  const a = laadAanvulling(db, locaties, nieuwId);
   void Promise.all(
     plaatsen
       .filter((pl) => !locaties.get(pl))
@@ -75,10 +77,13 @@ async function maakStartDatabase(): Promise<Database> {
             p.tags = p.tags.filter((t) => t !== "locatie onbekend");
           }
         });
+        db.projecten.forEach((pr) => {
+          if (pr.locatie.plaats === pl) pr.locatie = { ...pr.locatie, ...r.locatie };
+        });
         planOpslaan(db);
       })
   );
-  db.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "partner", entiteitId: "import", actie: "houtbouwersoverzicht geladen bij eerste start", details: `${u.nieuw} organisaties uit ${bron.sourceFile}` });
+  db.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "partner", entiteitId: "import", actie: "houtbouwersoverzicht en aanvulling geladen bij eerste start", details: `${u.nieuw} organisaties uit ${bron.sourceFile}; aanvulling: ${a.partnersNieuw} partners, ${a.projectenNieuw} projecten, ${a.websitesAangevuld} websites` });
   planOpslaan(db);
   return db;
 }

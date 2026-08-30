@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { GEBRUIKERS, vereisRecht } from "./auth";
 import { afwijsPenalty, demoConnector, kandidaatNaarPartner, normaliseerNaam, samenvattingVoor, vindDubbel } from "./domain/discovery";
-import { extraheerVoorstellen, haalWebsiteOp } from "./domain/enrichment";
+import { extraheerVoorstellen } from "./domain/enrichment";
 import { extraheerProjectprofiel } from "./domain/extractie";
 import { kvkConnector } from "./domain/kvk";
 import { leidEisenAf } from "./domain/projectfactoren";
@@ -12,6 +12,8 @@ import { importeerEngagements } from "./domain/csv";
 import { geocodeer } from "./domain/geocode";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type ImportUitkomst } from "./domain/partnerimport";
 import { webzoekConnector } from "./domain/webzoek";
+import { BASISVELDEN, verrijkVanuitInternet } from "./domain/webverrijking";
+import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting } from "./ai";
 import type { BronConnector } from "./domain/discovery";
 import { slaNuOp } from "./store";
@@ -21,12 +23,14 @@ import { stelTeamSamen } from "./domain/team";
 import type {
   Certificaat,
   Contactpersoon,
+  Database,
   EnrichmentVoorstel,
   Evaluatie,
   Factor,
   FactorOption,
   FactorWaarde,
   Financieel,
+  Gebruiker,
   Geo,
   KwalificatieItem,
   MatchFeedback,
@@ -296,6 +300,20 @@ export async function importeerPartners(rijen: ImportRij[], bronnaam: string) {
 export async function laadHoutbouwersOverzicht() {
   const seed = (await import("@/data/houtbouwers-seed.json")).default as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
   return importeerPartners(seed.partners.map((p) => p.values), seed.sourceFile);
+}
+
+/** Laadt de aanvullende dataset (partners, projecten, engagements en websites van bestaande partners; samengesteld uit openbare bronnen). */
+export async function laadAanvullendeData() {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    const plaatsen = aanvullingPlaatsen();
+    const locaties = new Map<string, Geo | null>();
+    await Promise.all(plaatsen.map(async (pl) => locaties.set(pl, (await geocodeer(pl))?.locatie ?? null)));
+    const u = await muteer(g, { entiteit: "database", entiteitId: "aanvulling", actie: "aanvullende dataset geladen" }, (db) => laadAanvulling(db, locaties, nieuwId));
+    await slaNuOp();
+    ["/partners", "/projecten", "/kaart", "/historie", "/beheer"].forEach((p) => revalidatePath(p));
+    return u;
+  });
 }
 
 // ---------- Factorbeheer (US-04) ----------
@@ -664,69 +682,152 @@ export async function markeerGeenDubbel(id: string) {
 }
 
 // ---------- Verrijking (Epic 6) ----------
-export async function startVerrijking(partnerId?: string, tekst?: string) {
-  return veilig(async () => {
+/** Verzamel voorstellen voor één partner: via internet (website zoeken + pagina's lezen) als externe bronnen aan staan, anders uit geplakte/profieltekst. */
+async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string): Promise<{ voorstellen: EnrichmentVoorstel[]; bronUrl: string; paginas: string[]; websiteGevonden: boolean }> {
+  const voorstellen: EnrichmentVoorstel[] = [];
+  let bronTekst = tekst ?? null;
+  let bronUrl = tekst ? "handmatig aangeleverde openbare tekst" : p.website ?? "";
+  let paginas: string[] = [];
+  let websiteGevonden = false;
+  if (!bronTekst && db.instellingen.externeBronnenToegestaan) {
+    const web = await verrijkVanuitInternet(p);
+    voorstellen.push(...web.voorstellen);
+    paginas = web.paginas;
+    websiteGevonden = web.websiteGevonden;
+    if (web.tekst) {
+      bronTekst = web.tekst;
+      bronUrl = web.website ?? bronUrl;
+    }
+  }
+  if (!bronTekst) {
+    // Zonder externe bronnen of website: gebruik de al vastgelegde openbare profieltekst en referenties (bron web).
+    bronTekst = [p.omschrijving, ...p.referenties].join(". ");
+    bronUrl = bronUrl || "profieltekst";
+    voorstellen.push(...extraheerVoorstellen(p, bronTekst, bronUrl));
+  } else if (tekst) {
+    voorstellen.push(...extraheerVoorstellen(p, bronTekst, bronUrl));
+  }
+  if (aiBeschikbaar() && bronTekst) {
+    const ai = await aiFactorExtractie(p.naam, bronTekst, db.factoren);
+    (ai ?? []).forEach((a) => {
+      const f = db.factoren.find((x) => x.id === a.factorId);
+      if (!f) return;
+      const optieLabel = a.optieId ? f.opties?.find((o) => o.id === a.optieId)?.label : undefined;
+      const huidig = p.factoren.find((x) => x.factorId === a.factorId && (x.optieId ?? "") === (a.optieId ?? ""));
+      if (huidig && JSON.stringify(huidig.waarde) === JSON.stringify(a.waarde)) return;
+      voorstellen.push({ id: nieuwId("ev-ai"), partnerId: p.id, factorId: a.factorId, veld: optieLabel ? `${f.naam}: ${optieLabel}` : f.naam, huidig: huidig?.waarde ?? null, voorgesteld: a.waarde, bron: "web", bronUrl, betrouwbaarheid: a.aantoonbaar ? 0.6 : 0.35, soort: a.aantoonbaar ? "aantoonbaar" : "geclaimd", citaat: `[Claude] ${a.citaat}`, status: "open", gevondenOp: new Date().toISOString() });
+    });
+  }
+  return { voorstellen, bronUrl, paginas, websiteGevonden };
+}
+
+/** Schrijf nieuwe voorstellen (zonder dubbelen) naar de wachtrij en registreer de raadpleging bij de partner. */
+async function bewaarVoorstellen(g: Gebruiker, entiteitId: string, nieuweVoorstellen: EnrichmentVoorstel[], geraadpleegd: Array<{ partnerId: string; paginas: string[] }>) {
+  let toegevoegd = 0;
+  await muteer(g, { entiteit: "verrijking", entiteitId, actie: "verrijkingsronde", details: `${nieuweVoorstellen.length} voorstellen` }, (db) => {
+    const bestaand = new Set(db.verrijkingsvoorstellen.filter((x) => x.status === "open").map((x) => `${x.partnerId}|${x.veld}|${JSON.stringify(x.voorgesteld)}`));
+    nieuweVoorstellen.forEach((v) => {
+      const sleutel = `${v.partnerId}|${v.veld}|${JSON.stringify(v.voorgesteld)}`;
+      if (bestaand.has(sleutel)) return;
+      bestaand.add(sleutel);
+      db.verrijkingsvoorstellen.unshift(v);
+      toegevoegd++;
+    });
+    const vandaag = new Date().toISOString().slice(0, 10);
+    geraadpleegd.forEach(({ partnerId, paginas }) => {
+      const p = db.partners.find((x) => x.id === partnerId);
+      if (!p) return;
+      p.bronnen = p.bronnen.filter((b) => b.soort !== "web-verrijking" || !paginas.includes(b.url));
+      paginas.forEach((url) => p.bronnen.push({ url, opgehaaldOp: vandaag, soort: "web-verrijking" }));
+    });
+    db.instellingen.laatsteVerrijking = new Date().toISOString();
+  });
+  return toegevoegd;
+}
+
+export type VerrijkingUitkomst = { partners: number; voorstellen: number; nieuw: number; websitesGevonden: number; nogTeGaan: number };
+
+/**
+ * Verrijkingsronde: één partner (optioneel met geplakte tekst) of alle partners. Bij 'alle' worden per ronde maximaal
+ * `maxPerRonde` partners via internet verrijkt (de minst recent geraadpleegde eerst) zodat de ronde binnen de tijd blijft.
+ */
+export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20) {
+  return veilig(async (): Promise<VerrijkingUitkomst> => {
     const g = await vereisRecht("bewerken");
     const db = await getDb();
-    const doelen = partnerId ? db.partners.filter((p) => p.id === partnerId) : db.partners.filter((p) => p.status !== "geblokkeerd");
-    let totaal = 0;
+    const laatstGeraadpleegd = (p: Partner) => p.bronnen.filter((b) => b.soort === "web-verrijking").map((b) => b.opgehaaldOp).sort().pop() ?? "";
+    const kandidaten = partnerId ? db.partners.filter((p) => p.id === partnerId) : db.partners.filter((p) => p.status !== "geblokkeerd").sort((a, b) => laatstGeraadpleegd(a).localeCompare(laatstGeraadpleegd(b)));
+    const doelen = partnerId ? kandidaten : kandidaten.slice(0, maxPerRonde);
+    if (partnerId && !doelen.length) throw new Error("Partner niet gevonden.");
     const nieuweVoorstellen: EnrichmentVoorstel[] = [];
-    for (const p of doelen) {
-      let bronTekst = tekst ?? null;
-      let bronUrl = tekst ? "handmatig aangeleverde openbare tekst" : p.website ?? "";
-      if (!bronTekst && db.instellingen.externeBronnenToegestaan && p.website) bronTekst = await haalWebsiteOp(p.website);
-      if (!bronTekst) {
-        // Zonder externe bronnen: gebruik de al vastgelegde openbare profieltekst en referenties (bron web).
-        bronTekst = [p.omschrijving, ...p.referenties].join(". ");
-        bronUrl = bronUrl || "profieltekst";
-      }
-      const v = extraheerVoorstellen(p, bronTekst, bronUrl);
-      nieuweVoorstellen.push(...v);
-      totaal += v.length;
-      if (aiBeschikbaar()) {
-        const ai = await aiFactorExtractie(p.naam, bronTekst, db.factoren);
-        (ai ?? []).forEach((a) => {
-          const f = db.factoren.find((x) => x.id === a.factorId)!;
-          const optieLabel = a.optieId ? f.opties?.find((o) => o.id === a.optieId)?.label : undefined;
-          const huidig = p.factoren.find((x) => x.factorId === a.factorId && (x.optieId ?? "") === (a.optieId ?? ""));
-          if (huidig && JSON.stringify(huidig.waarde) === JSON.stringify(a.waarde)) return;
-          nieuweVoorstellen.push({ id: nieuwId("ev-ai"), partnerId: p.id, factorId: a.factorId, veld: optieLabel ? `${f.naam}: ${optieLabel}` : f.naam, huidig: huidig?.waarde ?? null, voorgesteld: a.waarde, bron: "web", bronUrl, betrouwbaarheid: a.aantoonbaar ? 0.6 : 0.35, soort: a.aantoonbaar ? "aantoonbaar" : "geclaimd", citaat: `[Claude] ${a.citaat}`, status: "open", gevondenOp: new Date().toISOString() });
-          totaal++;
-        });
-      }
-    }
-    await muteer(g, { entiteit: "verrijking", entiteitId: partnerId ?? "alle", actie: "verrijkingsronde", details: `${totaal} voorstellen` }, (db) => {
-      const bestaand = new Set(db.verrijkingsvoorstellen.filter((x) => x.status === "open").map((x) => `${x.partnerId}|${x.factorId}|${JSON.stringify(x.voorgesteld)}`));
-      nieuweVoorstellen.forEach((v) => {
-        if (!bestaand.has(`${v.partnerId}|${v.factorId}|${JSON.stringify(v.voorgesteld)}`)) db.verrijkingsvoorstellen.unshift(v);
-      });
-      db.instellingen.laatsteVerrijking = new Date().toISOString();
-    });
+    const geraadpleegd: Array<{ partnerId: string; paginas: string[] }> = [];
+    let websitesGevonden = 0;
+    // Beperkte parallelliteit: vriendelijk voor de bronnen, snel genoeg voor een ronde.
+    const wachtrij = [...doelen];
+    await Promise.all(
+      Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
+        for (let p = wachtrij.shift(); p; p = wachtrij.shift()) {
+          const r = await verzamelVoorstellen(p, db, tekst);
+          nieuweVoorstellen.push(...r.voorstellen);
+          if (r.websiteGevonden) websitesGevonden++;
+          geraadpleegd.push({ partnerId: p.id, paginas: r.paginas });
+        }
+      })
+    );
+    const nieuw = await bewaarVoorstellen(g, partnerId ?? "alle", nieuweVoorstellen, geraadpleegd);
     revalidatePath("/verrijking");
-    return totaal;
+    if (partnerId) revalidatePath(`/partners/${partnerId}`);
+    return { partners: doelen.length, voorstellen: nieuweVoorstellen.length, nieuw, websitesGevonden, nogTeGaan: Math.max(0, kandidaten.length - doelen.length) };
   });
 }
 
 export async function beoordeelVoorstel(id: string, accepteer: boolean) {
   return veilig(async () => {
     const g = await vereisRecht("bewerken");
+    const dbLees = await getDb();
+    const vooraf = dbLees.verrijkingsvoorstellen.find((x) => x.id === id);
+    // Plaatswijziging: eerst geocoderen (netwerk), daarna pas muteren.
+    const geo: Geo | null = accepteer && vooraf && !vooraf.factorId && vooraf.veld === BASISVELDEN.plaats ? ((await geocodeer(String(vooraf.voorgesteld)))?.locatie ?? null) : null;
+    let partnerId: string | undefined;
     await muteer(g, { entiteit: "verrijking", entiteitId: id, actie: accepteer ? "voorstel geaccepteerd" : "voorstel afgewezen" }, (db) => {
       const v = db.verrijkingsvoorstellen.find((x) => x.id === id);
       if (!v) throw new Error("Voorstel niet gevonden.");
       v.status = accepteer ? "geaccepteerd" : "afgewezen";
-      if (accepteer && v.factorId) {
-        const p = db.partners.find((x) => x.id === v.partnerId);
-        if (!p) return;
-        const optieId = v.veld.includes(":") ? v.veld.split(":")[1].trim().toLowerCase().replace(/ /g, "_").replace("prefab_beton", "prefab_beton") : undefined;
-        const optie = optieId ? db.factoren.find((f) => f.id === v.factorId)?.opties?.find((o) => o.label.toLowerCase() === v.veld.split(":")[1].trim().toLowerCase())?.id : undefined;
-        const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: "web", betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? "web" }, peildatum: v.gevondenOp.slice(0, 10), toelichting: `${v.soort}: ${v.citaat}` };
-        const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
-        if (idx >= 0) p.factoren[idx] = record;
-        else p.factoren.push(record);
+      if (!accepteer) return;
+      const p = db.partners.find((x) => x.id === v.partnerId);
+      if (!p) return;
+      partnerId = p.id;
+      const nu = new Date().toISOString();
+      if (!v.factorId) {
+        // Basisveld (website, KVK, plaats, omschrijving, referentie).
+        const waarde = String(v.voorgesteld);
+        if (v.veld === BASISVELDEN.website) p.website = waarde;
+        else if (v.veld === BASISVELDEN.kvk) p.kvk = waarde;
+        else if (v.veld === BASISVELDEN.plaats) {
+          p.vestigingsplaats = waarde;
+          if (geo) {
+            p.locatie = geo;
+            p.tags = p.tags.filter((t) => t !== "locatie onbekend");
+          }
+        } else if (v.veld === BASISVELDEN.omschrijving) p.omschrijving = waarde;
+        else if (v.veld === BASISVELDEN.referentie) {
+          if (!p.referenties.includes(waarde)) p.referenties.push(waarde);
+        } else throw new Error(`Onbekend veld '${v.veld}'.`);
         p.bronnen.push({ url: v.bronUrl ?? "", opgehaaldOp: v.gevondenOp.slice(0, 10), soort: "verrijking" });
+        p.bijgewerktOp = nu;
+        return;
       }
+      const optieLabel = v.veld.includes(":") ? v.veld.split(":")[1].trim().toLowerCase() : undefined;
+      const optie = optieLabel ? db.factoren.find((f) => f.id === v.factorId)?.opties?.find((o) => o.label.toLowerCase() === optieLabel || o.id === optieLabel.replace(/ /g, "_"))?.id : undefined;
+      const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: "web", betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? "web" }, peildatum: v.gevondenOp.slice(0, 10), toelichting: `${v.soort}: ${v.citaat}` };
+      const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
+      if (idx >= 0) p.factoren[idx] = record;
+      else p.factoren.push(record);
+      p.bronnen.push({ url: v.bronUrl ?? "", opgehaaldOp: v.gevondenOp.slice(0, 10), soort: "verrijking" });
+      p.bijgewerktOp = nu;
     });
     revalidatePath("/verrijking");
+    if (partnerId) revalidatePath(`/partners/${partnerId}`);
   });
 }
 

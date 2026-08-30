@@ -2,7 +2,7 @@
 // Database leegmaken of (voor een demonstratie) de fictieve demoset laden (recht beheer).
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { resetDemo } from "@/lib/actions";
+import { laadAanvullendeData, resetDemo } from "@/lib/actions";
 import { Melding } from "@/components/ui";
 
 export function DemoReset({ magBeheren }: { magBeheren: boolean }) {
@@ -26,6 +26,18 @@ export function DemoReset({ magBeheren }: { magBeheren: boolean }) {
     });
   };
 
+  const laadAanvulling = () => {
+    setFout(null);
+    setKlaar(null);
+    start(async () => {
+      const r = await laadAanvullendeData();
+      if (!r.ok) return setFout(r.fout);
+      const u = r.data!;
+      setKlaar(`Aanvulling geladen: ${u.partnersNieuw} nieuwe partners, ${u.partnersAangevuld} aangevuld, ${u.websitesAangevuld} websites/plaatsen bij bestaande partners, ${u.projectenNieuw} projecten en ${u.engagementsNieuw} betrokkenheden.`);
+      router.refresh();
+    });
+  };
+
   return (
     <div>
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
@@ -40,6 +52,13 @@ export function DemoReset({ magBeheren }: { magBeheren: boolean }) {
         </button>
       </div>
       {!magBeheren ? <p className="muted klein-tekst">Alleen beschikbaar voor de rol beheerder.</p> : null}
+      <hr className="scheiding" />
+      <p className="muted klein-tekst">De aanvullende dataset (echte Blauwhoed-projecten, projectpartners, architecten, installateurs, adviseurs, leveranciers en websites van de houtbouwers; samengesteld uit openbare webbronnen) wordt bij de eerste start geladen. Hier laad je haar opnieuw in een bestaande database: alleen aanvullen, niets overschrijven.</p>
+      <div className="formulierActies">
+        <button type="button" className="knop knop-secundair klein" disabled={!magBeheren || bezig} onClick={laadAanvulling}>
+          {bezig ? "Bezig…" : "Aanvullende partners en projecten laden"}
+        </button>
+      </div>
     </div>
   );
 }

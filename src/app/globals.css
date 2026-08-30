@@ -1050,9 +1050,15 @@ table.tabel td.num, table.tabel th.num { text-align: right; font-variant-numeric
 .gewichtBalk { display: flex; height: 22px; border: 1px solid var(--line); overflow: hidden; margin: 8px 0; }
 .gewichtBalk span { display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; overflow: hidden; white-space: nowrap; }
 details.uitklap summary { cursor: pointer; color: var(--blue); font-weight: 700; font-size: 13px; }
-.kaartSvg { width: 100%; height: auto; background: #f0f4f8; border: 1px solid var(--line); }
-.kaartSvg circle { cursor: pointer; }
-.kaartSvg text { font-size: 9px; fill: var(--ink); pointer-events: none; }
+.kaartLeaflet { width: 100%; height: 560px; background: #f0f4f8; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; z-index: 0; }
+.kaartLaden { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+.kaartLeaflet .leaflet-tooltip { font: 12px/1.3 inherit; font-family: inherit; }
+.kaartLeaflet .kaartAfstand { background: rgba(255,255,255,0.9); border: 1px solid #003e7e; color: #003e7e; font-weight: 600; font-size: 11px; padding: 1px 5px; box-shadow: none; }
+.kaartLeaflet .kaartAfstand::before { display: none; }
+.kaartLeaflet .kaartProject { background: none; border: 0; cursor: pointer; }
+.kaartLeaflet .leaflet-popup-content { font-family: inherit; font-size: 13px; line-height: 1.45; }
+.kaartLeaflet .leaflet-popup-content a { color: var(--blue, #003e7e); font-weight: 600; }
+@media (max-width: 700px) { .kaartLeaflet { height: 400px; } }
 .printOnly { display: none; }
 @media print {
   .topbar, .voet, .hoofdNav, .rolWisselaar, .geenPrint { display: none !important; }
@@ -1166,8 +1172,6 @@ tr.inlineFormulierRij td { background: var(--soft) !important; padding: 14px; }
 .kaartFilters { margin-bottom: 20px; }
 .legenda { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: 13px; align-items: center; }
 .legenda i { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 4px; }
-.kaartSvg a { cursor: pointer; }
-.kaartSvg rect { cursor: pointer; }
 .rechtenMatrix th { text-transform: none; }
 .rechtenMatrix td.vink { text-align: center; }
 .rechtenMatrix .ja { color: var(--green); font-weight: 700; }

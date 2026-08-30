@@ -1,0 +1,2859 @@
+{
+ "bron": "Aanvulling partnerradar (openbare webbronnen)",
+ "peildatum": "2026-08-30",
+ "partners": [
+  {
+   "naam": "KOW",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Den Haag",
+   "website": "https://kow.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Architectenbureau met vestigingen in Den Haag en Eindhoven, gericht op woningbouw, onderwijs en zorg. Ontwierp voor Blauwhoed het volledig in hout uitgevoerde Casa Vita (CLT-wanden en -vloeren met prefab HSB-gevels), Op den Donk in Duiven en de woningen in woonbuurt Harmonie.",
+   "referenties": [
+    "Casa Vita, Pijnacker: 101 appartementen (67 koop, 34 sociale huur) in CLT/HSB, genomineerd Nationale Houtbouwprijs 2025",
+    "Harmonie, Capelle aan den IJssel: 144 koopwoningen voor Blauwhoed/Stebru"
+   ],
+   "medewerkers": 40,
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hsb",
+    "prefab",
+    "natuurinclusief",
+    "bouwteam",
+    "zorgwonen"
+   ],
+   "blauwhoedRelatie": "Casa Vita (Pijnacker), Op den Donk (Duiven) en Harmonie (Capelle aan den IJssel)",
+   "bronUrl": "https://kow.nl/bouwen-in-hout-is-niets-nieuws/"
+  },
+  {
+   "naam": "Architekten Cie",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://www.cie.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Amsterdams architectenbureau (de Architekten Cie.) voor woningbouw, stedenbouw en transformatie. Ontwierp voor Blauwhoed en KOERS het modulaire, grotendeels houten woongebouw Timbr in Zaandam, opgebouwd uit 318 fabrieksmatig vervaardigde modules.",
+   "referenties": [
+    "Timbr (Slachthuisstraat), Zaandam: 158 sociale en middenhuurwoningen, modulaire houtbouw, oplevering eind 2025",
+    "Het Dok, NDSM-werf Amsterdam: drie woontorens in prefab bouwmethode"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "modulair",
+    "prefab",
+    "circulair",
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Timbr / Slachthuisstraat Zaandam (met KOERS, ZVH en Heddes)",
+   "bronUrl": "https://blauwhoed.nl/nieuws/voortvarende-bouw-van-158-woningen-in-zaandam-gest"
+  },
+  {
+   "naam": "Klunder Architecten",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Rotterdam",
+   "website": "https://www.klunderarchitecten.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Rotterdams architectenbureau, opgericht in 1978, met veel ervaring in hoogbouw en woningbouw. Werkt aan transformatieproject De Gravin waar de nieuwbouwwoningen volledig in houtbouw worden gerealiseerd; architect van een Blauwhoed-woontoren in Centrumgebied Amsterdam-Noord.",
+   "referenties": [
+    "De Gravin: transformatie met nieuwbouwwoningen volledig in houtbouw",
+    "100Hoog, Rotterdam: woontoren"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "hoogbouw",
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Woontoren (ca. 90 m) Centrumgebied Amsterdam-Noord voor Blauwhoed/De Ruimte",
+   "bronUrl": "https://www.klunderarchitecten.nl/2025/10/03/transformatie-de-gravin-gaat-gestaag-door/"
+  },
+  {
+   "naam": "Inbo",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://inbo.com",
+   "rollen": [
+    "architect",
+    "adviseur"
+   ],
+   "omschrijving": "Groot architecten- en adviesbureau voor woningbouw en gebiedsontwikkeling. Publiceerde de CLT-handleiding voor architecten en bouwkundigen (gestapelde woningbouw), was architect van Singelblok in Amsterdam-Noord voor CZAN (Blauwhoed en AM) en van Ambachts Lint in Hendrik-Ido-Ambacht.",
+   "referenties": [
+    "Singelblok, Amsterdam-Noord: 401 huurwoningen (Vesteda en Eigen Haard), opgeleverd 2025",
+    "CLT-handleiding 'CLT in gestapelde woningbouw' (2022)"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hoogbouw",
+    "bim",
+    "zorgwonen"
+   ],
+   "blauwhoedRelatie": "Singelblok Amsterdam-Noord (CZAN) en Ambachts Lint",
+   "bronUrl": "https://nieuws.vesteda.com/realisatie-van-singelblok-in-amsterdam-noord-van-start/"
+  },
+  {
+   "naam": "Mei architects and planners",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Rotterdam",
+   "website": "https://mei-arch.eu",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Rotterdams bureau bekend van transformaties en houtbouw. Ontwierp SAWA, het eerste volledig houten woongebouw van Rotterdam (50 m hoog) en winnaar van de Nationale Houtbouwprijs 2025.",
+   "referenties": [
+    "SAWA, Lloydpier Rotterdam: 109 appartementen (50 middenhuur) in CLT, opgeleverd eind 2024",
+    "Fenix I, Rotterdam: transformatie pakhuis met 212 loftwoningen"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "circulair",
+    "natuurinclusief",
+    "hoogbouw",
+    "transformatie"
+   ],
+   "bronUrl": "https://mei-arch.eu/en/projects/sawa/"
+  },
+  {
+   "naam": "Team V Architectuur",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://teamv.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Amsterdams architectenbureau, ontwerper van HAUT, een 21 verdiepingen hoge houten woontoren aan de Amstel. HAUT kreeg als eerste Nederlandse woongebouw BREEAM Outstanding.",
+   "referenties": [
+    "HAUT, Amsterdam: 21 verdiepingen, 73 meter houten woontoren met 52 appartementen, opgeleverd 2022"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hoogbouw",
+    "energieneutraal"
+   ],
+   "bronUrl": "https://teamv.nl/project/haut/"
+  },
+  {
+   "naam": "FAAM architects",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Eindhoven",
+   "website": "https://www.faamarchitects.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Eindhovens architectenbureau dat woningbouw volledig in hout ontwerpt (constructie, wanden, vloeren en gevels). Realiseerde voor Trudo het eerste CLT-woonwerkcomplex van Eindhoven.",
+   "referenties": [
+    "Pannenhoef-Leemerhoef, landgoed Eikenburg Eindhoven: 28 sociale huurwoningen in CLT (2021)",
+    "Eikenhof, Eindhoven: houten woningen, genomineerd Nationale Houtbouwprijs 2021"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "biobased",
+    "natuurinclusief"
+   ],
+   "bronUrl": "https://www.faamarchitects.nl/project/eikenburg/"
+  },
+  {
+   "naam": "Arons en Gelauff architecten",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://aronsengelauff.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Amsterdams architectenbureau, gevestigd in het Hamerkwartier, met focus op woningbouw en publieke gebouwen. Ontwierp voor Blauwhoed de woningen aan de Schiehaven op de Lloydpier in Rotterdam.",
+   "referenties": [
+    "Lloydpier Schiehaven, Rotterdam: 63 van de 95 woningen in de Blauwhoed-ontwikkeling"
+   ],
+   "kenmerken": [
+    "hoogbouw",
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Lloydpier Rotterdam (woningen Schiehaven)",
+   "bronUrl": "https://propertynl.com/Nieuws/Blauwhoed-gaat-88-woningen-realiseren-op-Lloydpier/91a57de9-c741-4111-9545-1408192f8675"
+  },
+  {
+   "naam": "architectuur MAKEN",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Rotterdam",
+   "website": "https://architectuurmaken.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Rotterdams architectenbureau met nadruk op circulair en materiaalbewust ontwerpen (o.a. gevels van gerecycled baksteen). Ontwierp de woningen aan de Maaszijde van de Blauwhoed-ontwikkeling op de Lloydpier.",
+   "referenties": [
+    "Stadswonen op de Lloydpier, Rotterdam: woningen aan de Maaszijde voor Blauwhoed",
+    "Create@Müllerpier, Rotterdam"
+   ],
+   "kenmerken": [
+    "circulair"
+   ],
+   "blauwhoedRelatie": "Lloydpier Rotterdam (woningen Maaszijde)",
+   "bronUrl": "https://architectuurmaken.nl/projecten/stadswonen-op-de-lloydpier/"
+  },
+  {
+   "naam": "CONIX RDBM Architects",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Rotterdam",
+   "website": "https://www.conixrdbm.com",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Architectenbureau met vestigingen in Rotterdam en Antwerpen. Won de selectie voor woontoren STACK op de Müllerpier voor AM en Blauwhoed, het 70 meter hoge sluitstuk van de gebiedsontwikkeling.",
+   "referenties": [
+    "STACK, Müllerpier Rotterdam: 85 woningen (6 gezinswoningen, 77 appartementen, 2 penthouses), oplevering 2024/2025"
+   ],
+   "kenmerken": [
+    "hoogbouw"
+   ],
+   "blauwhoedRelatie": "STACK Müllerpier Rotterdam (AM en Blauwhoed)",
+   "bronUrl": "https://www.conixrdbm.com/project/stack/"
+  },
+  {
+   "naam": "Space&Matter",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://www.spaceandmatter.nl",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Amsterdamse ontwerpstudio voor architectuur en circulaire gebiedsontwikkeling, werkend in co-creatie met eindgebruikers. Onderdeel van het architectenteam van Ons Erf (Timpaan en Blauwhoed) in Lincolnpark Hoofddorp, dat volledig in CLT wordt gebouwd.",
+   "referenties": [
+    "Ons Erf, Lincolnpark Hoofddorp: 519 woningen in CLT, start bouw 2027 (met White Arkitekter, Atlas en SeARCH)",
+    "Common Woods: houten woongebouwen in bosrijke setting"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "circulair",
+    "modulair",
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp (Timpaan en Blauwhoed)",
+   "bronUrl": "https://architectenweb.nl/nieuws/artikel.aspx?id=60206"
+  },
+  {
+   "naam": "Felix Claus Dick van Wageningen Architecten",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://www.felixclaus.com",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Amsterdams architectenbureau van Felix Claus en Dick van Wageningen, voortgekomen uit Claus en Kaan. Ontwierp voor Blauwhoed de plannen Beaufort en Zuidwester op IJburg.",
+   "referenties": [
+    "Beaufort en Zuidwester, IJburg Amsterdam: 21 woningen (12 twee-onder-een-kap, 9 eengezinswoningen), gebouwd door Slokker Bouwgroep"
+   ],
+   "kenmerken": [],
+   "blauwhoedRelatie": "Beaufort en Zuidwester, IJburg Amsterdam",
+   "bronUrl": "https://www.nul20.nl/blauwhoed-start-bouw-21-woningen-op-ijburg"
+  },
+  {
+   "naam": "Breman Installatiegroep",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Genemuiden",
+   "website": "https://www.breman.nl",
+   "rollen": [
+    "installateur"
+   ],
+   "omschrijving": "Landelijk opererende installatiegroep met 26 gespecialiseerde vestigingen. Ontwikkelt en realiseert complete installaties voor nieuwbouwwoningen, van engineering tot uitvoering, inclusief warmtepompen, ventilatie en WKO.",
+   "referenties": [
+    "Woningbouw Muiden: meerjarige installatie- en onderhoudssamenwerking",
+    "Diverse WKO-installaties in utiliteit en woningbouw"
+   ],
+   "kenmerken": [
+    "warmtepomp",
+    "wko",
+    "energieneutraal"
+   ],
+   "bronUrl": "https://www.breman.nl/zakelijk/expertises/woningbouw/"
+  },
+  {
+   "naam": "Kuijpers",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Helmond",
+   "website": "https://www.kuijpers.nl",
+   "rollen": [
+    "installateur"
+   ],
+   "omschrijving": "Technisch dienstverlener met hoofdkantoor in Helmond en vestigingen in o.a. Amsterdam, Den Haag, Rotterdam en Utrecht. Gecertificeerd voor zowel het bovengrondse als het ondergrondse deel van WKO-systemen.",
+   "referenties": [
+    "WKO-installaties voor woon- en utiliteitsgebouwen door heel Nederland"
+   ],
+   "kenmerken": [
+    "warmtepomp",
+    "wko",
+    "energieneutraal"
+   ],
+   "bronUrl": "https://www.kuijpers.nl/oplossingen/duurzaamheid/warmte-en-koudeopslag-wko/"
+  },
+  {
+   "naam": "Klimaatgarant",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://klimaatgarant.nl",
+   "rollen": [
+    "installateur",
+    "adviseur"
+   ],
+   "omschrijving": "Sinds 2012 gespecialiseerd in energieneutrale woningen met bodemwarmtepompen, WTW en zonnepanelen, geleverd met een meerjarige energieprestatiegarantie. Duizenden (bijna) energieneutrale woningen gerealiseerd; warmtesystemen gaan per 1 juli 2026 over naar Eteck.",
+   "referenties": [
+    "De Parels, RijswijkBuiten: woningen met A++++ prestatiegarantie",
+    "De Draai, Heerhugowaard: starterswoningen met gegarandeerde energieprestatie"
+   ],
+   "kenmerken": [
+    "warmtepomp",
+    "wko",
+    "energieneutraal"
+   ],
+   "bronUrl": "https://klimaatgarant.nl/energie-neutrale-concepten"
+  },
+  {
+   "naam": "Dubotechniek",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Zaltbommel",
+   "website": "https://www.dubotechniek.nl",
+   "rollen": [
+    "installateur"
+   ],
+   "omschrijving": "Specialist in ontwerp, realisatie, onderhoud en exploitatie van WKO-warmtepompinstallaties voor appartementencomplexen en utiliteit. Levert het eigen WKO-concept ONE in verschillende schaalgroottes (Mini tot Mega).",
+   "referenties": [
+    "WKO ONE-installaties voor appartementencomplexen door heel Nederland"
+   ],
+   "kenmerken": [
+    "warmtepomp",
+    "wko",
+    "energieneutraal"
+   ],
+   "bronUrl": "https://www.dubotechniek.nl/nl/expertises/appartementen"
+  },
+  {
+   "naam": "Van der Sluis Technische Bedrijven",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Genemuiden",
+   "website": "https://www.vandersluis.nl",
+   "rollen": [
+    "installateur"
+   ],
+   "omschrijving": "Installatiebedrijf voor woning- en utiliteitsbouw met ervaring in duurzame WKO-installaties voor appartementengebouwen.",
+   "referenties": [
+    "146 appartementen in drie woongebouwen met duurzame WKO-installatie"
+   ],
+   "kenmerken": [
+    "warmtepomp",
+    "wko"
+   ],
+   "bronUrl": "https://www.vandersluis.nl/installatietechniek"
+  },
+  {
+   "naam": "Eteck",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Waddinxveen",
+   "website": "https://www.eteck.nl",
+   "rollen": [
+    "installateur",
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Landelijke exploitant van duurzame collectieve warmte- en koudesystemen (WKO, warmtepompen) voor nieuwbouwwijken en appartementencomplexen. Neemt per 1 juli 2026 de warmtesystemen van Klimaatgarant over.",
+   "referenties": [
+    "Overname warmtesystemen Klimaatgarant (o.a. Energie Exploitatie Rijswijk Buiten)"
+   ],
+   "kenmerken": [
+    "warmtepomp",
+    "wko",
+    "energieneutraal"
+   ],
+   "bronUrl": "https://www.eteck.nl/nl/klimaatgarant/"
+  },
+  {
+   "naam": "Pieters Bouwtechniek",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Delft",
+   "website": "https://www.pietersbouwtechniek.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Constructief adviesbureau, al sinds circa 2005 actief met CLT en koploper in houten woning- en hoogbouw. Constructeur van Casa Vita (Blauwhoed), SAWA en Singelblok.",
+   "referenties": [
+    "Casa Vita, Pijnacker: 101 appartementen in CLT/HSB voor Blauwhoed",
+    "SAWA, Rotterdam: 55 meter hoog houten woongebouw, Nationale Houtbouwprijs 2025",
+    "Singelblok, Amsterdam-Noord: 401 huurwoningen (CZAN)"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hsb",
+    "hoogbouw",
+    "biobased",
+    "bouwteam"
+   ],
+   "blauwhoedRelatie": "Casa Vita Pijnacker en Singelblok Amsterdam-Noord",
+   "bronUrl": "https://www.pietersbouwtechniek.nl/actueel/nieuws/start-natuurinclusieve-houtbouwproject-casa-vita-gevierd"
+  },
+  {
+   "naam": "Lüning",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Velp",
+   "website": "https://luning.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Adviesbureau Lüning: ingenieursbureau dat zich al ruim 40 jaar uitsluitend richt op houtconstructies, met kantoren in Velp en Delft. Werkte mee aan de COBc-richtlijn 'Construeren in CLT' en maakt deel uit van Hout Totaaladvies (met ABT, abtWassenaar, Van de Laar, Huygen en bbn). Constructeur houtbouw voor Ons Erf (Hoofddorp).",
+   "referenties": [
+    "MFC Wanmolen: transformatie met biobased hoofddraagconstructie in CLT en gelamineerd hout",
+    "Ons Erf, Lincolnpark Hoofddorp: 519 CLT-woningen (Timpaan en Blauwhoed)"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hsb",
+    "circulair",
+    "biobased"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp",
+   "bronUrl": "https://www.luning.nl/projecten/woningbouw.aspx"
+  },
+  {
+   "naam": "Goudstikker-de Vries",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Almere",
+   "website": "https://www.goudstikker.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Ingenieursbureau voor bouwtechniek met circa 80 medewerkers en kantoren in Almere, Amsterdam, Assen, Emmen en 's-Hertogenbosch. Initiatiefnemer van de COBc-richtlijn voor CLT-constructies en constructeur van biobased woongebouwen.",
+   "referenties": [
+    "Mooijburg Waterzicht, Amsterdam: biobased appartementengebouw volledig in hout (CLT, HSB, houten gevel)"
+   ],
+   "medewerkers": 80,
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hsb",
+    "biobased"
+   ],
+   "bronUrl": "https://www.goudstikker.nl/"
+  },
+  {
+   "naam": "DGMR",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Arnhem",
+   "website": "https://dgmr.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Ingenieursbureau voor bouwfysica, brandveiligheid, akoestiek en duurzaamheid met o.a. een vestiging in Den Haag. Steeds vaker betrokken bij houtbouwprojecten; bouwfysisch adviseur van Casa Vita en Ambachts Lint.",
+   "referenties": [
+    "Casa Vita, Pijnacker: bouwfysica en akoestiek houtbouw (Blauwhoed)",
+    "Meetprogramma's in houtbouwprojecten voor geluid en brandveiligheid"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "biobased",
+    "energieneutraal"
+   ],
+   "blauwhoedRelatie": "Casa Vita Pijnacker en Ambachts Lint (bouwfysisch adviseur)",
+   "bronUrl": "https://dgmr.nl/bouweninhout/"
+  },
+  {
+   "naam": "Nieman Raadgevende Ingenieurs",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Utrecht",
+   "website": "https://www.nieman.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Adviesbureau met ruim 100 adviseurs op het gebied van bouwfysica, installatietechniek, bouwregelgeving en duurzaamheid (BENG/MPG). Verzorgt via de Nieman Academie ook de opleiding MPG-kundige.",
+   "referenties": [
+    "Ebbingekwartier, Groningen: bouwfysisch en duurzaamheidsadvies woningbouw"
+   ],
+   "medewerkers": 100,
+   "kenmerken": [
+    "energieneutraal",
+    "biobased",
+    "circulair"
+   ],
+   "bronUrl": "https://www.nieman.nl/"
+  },
+  {
+   "naam": "W/E adviseurs",
+   "rechtsvorm": "Stichting",
+   "vestigingsplaats": "Utrecht",
+   "website": "https://www.w-e.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Onafhankelijk adviesbureau voor duurzaam bouwen en ontwikkelaar van de GPR-software. Voerde in opdracht van BZK de verkenning uit naar woningen met een MPG-score van 0,5 of lager en adviseert over circulaire en biobased materiaalkeuzes.",
+   "referenties": [
+    "Verkenning MPG ≤ 0,5 voor woningtypen in opdracht van ministerie BZK",
+    "Onderzoek toepassing MPG bij verbouw en transformatie voor Nationale Milieudatabase"
+   ],
+   "kenmerken": [
+    "biobased",
+    "circulair",
+    "energieneutraal"
+   ],
+   "bronUrl": "https://www.w-e.nl/kennisbank/milieuprestatie-gebouwen/"
+  },
+  {
+   "naam": "LBP|SIGHT",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Nieuwegein",
+   "website": "https://www.lbpsight.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Adviesbureau voor bouwfysica, bouwakoestiek, brandveiligheid en duurzaamheid. Adviseert regelmatig over brandveiligheid en geluid in houtbouwprojecten.",
+   "referenties": [
+    "The CubeHouse, Amsterdam: maatwerkadvies bouwfysica, akoestiek en brandveiligheid houtbouw"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "biobased"
+   ],
+   "bronUrl": "https://www.lbpsight.nl/projecten/the-cubehouse-amsterdam/"
+  },
+  {
+   "naam": "Buro Bouwfysica",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Capelle aan den IJssel",
+   "adres": "Cypresbaan 45",
+   "website": "https://www.burobouwfysica.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Adviesbureau voor akoestiek, bouwfysica, brandveiligheid en duurzaamheid (o.a. MPG-berekeningen) uit de regio Rotterdam. Adviseur bij Singelblok in Amsterdam-Noord van CZAN (Blauwhoed en AM).",
+   "referenties": [
+    "Singelblok, Amsterdam-Noord: 401 huurwoningen (bouwfysisch adviseur)"
+   ],
+   "kenmerken": [
+    "energieneutraal",
+    "hoogbouw"
+   ],
+   "blauwhoedRelatie": "Singelblok Amsterdam-Noord (CZAN)",
+   "bronUrl": "https://www.burobouwfysica.nl/specialisme/duurzaamheid/mpg/"
+  },
+  {
+   "naam": "TRAJECT Adviseurs & Managers",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Nieuwegein",
+   "website": "https://www.traject.nl",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Installatieadviesbureau voor woning- en utiliteitsbouw. Installatieadviseur in het bouwteam van het houtbouwproject Casa Vita van Blauwhoed.",
+   "referenties": [
+    "Casa Vita, Pijnacker: installatieadvies 101 appartementen in houtbouw"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "bouwteam",
+    "warmtepomp"
+   ],
+   "blauwhoedRelatie": "Casa Vita Pijnacker (installatieadviseur)",
+   "bronUrl": "https://www.twin.nl/2025/11/25/casa-vita-behoort-tot-de-beste-houtbouwprojecten-van-nederland/"
+  },
+  {
+   "naam": "De Groot Vroomshoop",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Vroomshoop",
+   "website": "https://degrootvroomshoop.nl",
+   "rollen": [
+    "leverancier",
+    "aannemer"
+   ],
+   "omschrijving": "Houtbouwer opgericht in 1927, onderdeel van VolkerWessels, met gelijmde houtconstructies, CLT, prefab HSB-gevelelementen en een houtmodulebouwfabriek in Enschede (5.000 m²). Levert complete houten woningmodules inclusief badkamer, keuken en gevel.",
+   "referenties": [
+    "Bundle@Kennispark, Enschede: 183 houten woonstudio's",
+    "32 flexwoningen voor deltaWonen in Zwolle in houtmodulebouw"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hsb",
+    "prefab",
+    "modulair"
+   ],
+   "bronUrl": "https://degrootvroomshoop.nl/bouwsystemen/houtmodulebouw/"
+  },
+  {
+   "naam": "VKP CLT",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Kapelle",
+   "website": "https://vkpclt.com",
+   "rollen": [
+    "leverancier"
+   ],
+   "omschrijving": "Toeleverancier van gelamineerde houtconstructies (CLT, glulam, LVL) geïntegreerd met HSB-elementen, kozijnen en prefab daken. Levert complete oplossingen voor grondgebonden woningen, utiliteit en gestapelde bouw tot 8 lagen.",
+   "referenties": [
+    "CLT/HSB-oplossingen voor woningen en utiliteitsbouw tot 8 bouwlagen"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hsb",
+    "prefab"
+   ],
+   "bronUrl": "https://vkpclt.com/over-ons/"
+  },
+  {
+   "naam": "Heko Spanten",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Ede",
+   "website": "https://www.hekospanten.nl",
+   "rollen": [
+    "leverancier"
+   ],
+   "omschrijving": "Al meer dan 50 jaar specialist in het construeren, fabriceren en monteren van gelijmde houten draagconstructies (spanten, gelamineerde liggers). Zusterbedrijf van Houthandel Lambert van den Bosch in Ede.",
+   "referenties": [
+    "Gelijmde houtconstructies voor woning-, utiliteits- en agrarische bouw in Nederland"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "prefab"
+   ],
+   "bronUrl": "https://www.houtwereld.nl/bedrijven/heko-spanten-ede-b-v/"
+  },
+  {
+   "naam": "Isovlas Oisterwijk",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Oisterwijk",
+   "website": "https://www.isovlas.nl",
+   "rollen": [
+    "leverancier"
+   ],
+   "omschrijving": "Nederlandse producent van biobased vlasisolatie sinds 1995, gemaakt van reststromen uit de linnenindustrie. Levert dampopen isolatiedekens, dakelementen en akoestische producten voor renovatie en nieuwbouw.",
+   "referenties": [
+    "Isovlas PL bouwisolatie, breed toegepast in daken, gevels en wanden sinds 2000"
+   ],
+   "kenmerken": [
+    "biobased",
+    "circulair"
+   ],
+   "bronUrl": "https://www.isovlas.nl/"
+  },
+  {
+   "naam": "WEBO Kozijnen en HSB-elementen",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Rijssen",
+   "website": "https://www.webo.nl",
+   "rollen": [
+    "leverancier"
+   ],
+   "omschrijving": "Familiebedrijf dat houten kozijnen en prefab HSB-gevelelementen ontwikkelt en produceert voor woning- en utiliteitsbouw. Bekend van Steigerloos Bouwen: gevelelementen worden in de fabriek compleet voorzien van kozijnen, glas en gevelbekleding, met focus op circulariteit en demontabel ontwerpen.",
+   "referenties": [
+    "Steigerloos prefab gevelelementen voor woningbouwprojecten door heel Nederland"
+   ],
+   "kenmerken": [
+    "hsb",
+    "prefab",
+    "circulair",
+    "demontabel",
+    "biobased"
+   ],
+   "bronUrl": "https://www.bouwwereld.nl/bouwtechniek/circulairbouwen/prefab-met-visie-hoe-webo-circulair-bouwen-opschaalt/"
+  },
+  {
+   "naam": "Nijhuis Toelevering",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Rijssen",
+   "website": "https://www.nijhuistoelevering.nl",
+   "rollen": [
+    "leverancier"
+   ],
+   "omschrijving": "Timmerfabriek met ruim 100 jaar ervaring in houten kozijnen en prefab HSB-gevelelementen, afgewerkt met houten, kunststof of aluminium kozijnen. De HSB-elementen voldoen aan het Hoogbouw Certificaat.",
+   "referenties": [
+    "Prefab HSB-gevelelementen met Hoogbouw Certificaat voor gestapelde woningbouw"
+   ],
+   "kenmerken": [
+    "hsb",
+    "prefab",
+    "hoogbouw"
+   ],
+   "bronUrl": "https://www.nijhuistoelevering.nl/actueel/hsb-elementen-van-nijhuis-toelevering-voldoen-aan-hoogbouw-certificaat/"
+  },
+  {
+   "naam": "Faay Vianen",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Vianen",
+   "website": "https://www.faay.nl",
+   "rollen": [
+    "leverancier"
+   ],
+   "omschrijving": "Familiebedrijf dat al 50 jaar prefab scheidingswanden en plafonds produceert met een biobased kern van vlas en gips als toplaag. Eerste wandfabrikant met terugnamegarantie voor de circulaire vlaskernwand.",
+   "referenties": [
+    "Prefab vlaswanden voor woningbouw en zorg door heel Nederland"
+   ],
+   "kenmerken": [
+    "biobased",
+    "circulair",
+    "prefab",
+    "demontabel"
+   ],
+   "bronUrl": "https://www.faay.nl/duurzame-wand/"
+  },
+  {
+   "naam": "Emergo",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Stadskanaal",
+   "website": "https://www.emergo.nl",
+   "rollen": [
+    "leverancier",
+    "aannemer"
+   ],
+   "omschrijving": "Emergo Prefab: producent van prefab houten modules en elementen met vestigingen in Stadskanaal en Almelo. Ontwikkelde het modulaire woningconcept Premodu met een CO2-voetafdruk onder 170 kg per m2, verplaatsbaar en circulair.",
+   "referenties": [
+    "21 Premodu-woningen in Bergschenhoek",
+    "19 circulaire houten Premodu-woningen als vervangende nieuwbouw met Bouwbedrijf Klok"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "hsb",
+    "prefab",
+    "modulair",
+    "circulair",
+    "demontabel"
+   ],
+   "bronUrl": "https://www.emergo.nl/inzichten/premodu-bergschenhoek"
+  },
+  {
+   "naam": "Barli",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Uden",
+   "website": "https://www.barli.nl",
+   "rollen": [
+    "leverancier",
+    "aannemer"
+   ],
+   "omschrijving": "Modulaire houtbouwer met een woningfabriek van 32.000 m² in Uden. Produceert jaarlijks ruim 1.000 tijdelijke en permanente houten woningen.",
+   "referenties": [
+    "Ruim 1.000 modulaire houten woningen per jaar voor corporaties en gemeenten"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "hsb",
+    "prefab",
+    "modulair",
+    "demontabel"
+   ],
+   "bronUrl": "https://modulairewoningbouw.nl/netwerk/barli/"
+  },
+  {
+   "naam": "Timpaan",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Rijsenhout",
+   "website": "https://www.timpaan.nl",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Maatschappelijk vastgoed- en gebiedsontwikkelaar, ondertekenaar van het Houtbouwpact MRA. Won samen met Blauwhoed de tender voor Ons Erf in Lincolnpark Hoofddorp, een volledig in CLT te bouwen CO2-neutrale buurt.",
+   "referenties": [
+    "Ons Erf, Lincolnpark Hoofddorp: 519 woningen in CLT (met Blauwhoed), start bouw 2027",
+    "Houtbouwprojecten opgeleverd in Noord-Scharwoude, Almere en Zaandam"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "biobased",
+    "circulair",
+    "energieneutraal"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp en Binnen Turfspoor, Lisserbroek",
+   "bronUrl": "https://www.timpaan.nl/actueel/11829/timpaan-en-blauwhoed-winnen-tender-lincolnpark-hoofddorp-met-ons-erf/"
+  },
+  {
+   "naam": "Vesteda",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Amsterdam",
+   "website": "https://www.vesteda.com",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Institutionele woningbelegger. Nam in Singelblok Amsterdam-Noord 185 huurappartementen af van CZAN (Blauwhoed en AM); Blauwhoed noemt de samenwerking met Vesteda als voorbeeld van co-creatie met beleggers.",
+   "referenties": [
+    "Singelblok, Amsterdam-Noord: 171 vrije sector en 14 middenhuurwoningen, opgeleverd 2025"
+   ],
+   "kenmerken": [
+    "hoogbouw"
+   ],
+   "blauwhoedRelatie": "Singelblok Amsterdam-Noord (afname 185 appartementen)",
+   "bronUrl": "https://nieuws.vesteda.com/blauwhoed-en-am-tekenen-overeenkomst-voor-singelblok-met-185-appartementen-voor-vesteda/"
+  },
+  {
+   "naam": "Havensteder",
+   "rechtsvorm": "Stichting",
+   "vestigingsplaats": "Rotterdam",
+   "website": "https://www.havensteder.nl",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Rotterdamse woningcorporatie. Werkte in woonbuurt Harmonie in Capelle aan den IJssel samen met Blauwhoed, Stebru en de gemeente, waarbij Havensteder twee bestaande flats renoveerde tot 56 sociale huurwoningen.",
+   "referenties": [
+    "Harmonie, Capelle aan den IJssel: 56 sociale huurwoningen naast 144 koopwoningen van Blauwhoed",
+    "Merwe 4, Rotterdam: 292 sociale huurwoningen met Woonbron en Woonstad"
+   ],
+   "kenmerken": [
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Harmonie Capelle aan den IJssel",
+   "bronUrl": "https://blauwhoed.nl/nieuws/blauwhoed-en-stebru-realiseren-144-woningen-in-woonbuurt"
+  },
+  {
+   "naam": "De Goede Woning",
+   "rechtsvorm": "Stichting",
+   "vestigingsplaats": "Zoetermeer",
+   "website": "https://www.dgw.nl",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Woningcorporatie uit Zoetermeer die met Casa Vita in Pijnacker voor het eerst buiten Zoetermeer verhuurt. Mede-opdrachtgever van het houtbouwcomplex samen met Blauwhoed.",
+   "referenties": [
+    "Casa Vita, Pijnacker: 34 sociale huurappartementen in CLT, sleuteluitreiking maart 2025"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Casa Vita Pijnacker (34 huurappartementen)",
+   "bronUrl": "https://www.dgw.nl/casa-vita"
+  },
+  {
+   "naam": "AM",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Utrecht",
+   "website": "https://www.am.nl",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Gebiedsontwikkelaar, onderdeel van Koninklijke BAM Groep. Ontwikkelde met Blauwhoed 600 woningen in elf woongebouwen op de Müllerpier in Rotterdam en vormt met Blauwhoed de combinatie CZAN voor Elzenhagen/Singelblok in Amsterdam-Noord.",
+   "referenties": [
+    "Müllerpier, Rotterdam: 600 woningen in 11 woongebouwen met Blauwhoed, afgerond met STACK (85 woningen)",
+    "Singelblok, Amsterdam-Noord: 401 huurwoningen (CZAN)"
+   ],
+   "kenmerken": [
+    "hoogbouw",
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Müllerpier Rotterdam, Singelblok en Noordhof 3 Amsterdam-Noord (CZAN)",
+   "bronUrl": "https://www.am.nl/gebiedsontwikkeling-mullerpier-in-rotterdam-bijna-voltooid/"
+  },
+  {
+   "naam": "Giesbers",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Wijchen",
+   "website": "https://giesberswijchen.nl",
+   "rollen": [
+    "aannemer",
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Giesbers Ontwikkelen en Bouwen: ontwikkelende bouwer uit Wijchen met opeenvolgende houtbouwprojecten. Realiseerde in bouwteam het CLT-appartementengebouw Casa Vita voor Blauwhoed en De Goede Woning, met geluidsarm en trillingsvrij gedrukte palen.",
+   "referenties": [
+    "Casa Vita, Pijnacker: 101 appartementen in CLT/HSB, opgeleverd 2024/2025"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "hsb",
+    "bouwteam",
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Casa Vita Pijnacker (aannemer)",
+   "bronUrl": "https://giesberswijchen.nl/projecten/casa-vita/"
+  },
+  {
+   "naam": "Heddes Bouw & Ontwikkeling",
+   "rechtsvorm": "B.V.",
+   "vestigingsplaats": "Hoorn",
+   "website": "https://www.heddes.nl",
+   "rollen": [
+    "aannemer",
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Bouwbedrijf en ontwikkelaar uit Hoorn, onderdeel van de Ballast Nedam-groep. Bouwde voor Blauwhoed en KOERS het modulaire houten woongebouw Timbr in Zaandam met het modulaire bouwsysteem van Ursem en Heddes, en realiseerde Singelblok in Amsterdam-Noord.",
+   "referenties": [
+    "Timbr, Zaandam: 158 huurwoningen uit 318 houten modules voor ZVH, oplevering eind 2025",
+    "Singelblok, Amsterdam-Noord: 401 huurwoningen voor Vesteda en Eigen Haard, opgeleverd 2025"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "modulair",
+    "prefab",
+    "circulair",
+    "hoogbouw"
+   ],
+   "blauwhoedRelatie": "Timbr Zaandam en Singelblok Amsterdam-Noord",
+   "bronUrl": "https://www.heddes.nl/nieuwsoverzicht/2024/bouw-van-158-woningen-in-zaandam-feestelijk-gestart"
+  },
+  {
+   "naam": "Stats Architecten",
+   "website": "https://www.stats.nl/",
+   "vestigingsplaats": "Schiedam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "STATS Architecten is een architectenbureau uit Schiedam dat werkt aan woningbouw, sport- en gemengde projecten in de regio Rotterdam. Het bureau ontwierp de twee woongebouwen van Fier aan de Vliet voor Blauwhoed in Klein Plaspoelpolder, Leidschendam.",
+   "referenties": [
+    "Fier aan de Vliet, Leidschendam (ca. 80 woningen)",
+    "S'Maak - Kop van de Singel, Schiedam"
+   ],
+   "kenmerken": [
+    "zorgwonen",
+    "transformatie",
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Fier aan de Vliet, Leidschendam",
+   "bronUrl": "https://blauwhoed.nl/nieuws/blauwhoed-wint-tender-in-klein-plaspoelpolder-leid"
+  },
+  {
+   "naam": "Studioninedots",
+   "website": "https://studioninedots.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Studioninedots is een in 2010 opgericht Amsterdams bureau voor architectuur en stedenbouw. Als onderdeel van consortium De Nieuwe Golf (Ballast Nedam Development en Blauwhoed) werkt het aan de herontwikkeling van het stationsgebied Poort van Hoorn met circa 520 woningen.",
+   "referenties": [
+    "Poort van Hoorn, Hoorn (stationsgebied, ca. 520 woningen)"
+   ],
+   "kenmerken": [
+    "transformatie",
+    "hoogbouw"
+   ],
+   "blauwhoedRelatie": "Poort van Hoorn (consortium De Nieuwe Golf)",
+   "bronUrl": "https://studioninedots.nl/news/"
+  },
+  {
+   "naam": "M3H Architecten",
+   "website": "https://m3h.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "M3H is een Amsterdams architectenbureau dat sinds 1995 met een team van circa tien ontwerpers werkt aan de stedelijke omgeving. Het bureau ontwierp met Hund Falk en Studio Pallesh het woonensemble Noordhof 3 (147 woningen) in Elzenhagen Zuid voor CZAN (Blauwhoed en AM).",
+   "referenties": [
+    "Noordhof 3, Elzenhagen Zuid, Amsterdam-Noord (147 woningen)"
+   ],
+   "medewerkers": 10,
+   "kenmerken": [],
+   "blauwhoedRelatie": "Noordhof 3, Elzenhagen Zuid (CZAN)",
+   "bronUrl": "https://blauwhoed.nl/nieuws/bouw-van-147-woningen-in-elzenhagen-zuid"
+  },
+  {
+   "naam": "Hund Falk Architecten",
+   "website": "https://www.hundfalk.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Hund Falk Architecten is een klein Amsterdams bureau (opgericht 2007) van Floris Hund en Elsbeth Falk, met focus op duurzaam ontwerp, transformatie en BIM. Het bureau is medeontwerper van Noordhof 3 in Elzenhagen Zuid voor CZAN (Blauwhoed en AM) en won in 2020 de Architectuurprijs Almere.",
+   "referenties": [
+    "Noordhof 3, Amsterdam-Noord",
+    "Lokaal Zuid, Amsterdam (transformatie 3 scholen naar 24 woningen)"
+   ],
+   "medewerkers": 2,
+   "kenmerken": [
+    "transformatie",
+    "bim"
+   ],
+   "blauwhoedRelatie": "Noordhof 3, Elzenhagen Zuid (CZAN)",
+   "bronUrl": "https://www.hundfalk.nl/projecten-hund-falk/"
+  },
+  {
+   "naam": "Studio Pallesh",
+   "website": "https://www.studiopallesh.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Studio Pallesh is een in 2020 door Milad Pallesh opgericht Amsterdams architectenbureau, sinds 2023 mede geleid door Richard Proudley, met thema's gelaagdheid, gastvrijheid en materialiteit. Het bureau werkt aan (sociale) woningbouw en is medeontwerper van Noordhof 3 in Elzenhagen Zuid voor CZAN (Blauwhoed en AM).",
+   "referenties": [
+    "Noordhof 3, Amsterdam-Noord"
+   ],
+   "kenmerken": [],
+   "blauwhoedRelatie": "Noordhof 3, Elzenhagen Zuid (CZAN)",
+   "bronUrl": "https://www.studiopallesh.nl/studio"
+  },
+  {
+   "naam": "MoederscheimMoonen Architects",
+   "website": "https://www.moederscheimmoonen.nl/",
+   "vestigingsplaats": "Rotterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "MoederscheimMoonen Architects is een Rotterdams architectenbureau voor woningbouw, publieke en gemengde gebouwen. Het bureau ontwierp deelplan KAFT van De Glasfabriek in Schiedam: een ensemble appartementenblokken en 15 stadswoningen langs de Glaslaan voor Dudok Real Estate en Blauwhoed.",
+   "referenties": [
+    "KAFT, De Glasfabriek, Schiedam (appartementen en 15 stadswoningen)"
+   ],
+   "kenmerken": [
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "KAFT, De Glasfabriek Schiedam",
+   "bronUrl": "https://www.architectuur.nl/nieuws/ontwerp-voor-deelplan-kaft-van-de-glasfabriek-gereed/"
+  },
+  {
+   "naam": "Barcode Architects",
+   "website": "https://barcodearchitects.com/",
+   "vestigingsplaats": "Rotterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Barcode Architects is een internationaal bureau voor architectuur en stedenbouw in Rotterdam, geleid door Dirk Peters en Caro van de Venne, met circa 70 medewerkers. Het bureau maakte het masterplan voor de transformatie van De Glasfabriek in Schiedam (circa 700 woningen) voor Blauwhoed en Dudok Real Estate.",
+   "referenties": [
+    "Masterplan De Glasfabriek, Schiedam",
+    "CasaNova, Rotterdam"
+   ],
+   "medewerkers": 70,
+   "kenmerken": [
+    "transformatie",
+    "hoogbouw"
+   ],
+   "blauwhoedRelatie": "Masterplan De Glasfabriek Schiedam",
+   "bronUrl": "https://barcodearchitects.com/projects/glasfabriek-schiedam/"
+  },
+  {
+   "naam": "ZECC Architecten",
+   "website": "https://www.zecc.nl/",
+   "vestigingsplaats": "Utrecht",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Zecc Architecten is een Utrechts architectenbureau gespecialiseerd in woningbouw, herbestemming en transformatie. Op het Defensie-eiland in Woerden (ontwikkeling Blauwhoed en VORM) ontwierp Zecc een compact appartementengebouw aan het Wasserijplein en zeven grondgebonden woningen aan de zuidzijde.",
+   "referenties": [
+    "Defensie-eiland, Woerden (appartementen en boothuiswoningen)"
+   ],
+   "kenmerken": [
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Defensie-eiland Woerden",
+   "bronUrl": "https://www.zecc.nl/en/project/2031/Defensie-Eiland-Woerden"
+  },
+  {
+   "naam": "Groosman",
+   "website": "https://groosman.com/",
+   "vestigingsplaats": "Rotterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Groosman is een full-service architectenbureau uit Rotterdam (opgericht 1948) met circa 50 medewerkers en disciplines stedenbouw, architectuur, interieur, bouwmanagement, constructie en BIM-management. Het bureau ontwierp appartementen en stadswoningen op het Defensie-eiland in Woerden voor Blauwhoed en VORM.",
+   "referenties": [
+    "Defensie-eiland, Woerden",
+    "Stadshart Lage Zijde, Alphen aan den Rijn"
+   ],
+   "medewerkers": 50,
+   "kenmerken": [
+    "transformatie",
+    "bim",
+    "circulair"
+   ],
+   "blauwhoedRelatie": "Defensie-eiland Woerden",
+   "bronUrl": "https://groosman.com/defensie-eiland-2/"
+  },
+  {
+   "naam": "White Arkitekter",
+   "website": "https://whitearkitekter.com/",
+   "vestigingsplaats": "Göteborg",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "White Arkitekter is een Zweeds architectenbureau met ruime ervaring in grootschalige houtbouw, waaronder de grootste houten woonwijk van Stockholm. Het bureau is coördinerend architect van Ons Erf (De Erven) in Lincolnpark Hoofddorp: 519 woningen in CLT rond vier erven voor Timpaan en Blauwhoed.",
+   "referenties": [
+    "Ons Erf / De Erven, Lincolnpark, Hoofddorp (519 woningen in CLT)"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "biobased",
+    "energieneutraal"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp (coördinerend architect)",
+   "bronUrl": "https://www.dezeen.com/2025/12/09/white-arkitekter-the-erven/"
+  },
+  {
+   "naam": "Atlas Architects",
+   "website": "https://www.atlasarchitects.eu/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Atlas Architects is een in 2021 door Carlos Callejo en Jordy Vos opgericht Amsterdams architectenbureau voor woningbouw en renovatie. Het bureau maakt deel uit van het architectenteam van de CLT-wijk Ons Erf in Lincolnpark Hoofddorp voor Timpaan en Blauwhoed.",
+   "referenties": [
+    "Ons Erf, Lincolnpark, Hoofddorp",
+    "Terra (duurzame villa van aarde en hout)"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "biobased"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp",
+   "bronUrl": "https://architectenweb.nl/nieuws/artikel.aspx?id=60206"
+  },
+  {
+   "naam": "SeARCH",
+   "website": "https://www.search.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "SeARCH (Stedenbouw en ARCHitectuur) is een in 2002 door Bjarne Mastenbroek opgericht Amsterdams bureau voor architectuur en stedenbouw met internationale projecten. Het bureau is een van de vier architecten van de houten wijk Ons Erf in Hoofddorp voor Timpaan en Blauwhoed.",
+   "referenties": [
+    "Ons Erf, Lincolnpark, Hoofddorp"
+   ],
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "circulair",
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp",
+   "bronUrl": "https://www.search.nl/profile/"
+  },
+  {
+   "naam": "Van Wijnen",
+   "website": "https://www.vanwijnen.nl/",
+   "vestigingsplaats": "Baarn",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "aannemer",
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Van Wijnen is een landelijk bouw- en ontwikkelbedrijf (opgericht 1907 in Dordrecht) actief in projectontwikkeling, woningbouw, renovatie, transformatie en gebiedsontwikkeling. Van Wijnen Dordrecht bouwt de woningen van De Glasfabriek in Schiedam en Ambachts Lint in Hendrik-Ido-Ambacht; Van Wijnen is met Blauwhoed ontwikkelpartner in Weespersluis.",
+   "referenties": [
+    "De Glasfabriek, Schiedam (ca. 740 woningen, bouw)",
+    "Weespersluis (Lanenrijk, Waterrijk, Vechtrijk), Weesp"
+   ],
+   "kenmerken": [
+    "transformatie",
+    "bouwteam",
+    "zorgwonen"
+   ],
+   "blauwhoedRelatie": "De Glasfabriek Schiedam, Ambachts Lint en Weespersluis",
+   "bronUrl": "https://propertynl.com/Nieuws/Woonplus-koopt-137-woningen-van-De-Glasfabriek-in-Schiedam/cc85e829-0c8f-4296-acfc-1478eb2dc2c4"
+  },
+  {
+   "naam": "Slokker",
+   "website": "https://www.slokker.nl/",
+   "vestigingsplaats": "Huizen",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "aannemer"
+   ],
+   "omschrijving": "Slokker Bouwgroep is een bouwbedrijf uit Huizen dat woningbouw- en utiliteitsprojecten realiseert. Het bedrijf bouwt Noordhof 3 (147 woningen, waarvan 89 middenhuur voor CBRE IM) in Elzenhagen Zuid voor CZAN, de combinatie van Blauwhoed en AM, en bouwde Beaufort en Zuidwester op IJburg.",
+   "referenties": [
+    "Noordhof 3, Elzenhagen Zuid, Amsterdam-Noord (147 woningen)",
+    "Beaufort en Zuidwester, IJburg Amsterdam (21 woningen)"
+   ],
+   "kenmerken": [
+    "bouwteam"
+   ],
+   "blauwhoedRelatie": "Noordhof 3 Amsterdam-Noord en IJburg",
+   "bronUrl": "https://blauwhoed.nl/nieuws/bouw-van-147-woningen-in-elzenhagen-zuid"
+  },
+  {
+   "naam": "AW Groep",
+   "website": "https://www.awgroep.nl/",
+   "vestigingsplaats": "Zaandam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "aannemer"
+   ],
+   "omschrijving": "AW Groep richt zich op ontwerp, uitvoering en beheer van infrastructuur en groen. Het bedrijf is civiel aannemer in het winnende team van Ons Erf in Lincolnpark Hoofddorp (Timpaan en Blauwhoed), naast Merosch, Kwirkey en STIPO.",
+   "referenties": [
+    "Ons Erf, Lincolnpark, Hoofddorp (civiele werken)"
+   ],
+   "kenmerken": [
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp (civiel)",
+   "bronUrl": "https://www.timpaan.nl/actueel/11829/timpaan-en-blauwhoed-winnen-tender-lincolnpark-hoofddorp-met-ons-erf/"
+  },
+  {
+   "naam": "VORM",
+   "website": "https://www.vorm.nl/",
+   "vestigingsplaats": "Rotterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "aannemer",
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "VORM is een ontwikkelende bouwer en familiebedrijf uit Rotterdam met eigen houtbouwfabriek (DAT Bouwsystemen, Middelharnis), gericht op betaalbare woningen in leefbare, duurzame buurten. Met Blauwhoed ontwikkelde VORM het Defensie-eiland in Woerden (De Wasserij CV) en Maasterras-West in Zwijndrecht; VORM bouwde ook de woontoren Stack op de Müllerpier in Rotterdam.",
+   "referenties": [
+    "Defensie-eiland, Woerden (205 woningen)",
+    "Maasterras-West, Zwijndrecht (ca. 190 woningen)",
+    "BoogieWood, Rotterdam (modulaire houtbouw)"
+   ],
+   "kenmerken": [
+    "transformatie",
+    "hoogbouw",
+    "houtbouw",
+    "modulair",
+    "prefab"
+   ],
+   "blauwhoedRelatie": "Defensie-eiland Woerden, Maasterras-West Zwijndrecht, STACK Müllerpier en Binnen Turfspoor",
+   "bronUrl": "https://blauwhoed.nl/nieuws/blauwhoed-en-vorm-tekenen-exclusiviteitsovereenkomst-voor-maasterras-west-in-zwijndrecht"
+  },
+  {
+   "naam": "Ballast Nedam Development",
+   "website": "https://www.development.ballast-nedam.com/",
+   "vestigingsplaats": "Rotterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Ballast Nedam Development is de gebiedsontwikkelingstak van Ballast Nedam, gevestigd in Rotterdam. Samen met Blauwhoed vormt het consortium De Nieuwe Golf, dat door de gemeente Hoorn is gekozen voor de ontwikkeling van het stationsgebied Poort van Hoorn met maximaal 520 woningen en 13.500 m2 voorzieningen.",
+   "referenties": [
+    "Poort van Hoorn, Hoorn (stationsgebied)",
+    "Cartesius, Utrecht"
+   ],
+   "kenmerken": [
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Poort van Hoorn (consortium De Nieuwe Golf)",
+   "bronUrl": "https://blauwhoed.nl/nieuws/gemeente-hoorn-kiest-ballast-nedam-en-blauwhoed"
+  },
+  {
+   "naam": "Dudok Real Estate",
+   "website": "https://dudokrealestate.com/",
+   "vestigingsplaats": "Rotterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Dudok Real Estate is een Rotterdamse vastgoedontwikkelaar en -belegger met projecten als Hofbogen, HAKA en Diepeveen. Met Blauwhoed vormt het Glasfabriek B.V., dat het 5,5 hectare grote voormalige fabrieksterrein De Glasfabriek in Schiedam transformeert naar circa 700 woningen en 25.000 m2 bedrijfsruimte.",
+   "referenties": [
+    "De Glasfabriek, Schiedam (ca. 700 woningen)",
+    "Hofbogen, Rotterdam"
+   ],
+   "kenmerken": [
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "De Glasfabriek Schiedam (Glasfabriek B.V.)",
+   "bronUrl": "https://dudokrealestate.com/portfolio/projectontwikkeling/glasfabriek"
+  },
+  {
+   "naam": "KOERS",
+   "website": "https://www.koers.com/",
+   "vestigingsplaats": "Barendrecht",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "ontwikkelpartner",
+    "aannemer"
+   ],
+   "omschrijving": "KOERS Groep (sinds 1972, circa 150 medewerkers, hoofdkantoor Barendrecht met vestigingen in Amsterdam, Nieuwegein en Zoeterwoude) ontwikkelt, bouwt en onderhoudt vastgoed met focus op modulaire houtbouw. Samen met Blauwhoed ontwikkelde KOERS het modulaire houten woongebouw Timbr (158 huurwoningen) aan de Slachthuisstraat in Zaandam.",
+   "referenties": [
+    "Timbr / Slachthuisstraat, Zaandam (158 huurwoningen)"
+   ],
+   "medewerkers": 150,
+   "kenmerken": [
+    "houtbouw",
+    "modulair",
+    "prefab",
+    "circulair",
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Timbr, Zaandam",
+   "bronUrl": "https://blauwhoed.nl/nieuws/blauwhoed-en-koers-ontwikkelen-slachthuisstraat-in-zaandam"
+  },
+  {
+   "naam": "Woonkracht10",
+   "website": "https://www.woonkracht10.nl/",
+   "vestigingsplaats": "Zwijndrecht",
+   "rechtsvorm": "Stichting",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Woonkracht10 is een woningcorporatie met circa 11.000 woningen in Zwijndrecht, Papendrecht, Alblasserdam en Hendrik-Ido-Ambacht. Met de gemeente Zwijndrecht selecteerde de corporatie VORM en Blauwhoed als partners voor Maasterras-West, het nieuwe centrumgebied bij station Zwijndrecht.",
+   "referenties": [
+    "Maasterras-West, Zwijndrecht"
+   ],
+   "kenmerken": [
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Maasterras-West Zwijndrecht",
+   "bronUrl": "https://propertynl.com/Nieuws/Vorm-en-Blauwhoed-ontwikkelen-Maasterras-West-in-Zwijndrecht/564f0d12-4e3c-4729-af27-5fa484e9d58b"
+  },
+  {
+   "naam": "VBM",
+   "website": "https://www.vbm-ontwikkeling.nl/",
+   "vestigingsplaats": "Venhuizen",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "VBM Ontwikkeling is een projectontwikkelaar die samen met Blauwhoed het woningbouwplan Centrum West in Venhuizen (gemeente Drechterland) ontwikkelt met circa 250 woningen. Blauwhoed realiseert fase 1 (Hillegaar); VBM bouwt de woningen in de tweede fase.",
+   "referenties": [
+    "Centrum West / Hillegaar, Venhuizen (ca. 250 woningen)"
+   ],
+   "kenmerken": [],
+   "blauwhoedRelatie": "Hillegaar / Centrum West Venhuizen",
+   "bronUrl": "https://blauwhoed.nl/nieuws/vaart-in-ontwikkeling-woningbouw-centrum-west-venhuizen"
+  },
+  {
+   "naam": "Westvast",
+   "website": "https://www.westvastbv.nl/",
+   "vestigingsplaats": "Hillegom",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur",
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Westvast B.V. uit Hillegom biedt project-, ontwikkel-, tender- en verkoopmanagement voor vastgoedontwikkelingen. Voor grondeigenaar Greenleaf/Bovebo voerde Westvast de tender die Blauwhoed als ontwikkelaar selecteerde en het contractmanagement voor de intentieovereenkomst met gemeente Koggenland voor circa 275 woningen in Hensbroek.",
+   "referenties": [
+    "Bovebo-locatie, Hensbroek (ca. 275 woningen, tender- en contractmanagement)"
+   ],
+   "kenmerken": [
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Bovebo-locatie Hensbroek",
+   "bronUrl": "https://www.westvastbv.nl/intentieovereenkomst-bovebo-locatie-hensbroek/"
+  },
+  {
+   "naam": "Syntrus Achmea Real Estate & Finance",
+   "website": "https://www.syntrus.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Syntrus Achmea Real Estate & Finance (nu Achmea Real Estate) is een vermogensbeheerder in vastgoed en hypotheken die circa 13 miljard euro aan woningen, winkels en zorgvastgoed beheert voor ruim 30 pensioenfondsen. Het kocht alle 27 middenhuurappartementen van woongebouw Citadel op het Defensie-eiland in Woerden van Blauwhoed en VORM.",
+   "referenties": [
+    "Citadel, Defensie-eiland, Woerden (27 huurappartementen)"
+   ],
+   "kenmerken": [],
+   "blauwhoedRelatie": "Citadel, Defensie-eiland Woerden",
+   "bronUrl": "https://vastgoedjournaal.nl/news/24170/Blauwhoed-en-VORM-verkopen-appartementen-op-Defensie-eiland-aan-Syntrus-Achmea"
+  },
+  {
+   "naam": "Ymere",
+   "website": "https://www.ymere.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "Stichting",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Ymere is een van de grootste woningcorporaties van Nederland, actief in Amsterdam, Haarlemmermeer en omliggende gemeenten. Met de gemeente Amsterdam, AM en Blauwhoed tekende Ymere de bouwcontracten voor Elzenhagen Zuid (1.800 woningen) en neemt het 247 huurwoningen van blok NN3 af van AM en Blauwhoed.",
+   "referenties": [
+    "Elzenhagen Zuid, Amsterdam-Noord (1.800 woningen)",
+    "Blok NN3, Elzenhagen Zuid (214 sociale + 33 middenhuur)"
+   ],
+   "kenmerken": [],
+   "blauwhoedRelatie": "Elzenhagen Zuid Amsterdam-Noord en Binnen Turfspoor",
+   "bronUrl": "https://vastgoedjournaal.nl/news/33275/ymere-blauwhoed-en-am-krijgen-groene-licht-om-1800-woningen-te-bouwen-in-amsterdam-noord"
+  },
+  {
+   "naam": "BPD",
+   "website": "https://www.bpd.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "BPD | Bouwfonds Gebiedsontwikkeling is een gebiedsontwikkelaar (opgericht 1946, circa 700 medewerkers, 10 vestigingen in Nederland en Duitsland) die sinds de oprichting circa 395.000 woningen mogelijk maakte. In de GEM Bloemendalerpolder (Weespersluis, Weesp) werkt BPD/Van Erk samen met Blauwhoed/Van Wijnen en AM.",
+   "referenties": [
+    "Weespersluis / Bloemendalerpolder, Weesp (GEM met Blauwhoed/Van Wijnen en AM)"
+   ],
+   "medewerkers": 700,
+   "kenmerken": [],
+   "blauwhoedRelatie": "Weespersluis (GEM Bloemendalerpolder) en Binnen Turfspoor",
+   "bronUrl": "https://blauwhoed.nl/weespersluis"
+  },
+  {
+   "naam": "Amvest",
+   "website": "https://www.amvest.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "ontwikkelpartner"
+   ],
+   "omschrijving": "Amvest is een investment manager en ontwikkelaar van woningen en woonbuurten in Nederland, gevestigd in Amsterdam. Het bedrijf ontwikkelt eigen gebiedsprojecten en beheert woningfondsen voor institutionele beleggers; mede-ontwikkelaar in Binnen Turfspoor (Lisserbroek).",
+   "referenties": [
+    "Duin, Almere",
+    "Kabeldistrict, Delft"
+   ],
+   "kenmerken": [],
+   "blauwhoedRelatie": "Binnen Turfspoor, Lisserbroek (consortium)",
+   "bronUrl": "https://www.amvest.nl/"
+  },
+  {
+   "naam": "ABT",
+   "website": "https://abt.eu/",
+   "vestigingsplaats": "Velp",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "ABT is een multidisciplinair ingenieursbureau in bouwtechniek met ruim 250 medewerkers en vestigingen in Velp, Delft en Antwerpen, actief in constructies, bouwkunde, bouwfysica en installaties. Adviseur in het winnende team van Ons Erf (Hoofddorp); realiseerde met Adviesbureau Lüning het experimentele houten kunstwerk De Houtkroon in Velp.",
+   "referenties": [
+    "Ons Erf, Lincolnpark Hoofddorp (advies)",
+    "De Houtkroon (experimentele houtconstructie), Velp"
+   ],
+   "medewerkers": 250,
+   "kenmerken": [
+    "houtbouw",
+    "bim",
+    "circulair"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp",
+   "bronUrl": "https://www.bouwtotaal.nl/2022/09/complex-houten-kunstwerk/"
+  },
+  {
+   "naam": "Merosch",
+   "website": "https://www.merosch.nl/",
+   "vestigingsplaats": "Bodegraven",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Merosch is een adviesbureau (sinds 2008, kantoren in Bodegraven en Amersfoort) voor duurzame gebouwen en gebieden: energie- en warmtetransitie, circulariteit, gezondheid en klimaatadaptatie; sinds 2022 alleen projecten met minimaal energieneutrale ambitie. Merosch is duurzaamheidsadviseur in het winnende team van Ons Erf in Lincolnpark Hoofddorp (Timpaan en Blauwhoed).",
+   "referenties": [
+    "Ons Erf, Lincolnpark, Hoofddorp (duurzaamheidsadvies)",
+    "Eigen circulair kantoor (oude gymzaal), Bodegraven"
+   ],
+   "kenmerken": [
+    "energieneutraal",
+    "circulair",
+    "warmtepomp",
+    "biobased"
+   ],
+   "blauwhoedRelatie": "Ons Erf, Lincolnpark Hoofddorp",
+   "bronUrl": "https://www.timpaan.nl/actueel/11829/timpaan-en-blauwhoed-winnen-tender-lincolnpark-hoofddorp-met-ons-erf/"
+  },
+  {
+   "naam": "Antea Group",
+   "website": "https://anteagroup.nl/",
+   "vestigingsplaats": "Almere",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Antea Group is een ingenieurs- en adviesbureau met circa 1.800 medewerkers, actief in infrastructuur, milieu, energietransitie en klimaatadaptatie, van plan tot beheer. Bij het houtbouwproject Casa Vita in Pijnacker (Blauwhoed) verzorgde Antea Group het bouw- en woonrijp maken van het terrein en de realisatie van een daktuin; ook betrokken bij Fier aan de Vliet, Op den Donk, Ambachts Lint en De Glasfabriek.",
+   "referenties": [
+    "Casa Vita, Pijnacker (bouw- en woonrijp maken, daktuin)"
+   ],
+   "medewerkers": 1800,
+   "kenmerken": [
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Casa Vita, Fier aan de Vliet, Op den Donk, Ambachts Lint, De Glasfabriek",
+   "bronUrl": "https://anteagroup.nl/nieuws-media/nieuws/het-bouw-en-woonrijp-maken-van-uniek-nieuwbouwproject-in-pijnacker"
+  },
+  {
+   "naam": "Urban Synergy",
+   "website": "https://urbansynergy.nl/",
+   "vestigingsplaats": "Rotterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Urban Synergy is een ontwerpbureau voor stedenbouw en landschap. Samen met Blauwhoed en KOW won het bureau in 2021 de tender voor de Stanislaslocatie in Pijnacker en ontwierp het de natuurinclusieve buitenruimte van Casa Vita met beplanting afgestemd op hittestress, waterhuishouding en voedsel en schuilplaatsen voor vogels, insecten en egels.",
+   "referenties": [
+    "Casa Vita / Stanislaslocatie, Pijnacker (landschapsontwerp)"
+   ],
+   "kenmerken": [
+    "natuurinclusief",
+    "houtbouw"
+   ],
+   "blauwhoedRelatie": "Casa Vita Pijnacker (landschap)",
+   "bronUrl": "https://urbansynergy.nl/projecten/gewonnen-tender-stanislaslocatie-in-pijnacker/"
+  },
+  {
+   "naam": "Binderholz",
+   "website": "https://www.binderholz.com/",
+   "vestigingsplaats": "Fügen",
+   "rollen": [
+    "leverancier"
+   ],
+   "omschrijving": "Binderholz is een Oostenrijks houtconcern (hoofdkantoor Fügen, Tirol, ruim 6.000 medewerkers, 60 locaties) dat de hele houtketen bestrijkt en massiefhoutproducten zoals CLT BBS en gelamineerd hout (glulam) produceert. In Nederland leverde Binderholz onder meer het CLT voor Casa Vita (Pijnacker), Valckensteyn in Rotterdam en het Marga Klompé-gebouw in Tilburg.",
+   "referenties": [
+    "Casa Vita, Pijnacker (CLT en glulam)",
+    "Valckensteyn, Rotterdam (1.500 m3 CLT, 250 m3 glulam)"
+   ],
+   "medewerkers": 6000,
+   "kenmerken": [
+    "houtbouw",
+    "clt",
+    "prefab",
+    "biobased"
+   ],
+   "blauwhoedRelatie": "Casa Vita Pijnacker (CLT-leverancier)",
+   "bronUrl": "https://www.binderholz.com/en-us/news/"
+  },
+  {
+   "naam": "DELVA",
+   "website": "https://delva.la/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "DELVA Landscape Architecture | Urbanism is een in 2008 door Steven Delva opgericht bureau voor landschapsarchitectuur en stedenbouw met circa 30 medewerkers en kantoren in Amsterdam, Antwerpen en Stockholm. Het bureau staat bekend om een integrale aanpak die ecologie en economie verbindt; landschapsarchitect van De Glasfabriek in Schiedam.",
+   "referenties": [
+    "De Glasfabriek, Schiedam (landschap)",
+    "VrijHaven (Havenstraatterrein), Amsterdam"
+   ],
+   "medewerkers": 30,
+   "kenmerken": [
+    "natuurinclusief",
+    "circulair"
+   ],
+   "blauwhoedRelatie": "De Glasfabriek Schiedam",
+   "bronUrl": "https://delva.la/en/"
+  },
+  {
+   "naam": "Karres en Brands",
+   "website": "https://www.karresenbrands.com/",
+   "vestigingsplaats": "Hilversum",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Karres en Brands is een bureau voor landschapsarchitectuur en stedenbouw uit Hilversum. Het bureau verzorgde sinds 2011 het stedenbouwkundig plan, de openbare ruimte, vier nieuwe bruggen en de supervisie van architecten voor het Defensie-eiland in Woerden (Blauwhoed en VORM).",
+   "referenties": [
+    "Defensie-eiland, Woerden (stedenbouw, openbare ruimte, bruggen)"
+   ],
+   "kenmerken": [
+    "transformatie",
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Defensie-eiland Woerden",
+   "bronUrl": "https://www.karresenbrands.com/nl/projecten/defensie-eiland-woerden"
+  },
+  {
+   "naam": "Bureau B+B",
+   "website": "https://bplusb.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Bureau B+B stedebouw en landschapsarchitectuur is een in 1977 opgericht, internationaal werkend ontwerpcollectief in Amsterdam met ruim 40 jaar expertise in landschapsarchitectuur en stedenbouw. Landschapsarchitect van Ambachts Lint in Hendrik-Ido-Ambacht.",
+   "referenties": [
+    "Ambachts Lint, Hendrik-Ido-Ambacht (landschap)"
+   ],
+   "kenmerken": [
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Ambachts Lint",
+   "bronUrl": "https://bplusb.nl/office/"
+  },
+  {
+   "naam": "Rrog",
+   "website": "https://www.rrog.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "RRog stedenbouw en landschap is een Amsterdams bureau voor stedenbouw en landschapsarchitectuur. Het bureau ontwerpt woonwijken waarin wonen, groen, klimaat en landschap integraal samenkomen; landschapsarchitect van Op den Donk in Duiven.",
+   "referenties": [
+    "Op den Donk, Duiven (landschap)",
+    "Nieuwe Strooming, Alphen aan den Rijn"
+   ],
+   "kenmerken": [
+    "natuurinclusief"
+   ],
+   "blauwhoedRelatie": "Op den Donk Duiven",
+   "bronUrl": "https://www.rrog.nl/"
+  },
+  {
+   "naam": "NL Greenlabel",
+   "website": "https://nlgreenlabel.nl/",
+   "vestigingsplaats": "Megchelen",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "NL Greenlabel (onderdeel van Sustainable Outlook BV, Megchelen) beoordeelt en certificeert de duurzaamheid van gebieden, producten en ontwerpen met diensten als NL Omgevingsscan, NL Ontwerpvalidatie en NL Certificering. Blauwhoed is officieel partner van NL Greenlabel.",
+   "referenties": [
+    "Partnerschap Blauwhoed (gebiedslabels)",
+    "De Glasfabriek, Schiedam"
+   ],
+   "kenmerken": [
+    "natuurinclusief",
+    "circulair",
+    "biobased"
+   ],
+   "blauwhoedRelatie": "Partner (gebiedslabels), De Glasfabriek",
+   "bronUrl": "https://nlgreenlabel.nl/partner/blauwhoed/"
+  },
+  {
+   "naam": "Braaksma & Roos Architectenbureau",
+   "website": "https://braaksmaroos.nl/",
+   "vestigingsplaats": "Den Haag",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "architect"
+   ],
+   "omschrijving": "Braaksma & Roos Architectenbureau is een Haags bureau gespecialiseerd in erfgoed, restauratie, herbestemming en transformatie. Op het Defensie-eiland in Woerden (Blauwhoed en VORM) transformeerde het bureau de textielsorteergebouwen B en C en ontwierp het enkele stadswoningen.",
+   "referenties": [
+    "Defensie-eiland, Woerden (transformatie gebouwen B en C)",
+    "Canisiushof, Nijmegen (monument naar collectief wonen)"
+   ],
+   "kenmerken": [
+    "transformatie"
+   ],
+   "blauwhoedRelatie": "Defensie-eiland Woerden",
+   "bronUrl": "https://architectenweb.nl/nieuws/artikel.aspx?id=50824"
+  },
+  {
+   "naam": "Sweco",
+   "website": "https://www.sweco.nl/",
+   "vestigingsplaats": "De Bilt",
+   "rechtsvorm": "B.V.",
+   "rollen": [
+    "adviseur"
+   ],
+   "omschrijving": "Sweco Nederland is een ingenieurs- en adviesbureau (hoofdkantoor De Bilt, circa 2.400 medewerkers) voor gebouwen, infrastructuur, water en energie. Adviseur houtbouw en duurzaamheid in het tenderteam van Fier aan de Vliet (Leidschendam) voor Blauwhoed.",
+   "referenties": [
+    "Fier aan de Vliet, Leidschendam (advies houtbouw en duurzaamheid)"
+   ],
+   "medewerkers": 2400,
+   "kenmerken": [
+    "houtbouw",
+    "energieneutraal",
+    "circulair"
+   ],
+   "blauwhoedRelatie": "Fier aan de Vliet, Leidschendam",
+   "bronUrl": "https://blauwhoed.nl/project/fier-aan-de-vliet"
+  }
+ ],
+ "projecten": [
+  {
+   "naam": "Fier aan de Vliet",
+   "plaats": "Leidschendam",
+   "adres": "Klein Plaspoelpolder, deelgebied 4",
+   "type": "appartementen",
+   "woningen": 80,
+   "prijssegment": [
+    "middenhuur",
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 4,
+   "fase": "planvorming",
+   "start": "2026-05",
+   "eind": "2029-12",
+   "omschrijving": "Blauwhoed won in mei 2026 de gemeentelijke tender voor deelgebied 4 van Klein Plaspoelpolder. Aan de Vliet komen twee duurzame, natuurinclusieve woongebouwen (max. 20 en 14 meter) met huur- en koopwoningen; een gebouw volgt het Senior Smart Living-concept, het andere richt zich op starters en middeninkomens. Sweco adviseert onder meer over houtbouw en duurzaamheid. Realisatie is voorzien in 2026-2029.",
+   "partners": [
+    {
+     "naam": "Stats Architecten",
+     "rol": "architect"
+    },
+    {
+     "naam": "Sweco",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Antea Group",
+     "rol": "adviseur"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/project/fier-aan-de-vliet",
+   "opmerking": "Woningaantal 'circa 80' volgens projectpagina; planning afgeleid van tendergunning (mei 2026) en projectperiode 2026-2029."
+  },
+  {
+   "naam": "Ons Erf (Lincolnpark)",
+   "plaats": "Hoofddorp",
+   "adres": "Lincolnpark, deelgebied De Erven",
+   "type": "gebiedsontwikkeling",
+   "woningen": 519,
+   "prijssegment": [
+    "sociaal",
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "dorps",
+   "ambitieDuurzaamheid": 5,
+   "fase": "planvorming",
+   "start": "2027-06",
+   "eind": "2031-12",
+   "omschrijving": "Timpaan en Blauwhoed wonnen in december 2025 de tender voor deelgebied De Erven in Lincolnpark met het plan Ons Erf: 519 woningen (115 betaalbare koop, 271 vrijesectorkoop en kavels voor 133 sociale huur). Alle woningen worden in massief hout (CLT) gebouwd in een CO2-neutraal gebied met collectieve energievoorziening, mobiliteitshubs en een gebiedscoöperatie van bewoners. Beoogde start bouw is 2027.",
+   "partners": [
+    {
+     "naam": "Timpaan",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "White Arkitekter",
+     "rol": "architect"
+    },
+    {
+     "naam": "Space&Matter",
+     "rol": "architect"
+    },
+    {
+     "naam": "Atlas Architects",
+     "rol": "architect"
+    },
+    {
+     "naam": "SeARCH",
+     "rol": "architect"
+    },
+    {
+     "naam": "Merosch",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Lüning",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "ABT",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "AW Groep",
+     "rol": "aannemer"
+    }
+   ],
+   "bronUrl": "https://www.timpaan.nl/actueel/11829/timpaan-en-blauwhoed-winnen-tender-lincolnpark-hoofddorp-met-ons-erf/",
+   "opmerking": "Exacte startmaand en einddatum niet gepubliceerd; 'start bouw 2027' bekend, einde geschat."
+  },
+  {
+   "naam": "UP!",
+   "plaats": "Zoetermeer",
+   "adres": "Markt 10 en Frankrijklaan",
+   "type": "hoogbouw",
+   "woningen": 235,
+   "prijssegment": [
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "hoogstedelijk",
+   "ambitieDuurzaamheid": 4,
+   "fase": "initiatief",
+   "start": "2028-12",
+   "eind": "2031-06",
+   "omschrijving": "Op 29 juni 2026 selecteerde de gemeente Zoetermeer Blauwhoed voor woningbouwproject UP!: twee gebouwen met in totaal 235 woningen aan Markt 10 en de Frankrijklaan. Het gebouw aan de Markt richt zich op een- en tweepersoonshuishoudens, stedelijke gezinnen, empty nesters en actieve senioren; de Frankrijklaan op young professionals en starters. Het plan bevat groene daktuinen, gedeelde ontmoetingsruimten en inpandig parkeren met autoliften. Start bouw wordt eind 2028 verwacht.",
+   "partners": [],
+   "bronUrl": "https://www.zoetermeeractief.nl/nieuwshome/actueel/30816-projectontwikkelaar-blauwhoed-geselecteerd-voor-woningbouwproject-up",
+   "opmerking": "Prijssegment en einddatum niet gepubliceerd; geschat. Architect/aannemer nog niet bekendgemaakt."
+  },
+  {
+   "naam": "Poort van Hoorn (stationsgebied)",
+   "plaats": "Hoorn",
+   "adres": "Stationsgebied Hoorn",
+   "type": "gebiedsontwikkeling",
+   "woningen": 520,
+   "prijssegment": [
+    "sociaal",
+    "middenhuur",
+    "koop"
+   ],
+   "bouwstijl": "hoogstedelijk",
+   "ambitieDuurzaamheid": 4,
+   "fase": "planvorming",
+   "start": "2025-01",
+   "eind": "2035-12",
+   "omschrijving": "Blauwhoed en Ballast Nedam Development ontwikkelen met de gemeente Hoorn het stationsgebied tot een nieuwe stadsentree met maximaal 520 woningen: betaalbare appartementen, stadswoningen met werkruimte, co-living en seniorenwoningen, aangevuld met horeca, werkruimten en publieke voorzieningen. Studioninedots tekent voor het ontwerp met veel groen en verwijzingen naar het historische stadskarakter. Realisatie is gefaseerd tussen 2025 en 2035.",
+   "partners": [
+    {
+     "naam": "Ballast Nedam Development",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Studioninedots",
+     "rol": "architect"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/project/poort-van-hoorn",
+   "opmerking": "Woningaantal is maximum (520); prijssegmentverdeling niet gespecificeerd."
+  },
+  {
+   "naam": "Op den Donk",
+   "plaats": "Duiven",
+   "adres": "Droopad",
+   "type": "zorgwonen",
+   "woningen": 50,
+   "prijssegment": [
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 4,
+   "fase": "realisatie",
+   "start": "2025-09",
+   "eind": "2027-12",
+   "omschrijving": "Op de voormalige schoollocatie aan het Droopad realiseert Blauwhoed twee kleinschalige paviljoens met 50 levensloopbestendige koopappartementen volgens het Senior Smart Living-concept, gericht op senioren en starters. Het plan is energiezuinig, heeft een biodiverse daktuin, slim watermanagement en behoudt de vleermuisroute. Ontwerp door KOW met landschapsarchitect Rrog; bouw 2025-2027.",
+   "partners": [
+    {
+     "naam": "KOW",
+     "rol": "architect"
+    },
+    {
+     "naam": "Rrog",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Antea Group",
+     "rol": "adviseur"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/project/-op-den-donk",
+   "opmerking": "Exacte startmaand niet gepubliceerd (projectperiode 2025-2027)."
+  },
+  {
+   "naam": "Hensbroek Bovebo-locatie",
+   "plaats": "Hensbroek",
+   "adres": "Voormalige kassenlocatie Bovebo, nabij recreatiegebied De Leijen",
+   "type": "gebiedsontwikkeling",
+   "woningen": 275,
+   "prijssegment": [
+    "sociaal",
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "dorps",
+   "ambitieDuurzaamheid": 4,
+   "fase": "initiatief",
+   "start": "2028-01",
+   "eind": "2032-12",
+   "omschrijving": "Op een voormalige glastuinbouwlocatie in Hensbroek ontwikkelt Blauwhoed met Greenleaf en Westvast een dorpse, natuurinclusieve woonbuurt van 275 woningen: vrijesectorkoop, middeldure en betaalbare koop en sociale huur. Waterlopen worden ingezet voor waterberging en recreatie. Het plan zit in een vroege fase met participatieavonden voor omwonenden.",
+   "partners": [
+    {
+     "naam": "Greenleaf",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Westvast",
+     "rol": "ontwikkelpartner"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/project/hensbroek-bovebo-locatie",
+   "opmerking": "Start- en einddatum niet gepubliceerd; geschat op basis van vroege planfase."
+  },
+  {
+   "naam": "Ambachts Lint",
+   "plaats": "Hendrik-Ido-Ambacht",
+   "adres": "Tussen winkelcentrum De Schoof en cultureel centrum Cascade",
+   "type": "zorgwonen",
+   "woningen": 86,
+   "prijssegment": [
+    "sociaal",
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 4,
+   "fase": "realisatie",
+   "start": "2021-01",
+   "eind": "2027-12",
+   "omschrijving": "Op een voormalige schoollocatie in het centrum realiseren Blauwhoed en Van Wijnen Dordrecht 86 woningen: 7 patiobungalows, 25 appartementen voor jongeren en 54 appartementen voor senioren, in sociale huur, sociale koop en vrije sector. Het Senior Smart Living-concept combineert wonen met gedeelde voorzieningen zoals een gezamenlijke lounge en terrassen. Duurzaam door wadi's, zonnepanelen, inheemse beplanting en bodem-/luchtwarmtepompen.",
+   "partners": [
+    {
+     "naam": "Inbo",
+     "rol": "architect"
+    },
+    {
+     "naam": "Van Wijnen",
+     "rol": "aannemer"
+    },
+    {
+     "naam": "DGMR",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Bureau B+B",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Antea Group",
+     "rol": "adviseur"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/project/ambachts-lint",
+   "opmerking": "Projectperiode 2021-2027 volgens projectpagina; exacte maanden niet gepubliceerd."
+  },
+  {
+   "naam": "Casa Vita",
+   "plaats": "Pijnacker",
+   "adres": "Meidoornlaan, Pijnacker-centrum",
+   "type": "appartementen",
+   "woningen": 101,
+   "prijssegment": [
+    "sociaal",
+    "koop"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 5,
+   "fase": "nazorg",
+   "start": "2022-09",
+   "eind": "2025-03",
+   "omschrijving": "Casa Vita bestaat uit twee houten woongebouwen (CLT en glulam op een betonnen kelder) met 67 koopappartementen en 34 sociale huurwoningen van De Goede Woning, van studio's van 47 m2 tot penthouses van 125 m2. De gevels zijn bekleed met 1.330 m2 hergebruikt honderd jaar oud azobé-hout uit oude damwanden; het plan is klimaatadaptief en natuurinclusief met behoud van bestaande bomen en groene daken. De woningen zijn eind 2024 en begin 2025 opgeleverd en het project werd in 2025 genomineerd voor de Nationale Houtbouwprijs.",
+   "partners": [
+    {
+     "naam": "KOW",
+     "rol": "architect"
+    },
+    {
+     "naam": "Giesbers",
+     "rol": "aannemer"
+    },
+    {
+     "naam": "De Goede Woning",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Binderholz",
+     "rol": "leverancier"
+    },
+    {
+     "naam": "Urban Synergy",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "DGMR",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Pieters Bouwtechniek",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "TRAJECT Adviseurs & Managers",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Antea Group",
+     "rol": "adviseur"
+    }
+   ],
+   "bronUrl": "https://kow.nl/projecten/casavita/",
+   "opmerking": "Exacte startmaand bouw niet gevonden; geschat. Oplevering eind 2024/begin 2025 bevestigd."
+  },
+  {
+   "naam": "Timbr (Slachthuisstraat)",
+   "plaats": "Zaandam",
+   "adres": "Slachthuisstraat 67/67A, Kogerveldwijk",
+   "type": "appartementen",
+   "woningen": 158,
+   "prijssegment": [
+    "sociaal",
+    "middenhuur",
+    "vrije sector"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 5,
+   "fase": "nazorg",
+   "start": "2024-03",
+   "eind": "2025-12",
+   "omschrijving": "Timbr aan de Slachthuisstraat in Zaandam is een modulair, circulair en klimaatadaptief woongebouw van Blauwhoed en KOERS met 158 huurappartementen (30% sociale huur, 30% middenhuur, rest vrije sector) voor woningcorporatie ZVH, grotendeels in hout en opgebouwd uit 318 fabrieksmatig vervaardigde modules (bouwsysteem Ursem/Heddes) in vier getrapte volumes tot 13 lagen. Ontwerp de Architekten Cie; bouw feestelijk gestart in 2024, oplevering eind 2025.",
+   "partners": [
+    {
+     "naam": "KOERS",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Architekten Cie",
+     "rol": "architect"
+    },
+    {
+     "naam": "Heddes Bouw & Ontwikkeling",
+     "rol": "aannemer"
+    },
+    {
+     "naam": "Ursem Modulaire Bouwsystemen",
+     "rol": "leverancier"
+    }
+   ],
+   "bronUrl": "https://www.heddes.nl/nieuwsoverzicht/2024/bouw-van-158-woningen-in-zaandam-feestelijk-gestart",
+   "opmerking": "Startmaand bouw bij benadering (feestelijke start 2024)."
+  },
+  {
+   "naam": "Binnen Turfspoor",
+   "plaats": "Lisserbroek",
+   "adres": "Turfspoor",
+   "type": "gebiedsontwikkeling",
+   "woningen": 1325,
+   "prijssegment": [
+    "sociaal",
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "dorps",
+   "ambitieDuurzaamheid": 4,
+   "fase": "planvorming",
+   "start": "2027-01",
+   "eind": "2035-12",
+   "omschrijving": "Binnen Turfspoor is een nieuwe dorpse woonwijk van 1.325 woningen in Lisserbroek, ontwikkeld door een consortium van gebiedsontwikkelaars waaronder Blauwhoed, met de gemeente Haarlemmermeer. Het programma mengt sociale huur en koop in uiteenlopende typen; de woningen zijn energiezuinig en worden gebouwd met natuurlijke, duurzame materialen. De wijk zet in op gemeenschap, natuur en generaties door elkaar, met toegang tot Landgoed Olmenhorst.",
+   "partners": [
+    {
+     "naam": "VORM",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Timpaan",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "BPD",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "AM",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Amvest",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Ymere",
+     "rol": "ontwikkelpartner"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/project/binnen-turfspoor",
+   "opmerking": "Planning niet gepubliceerd; geschat. Aandeel Blauwhoed binnen de 1.325 woningen onbekend."
+  },
+  {
+   "naam": "EVE (Vlietvoorde)",
+   "plaats": "Leidschendam",
+   "adres": "Veursestraatweg, Vlietvoorde",
+   "type": "grondgebonden",
+   "woningen": 64,
+   "prijssegment": [
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 3,
+   "fase": "realisatie",
+   "start": "2026-06",
+   "eind": "2028-06",
+   "omschrijving": "EVE omvat 64 nieuwbouwwoningen (twee-onder-een-kap, geschakelde woningen, hoekwoningen en bungalows van 147-165 m2) in een bosrijk landschap tussen duin en polder in Vlietvoorde. De woningen staan in clusters van 2 tot 12 met zicht op groen; verkoop startte in maart 2025 en de bouw op 30 juni 2026.",
+   "partners": [],
+   "bronUrl": "https://nieuwbouw.nl/aanbod/koop/leidschendam-voorburg/01H9GN7P44YGJTYAFFWBG9MK32-eve-nieuwbouw",
+   "opmerking": "Opleverdatum niet gepubliceerd; geschat. Architect/aannemer niet op de geraadpleegde pagina genoemd."
+  },
+  {
+   "naam": "Noordhof 3 (Elzenhagen Zuid)",
+   "plaats": "Amsterdam",
+   "adres": "Elzenhagen Zuid, Amsterdam-Noord",
+   "type": "appartementen",
+   "woningen": 147,
+   "prijssegment": [
+    "middenhuur",
+    "koop"
+   ],
+   "bouwstijl": "hoogstedelijk",
+   "ambitieDuurzaamheid": 3,
+   "fase": "realisatie",
+   "start": "2026-04",
+   "eind": "2028-06",
+   "omschrijving": "In Elzenhagen Zuid in Amsterdam-Noord bouwt ontwikkelcombinatie CZAN (Blauwhoed en AM) Noordhof 3 met 147 woningen: 89 middenhuurwoningen en 58 koopwoningen, deels via het Koop & Deel-model voor betaalbaarheid. Het ontwerp met zachte lijnen is van M3H Architecten, Hund Falk Architecten en Studio Pallesh; Slokker Bouwgroep startte de bouw in april 2026. Het gebouw ligt naast het Krijtmolenpark op vijf minuten van de Noord/Zuidlijn.",
+   "partners": [
+    {
+     "naam": "AM",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "M3H Architecten",
+     "rol": "architect"
+    },
+    {
+     "naam": "Hund Falk Architecten",
+     "rol": "architect"
+    },
+    {
+     "naam": "Studio Pallesh",
+     "rol": "architect"
+    },
+    {
+     "naam": "Slokker",
+     "rol": "aannemer"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/nieuws/bouw-van-147-woningen-in-elzenhagen-zuid",
+   "opmerking": "Opleverdatum niet gepubliceerd; geschat."
+  },
+  {
+   "naam": "De Glasfabriek – KAFT (fase 2)",
+   "plaats": "Schiedam",
+   "adres": "Glasbuurt, Nieuw-Mathenesse",
+   "type": "transformatie",
+   "woningen": 178,
+   "prijssegment": [
+    "sociaal",
+    "middenhuur",
+    "koop"
+   ],
+   "bouwstijl": "industrieel",
+   "ambitieDuurzaamheid": 4,
+   "fase": "realisatie",
+   "start": "2026-09",
+   "eind": "2028-12",
+   "omschrijving": "De Glasfabriek is de herontwikkeling van het voormalige glasfabriekterrein in Schiedam tot een gemengde buurt met in totaal 738 woningen en circa 23.000 m2 bedrijfsruimte, ontwikkeld door Glasfabriek BV (Dudok Real Estate en Blauwhoed) met Van Wijnen als aannemer. Deelplan KAFT (fase 2) omvat 178 woningen in vier blokken, waarvan 42 koopwoningen met verkoopstart mei 2026 en start bouw in Q3 2026. Het masterplan is van Barcode Architects, het ontwerp van KAFT van MoederscheimMoonen Architects.",
+   "partners": [
+    {
+     "naam": "Dudok Real Estate",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "MoederscheimMoonen Architects",
+     "rol": "architect"
+    },
+    {
+     "naam": "Barcode Architects",
+     "rol": "architect"
+    },
+    {
+     "naam": "Van Wijnen",
+     "rol": "aannemer"
+    },
+    {
+     "naam": "DELVA",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Antea Group",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "NL Greenlabel",
+     "rol": "adviseur"
+    }
+   ],
+   "bronUrl": "https://www.architectuur.nl/nieuws/ontwerp-voor-deelplan-kaft-van-de-glasfabriek-gereed/",
+   "opmerking": "Opleverdatum niet gepubliceerd; geschat."
+  },
+  {
+   "naam": "Hillegaar (fase 1)",
+   "plaats": "Venhuizen",
+   "adres": "Westzijde van de Twijver",
+   "type": "grondgebonden",
+   "woningen": 91,
+   "prijssegment": [
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "dorps",
+   "ambitieDuurzaamheid": 3,
+   "fase": "realisatie",
+   "start": "2026-06",
+   "eind": "2027-12",
+   "omschrijving": "Hillegaar is een nieuwe dorpse woonbuurt van circa 250 woningen (huur en koop) in Venhuizen, ontwikkeld door Blauwhoed en VBM voor onder meer starters en senioren. Fase 1 omvat 91 koopwoningen (twee-onder-een-kap, rij- en hoekwoningen, appartementen, bungalows en vrije kavels); verkoop startte november 2025, bouw juni 2026, oplevering Q4 2027. Bestaande bomen blijven behouden en waterlopen krijgen een recreatieve functie.",
+   "partners": [
+    {
+     "naam": "VBM",
+     "rol": "ontwikkelpartner"
+    }
+   ],
+   "bronUrl": "https://nieuwbouw.nl/aanbod/koop/drechterland/01JKG13QCYRRFC35V1JA8K0TSV-hillegaar-venhuizen",
+   "opmerking": "Woningaantal betreft fase 1 (91); totale wijk circa 250."
+  },
+  {
+   "naam": "Maasterras-West fase 3a",
+   "plaats": "Zwijndrecht",
+   "adres": "Maasterras-West",
+   "type": "appartementen",
+   "woningen": 58,
+   "prijssegment": [
+    "koop"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 3,
+   "fase": "planvorming",
+   "start": "2027-01",
+   "eind": "2028-12",
+   "omschrijving": "Blauwhoed en VORM ontwikkelen na een gewonnen tender met de gemeente Zwijndrecht en woningcorporatie Woonkracht10 de nieuwe wijk Maasterras-West; fases 1 en 2 zijn verkocht. Fase 3a bestaat uit 58 betaalbare koopappartementen (62-83 m2) voor starters en doorstromers, gasloos en energiezuinig met bodemwarmtepomp voor vloerverwarming en -koeling.",
+   "partners": [
+    {
+     "naam": "VORM",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Woonkracht10",
+     "rol": "ontwikkelpartner"
+    }
+   ],
+   "bronUrl": "https://www.nieuwbouw-zwijndrecht.nl/project/16902/maasterras-fase-3a/",
+   "opmerking": "Start bouw en oplevering fase 3a niet gepubliceerd; geschat."
+  },
+  {
+   "naam": "Defensie-eiland",
+   "plaats": "Woerden",
+   "adres": "Defensie-eiland, centrum",
+   "type": "transformatie",
+   "woningen": 205,
+   "prijssegment": [
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "industrieel",
+   "ambitieDuurzaamheid": 3,
+   "fase": "opgeleverd",
+   "start": "2008-01",
+   "eind": "2024-12",
+   "omschrijving": "VORM en Blauwhoed transformeerden het geïsoleerde, vervuilde militaire complex van drie hectare in het centrum van Woerden tot een autoluwe woonbuurt met 205 woningen in elf typen: stadswoningen, appartementen, penthouses en casco-loftwoningen in de monumentale fabriekspanden. De architectuur verwijst naar het industriële verleden met hergebruikte klinkers en sheddaken; de oude wasserij kreeg een horecafunctie. De gebiedsontwikkeling (2008-2024) is volledig opgeleverd.",
+   "partners": [
+    {
+     "naam": "VORM",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Syntrus Achmea Real Estate & Finance",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "ZECC Architecten",
+     "rol": "architect"
+    },
+    {
+     "naam": "Groosman",
+     "rol": "architect"
+    },
+    {
+     "naam": "Karres en Brands",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Braaksma & Roos Architectenbureau",
+     "rol": "adviseur"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/project/defensie-eiland",
+   "opmerking": "Exacte maanden niet gepubliceerd; projectperiode 2008-2024 volgens projectpagina."
+  },
+  {
+   "naam": "Singelblok (Elzenhagen Zuid)",
+   "plaats": "Amsterdam",
+   "adres": "Elzenhagen Zuid, Amsterdam-Noord",
+   "type": "appartementen",
+   "woningen": 401,
+   "prijssegment": [
+    "sociaal",
+    "middenhuur",
+    "vrije sector"
+   ],
+   "bouwstijl": "hoogstedelijk",
+   "ambitieDuurzaamheid": 3,
+   "fase": "nazorg",
+   "start": "2022-06",
+   "eind": "2025-06",
+   "omschrijving": "Singelblok in Elzenhagen Zuid (Amsterdam-Noord) is een woongebouw met 401 huurwoningen van ontwikkelcombinatie CZAN (Blauwhoed en AM): 185 appartementen voor Vesteda (171 vrije sector, 14 middenhuur) en sociale huurwoningen voor Eigen Haard. Ontwerp Inbo, bouw Heddes Bouw & Ontwikkeling, constructie Pieters Bouwtechniek, bouwfysica Buro Bouwfysica; opgeleverd in 2025.",
+   "partners": [
+    {
+     "naam": "AM",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Vesteda",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "Inbo",
+     "rol": "architect"
+    },
+    {
+     "naam": "Heddes Bouw & Ontwikkeling",
+     "rol": "aannemer"
+    },
+    {
+     "naam": "Pieters Bouwtechniek",
+     "rol": "adviseur"
+    },
+    {
+     "naam": "Buro Bouwfysica",
+     "rol": "adviseur"
+    }
+   ],
+   "bronUrl": "https://nieuws.vesteda.com/realisatie-van-singelblok-in-amsterdam-noord-van-start/",
+   "opmerking": "Start- en opleverdatum bij benadering (start bouw 2022, oplevering 2025)."
+  },
+  {
+   "naam": "STACK (Müllerpier)",
+   "plaats": "Rotterdam",
+   "adres": "Müllerpier, Lloydkwartier",
+   "type": "hoogbouw",
+   "woningen": 85,
+   "prijssegment": [
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "hoogstedelijk",
+   "ambitieDuurzaamheid": 3,
+   "fase": "nazorg",
+   "start": "2022-09",
+   "eind": "2025-03",
+   "omschrijving": "STACK is de 70 meter hoge woontoren die de gebiedsontwikkeling Müllerpier van AM en Blauwhoed (600 woningen in elf woongebouwen) afrondt: 6 gezinswoningen, 77 appartementen en 2 penthouses. Ontwerp CONIX RDBM Architects, bouw VORM; oplevering 2024/2025.",
+   "partners": [
+    {
+     "naam": "AM",
+     "rol": "ontwikkelpartner"
+    },
+    {
+     "naam": "CONIX RDBM Architects",
+     "rol": "architect"
+    },
+    {
+     "naam": "VORM",
+     "rol": "aannemer"
+    }
+   ],
+   "bronUrl": "https://www.conixrdbm.com/project/stack/",
+   "opmerking": "Start- en opleverdatum bij benadering."
+  },
+  {
+   "naam": "Harmonie",
+   "plaats": "Capelle aan den IJssel",
+   "type": "grondgebonden",
+   "woningen": 144,
+   "prijssegment": [
+    "koop",
+    "sociaal"
+   ],
+   "bouwstijl": "modern",
+   "ambitieDuurzaamheid": 3,
+   "fase": "realisatie",
+   "start": "2024-01",
+   "eind": "2027-06",
+   "omschrijving": "Woonbuurt Harmonie in Capelle aan den IJssel: Blauwhoed en Stebru realiseren 144 koopwoningen naar ontwerp van KOW; woningcorporatie Havensteder renoveert daarnaast twee bestaande flats tot 56 sociale huurwoningen, in samenwerking met de gemeente.",
+   "partners": [
+    {
+     "naam": "KOW",
+     "rol": "architect"
+    },
+    {
+     "naam": "Havensteder",
+     "rol": "ontwikkelpartner"
+    }
+   ],
+   "bronUrl": "https://blauwhoed.nl/nieuws/blauwhoed-en-stebru-realiseren-144-woningen-in-woonbuurt",
+   "opmerking": "Planning niet gepubliceerd; geschat."
+  },
+  {
+   "naam": "Lloydpier Schiehaven",
+   "plaats": "Rotterdam",
+   "adres": "Lloydpier, Schiehaven",
+   "type": "appartementen",
+   "woningen": 95,
+   "prijssegment": [
+    "koop",
+    "vrije sector"
+   ],
+   "bouwstijl": "hoogstedelijk",
+   "ambitieDuurzaamheid": 3,
+   "fase": "planvorming",
+   "start": "2027-01",
+   "eind": "2029-06",
+   "omschrijving": "Blauwhoed ontwikkelt op de Lloydpier in Rotterdam circa 95 woningen aan de Schiehaven en de Maaszijde. Arons en Gelauff architecten ontwierp de 63 woningen aan de Schiehaven, architectuur MAKEN de woningen aan de Maaszijde (Stadswonen op de Lloydpier).",
+   "partners": [
+    {
+     "naam": "Arons en Gelauff architecten",
+     "rol": "architect"
+    },
+    {
+     "naam": "architectuur MAKEN",
+     "rol": "architect"
+    }
+   ],
+   "bronUrl": "https://propertynl.com/Nieuws/Blauwhoed-gaat-88-woningen-realiseren-op-Lloydpier/91a57de9-c741-4111-9545-1408192f8675",
+   "opmerking": "Fase en planning niet gepubliceerd; geschat."
+  }
+ ],
+ "websites": [
+  {
+   "naam": "Aalberts Bouw",
+   "website": "https://www.aalbertsbouw.nl/",
+   "vestigingsplaats": "Loosdrecht",
+   "omschrijving": "Ontwikkelende bouwer sinds 1674 met vestigingen in Loosdrecht, Hilversum en Amersfoort, bouwt o.a. conceptueel en met biobased materialen."
+  },
+  {
+   "naam": "Arcon",
+   "website": "https://www.arconbv.nl/",
+   "vestigingsplaats": "Nuenen",
+   "omschrijving": "Arcon Houtconstructies (BanGroep) ontwerpt en realiseert CLT- en gelamineerde houtconstructies voor woningen, appartementen en kantoren."
+  },
+  {
+   "naam": "Barentsz Ontdekkingshuizen",
+   "website": "https://barentsz.nl/",
+   "vestigingsplaats": "Hilversum",
+   "omschrijving": "Ontwerpt en bouwt energieneutrale houtskeletbouwwoningen; ontwerp in Hilversum, productie in eigen fabriek in Letland."
+  },
+  {
+   "naam": "Bouwgroep Dijkstra Draisma",
+   "website": "https://www.bgdd.nl/",
+   "vestigingsplaats": "Dokkum",
+   "omschrijving": "Een van de grootste bouwbedrijven van Noord-Nederland; bouwt o.a. volledig houten Smûk-woningen met hennepisolatie."
+  },
+  {
+   "naam": "Bouwonderneming STOUT",
+   "website": "https://www.stout.nl/",
+   "vestigingsplaats": "Hardinxveld-Giessendam",
+   "omschrijving": "Middelgroot bouwbedrijf (opgericht 1908) met het Stout HOUTmerk: woningen met CLT-casco en grotendeels biobased materialen."
+  },
+  {
+   "naam": "Broekhout",
+   "website": "https://www.broekhout.com/",
+   "vestigingsplaats": "Aalten",
+   "omschrijving": "Timmerfabriek met eigen HSB-productie van prefab houten bouwdelen (kozijnen, wanden, daken) voor woning- en utiliteitsbouw."
+  },
+  {
+   "naam": "Byldis",
+   "website": "https://byldis.com/",
+   "vestigingsplaats": "Veldhoven",
+   "omschrijving": "Leverancier van prefab betonnen bouwsystemen en gevels voor mid- en hoogbouw."
+  },
+  {
+   "naam": "CascoTotaal",
+   "website": "https://cascototaal.com/",
+   "omschrijving": "Ontwikkelt prefab modulaire betoncasco-woonconcepten (o.a. CompacThuis, Circle) voor koop, huur, recreatie en zorg."
+  },
+  {
+   "naam": "Circle Wood",
+   "website": "https://circlewood.eu/",
+   "omschrijving": "Ecosysteem van ontwerp-, bouw- en adviesbureaus rond de HoutKern Bouwmethode voor circulaire houten gebouwen tot 70 meter."
+  },
+  {
+   "naam": "CLT-S",
+   "website": "https://www.clt-s.be/",
+   "omschrijving": "Belgische CLT-houtbouwer die ook projecten in Nederland uitvoert."
+  },
+  {
+   "naam": "Cube Homes",
+   "website": "https://www.cube-homes.com/nl/",
+   "vestigingsplaats": "Swalmen",
+   "omschrijving": "Bouwt volledig in de fabriek gemaakte modulaire houten units en woningen (CUBE), plaatsing in één dag."
+  },
+  {
+   "naam": "Daiwa",
+   "website": "https://www.daiwahousemodular.eu/",
+   "vestigingsplaats": "Montfoort",
+   "omschrijving": "Daiwa House Modular Europe (voorheen Jan Snel): grootste modulaire bouwer van Europa met woningfabriek in Montfoort."
+  },
+  {
+   "naam": "De Groot Vroomshoop",
+   "website": "https://degrootvroomshoop.nl/",
+   "vestigingsplaats": "Vroomshoop",
+   "omschrijving": "Houtbouwspecialist binnen VolkerWessels met divisies Bouwsystemen, Houtbouw en Gelijmde Houtconstructies."
+  },
+  {
+   "naam": "De Nijs",
+   "website": "https://denijs.nl/",
+   "vestigingsplaats": "Warmenhuizen",
+   "omschrijving": "Ontwikkelende bouwer in Noord-Holland met eigen houtbouwconcept Tim; realiseert o.a. Woodstone Heerhugowaard."
+  },
+  {
+   "naam": "Domoticube",
+   "website": "https://domoticube.nl/",
+   "vestigingsplaats": "Nieuwegein",
+   "kvk": "76708853",
+   "omschrijving": "Ontwikkelaar van CO2-reducerende, circulaire en demontabele woonconcepten met circulair paspoort per woning."
+  },
+  {
+   "naam": "Draisma Bouw",
+   "website": "https://draisma.nl/",
+   "vestigingsplaats": "Apeldoorn",
+   "omschrijving": "Bouwbedrijf met eigen houtbouwtak (Draisma Houtbouw) dat modulair met CLT bouwt, o.a. de Markthal Apeldoorn."
+  },
+  {
+   "naam": "Easy Housing",
+   "website": "https://www.easyhousing.org/",
+   "omschrijving": "Circulair, biobased houtbouwsysteem (opgericht 2019) gericht op betaalbare woningen."
+  },
+  {
+   "naam": "Ekoflin",
+   "website": "https://www.ekoflin.com/",
+   "omschrijving": "Specialist in massieve CLT-houtbouw: engineering, import van prefab CLT-woningen en montage van het casco."
+  },
+  {
+   "naam": "Ekowood Houses",
+   "website": "https://ekowoodhouses.nl/",
+   "vestigingsplaats": "Beringe",
+   "omschrijving": "Ontwerpt en bouwt biobased prefab houten woningen in de eigen Ekowood Fabriek in Beringe (Limburg)."
+  },
+  {
+   "naam": "Element Buildings",
+   "website": "https://www.elementbuildings.nl/",
+   "vestigingsplaats": "Reeuwijk",
+   "omschrijving": "Bouwbedrijf gespecialiseerd in CLT-constructies voor woningen en kantoren."
+  },
+  {
+   "naam": "Elk Groep",
+   "website": "https://www.elk.nl/",
+   "vestigingsplaats": "Wijchen",
+   "omschrijving": "Vastgoedonderhoud-, renovatie- en transformatiebedrijf (ca. 400 medewerkers) met houten ELK-Kubus-module."
+  },
+  {
+   "naam": "Ferlem",
+   "website": "https://www.ferlem.com/",
+   "vestigingsplaats": "Helmond",
+   "omschrijving": "Ferlem International ontwikkelt en produceert modulaire, verplaatsbare Smile-woningen volledig in eigen huis."
+  },
+  {
+   "naam": "Finch Buildings",
+   "website": "https://finchbuildings.com/",
+   "omschrijving": "Ontwikkelaar van stapelbare massief houten woonmodules sinds 2014; productie via partner De Groot Vroomshoop, ruim 800 woningen gerealiseerd."
+  },
+  {
+   "naam": "FLETTS",
+   "website": "https://fletts.nl/",
+   "omschrijving": "Woonconcept voor betaalbare CLT-appartementen (20-90 m²), 90% in de fabriek gemaakt, o.a. voor Kleurrijk Wonen in Culemborg."
+  },
+  {
+   "naam": "Flex livings",
+   "website": "https://flexlivings.nl/",
+   "vestigingsplaats": "Genemuiden",
+   "omschrijving": "Koppelbaar modulair woonconcept in CLT of staal, 66% biobased, o.a. 140 woningen in Rotterdam Nesselande."
+  },
+  {
+   "naam": "Flexibilistay",
+   "website": "https://flexibilistay.nl/",
+   "vestigingsplaats": "Harderwijk",
+   "kvk": "85949299",
+   "omschrijving": "Aanbieder van modulaire woon- en voorzieningenoplossingen (flexwoningen, noodopvang, scholen)."
+  },
+  {
+   "naam": "Giesbers",
+   "website": "https://giesberswijchen.nl/",
+   "vestigingsplaats": "Wijchen",
+   "omschrijving": "Giesbers Ontwikkelen en Bouwen (Giesbers Groep) realiseert houtbouwwoningen zoals Puur Wonen Meerhoven (56 CLT-woningen) en Casa Vita Pijnacker."
+  },
+  {
+   "naam": "Hamlet",
+   "website": "https://www.hamlet.nl/",
+   "vestigingsplaats": "Haarlem",
+   "kvk": "76150852",
+   "omschrijving": "Hamlet Design+Build Technology ontwikkelt een CLT-bouwsysteem en is houtbouwengineer van o.a. BoogieWood en De Houten Leeuw."
+  },
+  {
+   "naam": "HDO Groep",
+   "website": "https://hdo-groep.nl/",
+   "vestigingsplaats": "Beverwijk",
+   "omschrijving": "Houtmodulebouwer met de grootste groene woonfabriek van Nederland (capaciteit 1.000 woningen per jaar)."
+  },
+  {
+   "naam": "Heembouw",
+   "website": "https://www.heembouw.nl/",
+   "vestigingsplaats": "Roelofarendsveen",
+   "omschrijving": "Ontwerpende bouwer van bedrijfsruimten, kantoren en woningen met kantoren in Roelofarendsveen, Breda en Rotterdam."
+  },
+  {
+   "naam": "Heko Spanten",
+   "website": "https://www.hekospanten.nl/",
+   "vestigingsplaats": "Ede",
+   "omschrijving": "Ontwerpt, produceert en monteert gelamineerde houten draagconstructies."
+  },
+  {
+   "naam": "Hendriks",
+   "website": "https://www.hendriksbouwenontwikkeling.nl/",
+   "vestigingsplaats": "Oss",
+   "omschrijving": "Hendriks Bouw en Ontwikkeling: familiebedrijf met woningbouw als kernactiviteit; werkt met prefab beton, HSB en CLT."
+  },
+  {
+   "naam": "HOLD",
+   "website": "https://en.holdbuildings.com/",
+   "vestigingsplaats": "Almelo",
+   "omschrijving": "Levert geprefabriceerde, demontabele kantoorgebouwen met hout in constructie en interieur."
+  },
+  {
+   "naam": "Homes Factory",
+   "website": "https://modulairewoningbouw.nl/netwerk/homes-factory/",
+   "vestigingsplaats": "Breda",
+   "omschrijving": "3D-modulaire woningfabriek van Vastlab Projectontwikkeling en Bouwbedrijf Boot met houten skelet, o.a. 95 woningen in Zaandam."
+  },
+  {
+   "naam": "iWOOD / Ferox",
+   "website": "https://www.iwood.nl/",
+   "vestigingsplaats": "Waarland",
+   "omschrijving": "Biobased bouwmerk met eigen bouwsysteem; zusterbedrijf Ferox Bouwsystemen importeert het Systimber-houtbouwsysteem."
+  },
+  {
+   "naam": "Janssen de Jong Bouw",
+   "website": "https://www.janssendejongbouw.nl/",
+   "vestigingsplaats": "Eindhoven",
+   "omschrijving": "Woningbouwer (JAJO) met vestigingen in Eindhoven, Arnhem, Utrecht en Hardenberg; investeert in seriematige CLT-woningbouw."
+  },
+  {
+   "naam": "JM Concepten",
+   "website": "https://www.jmconcepten.nl/",
+   "omschrijving": "Importeur en monteur van CLT/KLH-panelen en LignoTrend in Nederland, incl. engineering."
+  },
+  {
+   "naam": "KBK Bouwgroep",
+   "website": "https://www.kbkbouwgroep.nl/",
+   "vestigingsplaats": "Volendam",
+   "omschrijving": "Familiebouwbedrijf sinds 1979, bouwt woningen op basis van houten of betonnen bouwsystemen."
+  },
+  {
+   "naam": "Kelderman bouw",
+   "website": "https://www.keldermanbouw.nl/",
+   "vestigingsplaats": "Ede",
+   "omschrijving": "Regionale bouwer (Kelderman Groep) voor seriematige woningbouw en utiliteit; bouwt o.a. prefab houtbouwwoningen met Emergo Prefab."
+  },
+  {
+   "naam": "Laminated Timber Solutions",
+   "website": "https://www.laminatedtimbersolutions.be/",
+   "vestigingsplaats": "Moorslede",
+   "omschrijving": "Belgische producent van glulam- en CLT-constructies, o.a. voor appartementsgebouwen en studentenhuisvesting."
+  },
+  {
+   "naam": "Leegwater",
+   "website": "https://www.leegwater.nl/",
+   "vestigingsplaats": "Heerhugowaard",
+   "omschrijving": "Leegwater Houtbereiding verduurzaamt en verwerkt hout en levert complete houten gevels, o.a. voor SAWA Rotterdam."
+  },
+  {
+   "naam": "Linkwood",
+   "website": "https://linkwood.nl/",
+   "omschrijving": "Levert en monteert houten casco's voor grootschalige woningbouw, o.a. Valckensteyn Rotterdam (82 appartementen)."
+  },
+  {
+   "naam": "MDLX",
+   "website": "https://www.mdlx.nl/",
+   "vestigingsplaats": "Venray",
+   "omschrijving": "Adaptief modulair bouwsysteem in hout, opgericht door DENOLDER-VLEUGELS, Verhoeven Timmerfabriek, SIDstudio en VDW Ventures."
+  },
+  {
+   "naam": "mHome B.V.",
+   "website": "https://mhome.nu/",
+   "vestigingsplaats": "Nijmegen",
+   "omschrijving": "Prefab modulaire CLT/HSB-woningen van natuurlijke materialen, samenwerking van ECO+Bouw, Stollenberggroep en Van Nyhout."
+  },
+  {
+   "naam": "Mill Home",
+   "website": "https://www.millhome.nl/",
+   "omschrijving": "Producent van verplaatsbare, energieneutrale tiny houses en compacte houten woningen voor particulieren en corporaties."
+  },
+  {
+   "naam": "MOOS",
+   "website": "https://wijzijnmoos.nl/",
+   "vestigingsplaats": "Amsterdam",
+   "omschrijving": "Bouwer van modulaire CLT-woningen; realiseert o.a. de hoogste modulaire CLT-woontoren van Nederland in Amsterdam Zuidoost."
+  },
+  {
+   "naam": "NICE Developers",
+   "website": "https://conceptenboulevard.nl/aanbieders/nice-developers/id=112",
+   "vestigingsplaats": "Rotterdam",
+   "omschrijving": "Ontwikkelaar van circulair houtbouwconcept (kolommen, balken, vloeren), bekend van SAWA in Rotterdam."
+  },
+  {
+   "naam": "Nimbel",
+   "website": "https://nimbel.nl/",
+   "vestigingsplaats": "Middelharnis",
+   "omschrijving": "Produceert gepatenteerde prefab HSB-modules met beton- of CLT-vloeren in eigen fabriek (twee woningen per dag)."
+  },
+  {
+   "naam": "Noordereng Groep",
+   "website": "https://www.noorderenggroep.eu/",
+   "vestigingsplaats": "Ede",
+   "omschrijving": "Projectontwikkelaar gericht op modulaire houtbouw met de HoutKern Bouwmethode (tot 5 woonlagen zonder betonkern)."
+  },
+  {
+   "naam": "Portakabin",
+   "website": "https://www.portakabin.com/nl/",
+   "omschrijving": "Internationale leverancier van modulaire gebouwen en verplaatsbare units."
+  },
+  {
+   "naam": "Preworxs",
+   "website": "https://www.preworxs.nl/",
+   "omschrijving": "Ontwikkelt prefab installatie-oplossingen (complete technische ruimtes) voor woningbouw en modulaire bouw sinds 2015."
+  },
+  {
+   "naam": "QYUUBS",
+   "website": "https://www.qyuubs.nl/",
+   "vestigingsplaats": "Nuenen",
+   "omschrijving": "Industriële bouwer van verplaatsbare, volledig in CLT uitgevoerde modulaire (flex)woningen."
+  },
+  {
+   "naam": "Skilpod",
+   "website": "https://skilpod.com/nl",
+   "vestigingsplaats": "Geel",
+   "omschrijving": "Belgische producent van 3D-modulaire LVL-houtskeletbouwwoningen, geselecteerd voor het Aedes-raamcontract."
+  },
+  {
+   "naam": "Slokker",
+   "website": "https://slokkerbouwgroep.nl/",
+   "vestigingsplaats": "Huizen",
+   "omschrijving": "Slokker Bouwgroep (familiebedrijf sinds 1935) realiseert woningbouw en utiliteit vanuit Huizen, Almere, Amsterdam en Breda."
+  },
+  {
+   "naam": "Smart Tiny Loft",
+   "website": "https://smarttinyloft.nl/",
+   "omschrijving": "Stapelbare compacte lofts (27-55 m²) van gerecycled staal en cementvrije mortel, tot 8 lagen hoog."
+  },
+  {
+   "naam": "Smits Vastgoedzorg",
+   "website": "https://www.smitsvastgoedzorg.nl/",
+   "vestigingsplaats": "Rotterdam",
+   "omschrijving": "Specialist in resultaatgericht onderhoud, verbetering en transformatie van vastgoed, opgericht 1925."
+  },
+  {
+   "naam": "Solid Timber",
+   "website": "https://solidtimber.nl/",
+   "vestigingsplaats": "Utrecht",
+   "omschrijving": "Houtbouwingenieurs (opgericht 2014) voor constructies in gelamineerd hout en CLT, van ontwerp tot montage."
+  },
+  {
+   "naam": "Solidhome",
+   "website": "https://www.solidhomegroup.nl/",
+   "vestigingsplaats": "Ede",
+   "omschrijving": "Produceert prefab CLT-woningen voor vakantieparken, gemeenten en corporaties in eigen fabriek."
+  },
+  {
+   "naam": "Stamhuis",
+   "website": "https://www.stamhuisprefabbouw.nl/",
+   "vestigingsplaats": "Raamsdonksveer",
+   "omschrijving": "Stamhuis Prefab Bouw levert prefab woningbouw op basis van staalframe-profielen."
+  },
+  {
+   "naam": "Strotec",
+   "website": "https://www.strotec.nl/",
+   "omschrijving": "Exclusieve NL-partner voor het prefab HSB-stro-gevelsysteem EcoCocon (tot 98% biobased)."
+  },
+  {
+   "naam": "Sustainer",
+   "website": "https://www.sustainerhomes.nl/",
+   "omschrijving": "Sustainer Homes (2015) bouwt circulaire houten woningen met een modulair bouwsysteem en eigen ontwerpsoftware."
+  },
+  {
+   "naam": "Ter Steege Bouw",
+   "website": "https://www.tsbouwvastgoed.nl/",
+   "vestigingsplaats": "Rijssen",
+   "omschrijving": "Ter Steege Bouw Vastgoed (Ter Steege Groep) ontwikkelt en bouwt woningen vanuit o.a. Rijssen, Hardenberg, Apeldoorn en Tiel."
+  },
+  {
+   "naam": "The New Makers",
+   "website": "https://thenewmakers.com/",
+   "vestigingsplaats": "Delft",
+   "omschrijving": "Digitaal geproduceerde, volledig demontabele houten woningen (Uuthuuske, HoutenThuis), o.a. 108 flexwoningen in Haarlem."
+  },
+  {
+   "naam": "Thimo365",
+   "website": "https://thimo365.nl/",
+   "vestigingsplaats": "Oldenzaal",
+   "omschrijving": "Prefab verplaatsbare woningen van 55 m² voor 1-2 persoonshuishoudens, geleverd binnen 16 weken na vergunning."
+  },
+  {
+   "naam": "Trebbe",
+   "website": "https://www.trebbe.nl/",
+   "vestigingsplaats": "Enschede",
+   "omschrijving": "Ontwikkelende bouwer (familiebedrijf sinds 1911) met woonconcept HoogWonen voor gestapelde woningbouw."
+  },
+  {
+   "naam": "Treetek",
+   "website": "https://treetek.nl/",
+   "vestigingsplaats": "Arnhem",
+   "omschrijving": "Engineert en realiseert houten casco's (CLT) voor grondgebonden woningen, gestapelde bouw en scholen."
+  },
+  {
+   "naam": "Unbrick Group B.V.",
+   "website": "https://www.unbrick.nl/",
+   "omschrijving": "Ontwikkelt en bouwt modulaire duurzame (vakantie)woningen die voor 80% uit CLT bestaan."
+  },
+  {
+   "naam": "Urban Woods / Urban Climate Architects",
+   "website": "https://www.ucarchitects.com/",
+   "vestigingsplaats": "Delft",
+   "omschrijving": "Architect van The Urban Woods Delft, het hoogste volledig houten woongebouw van Nederland (10 lagen, 102 appartementen)."
+  },
+  {
+   "naam": "Ursem Modulaire Bouwsystemen",
+   "website": "https://www.ursem.nl/",
+   "vestigingsplaats": "Wognum",
+   "omschrijving": "Leverancier van modulaire bouwsystemen; aandeelhouders Heddes Bouw & Ontwikkeling en Schouten Techniek."
+  },
+  {
+   "naam": "Van Dillen Bouwgroep",
+   "website": "https://vandillen-bouwgroep.nl/",
+   "vestigingsplaats": "Culemborg",
+   "omschrijving": "Familiebouwbedrijf sinds 1724 met producten als Optopper en BouwBos en bouwpartner van Sustainer."
+  },
+  {
+   "naam": "Van Engen",
+   "website": "https://bouwbedrijfvanengen.nl/",
+   "vestigingsplaats": "Kockengen",
+   "omschrijving": "Ecologisch houtbouwer van woningen en villa's op basis van houtskeletbouw en biobased materialen."
+  },
+  {
+   "naam": "Van Goeden Huizen",
+   "website": "https://vangoedenhuizen.nl/",
+   "vestigingsplaats": "Goirle",
+   "omschrijving": "Seriematige prefab houten woningen van Bedaux de Brouwer, Timmerfabriek Frank van Roij en Van Gisbergen; geselecteerd voor Aedes-flexwoningen."
+  },
+  {
+   "naam": "VDL De Meeuw",
+   "website": "https://vdldemeeuw.com/nl/",
+   "vestigingsplaats": "Oirschot",
+   "omschrijving": "Marktleider in modulaire huisvesting voor wonen, zorg, onderwijs en bedrijfsleven met vestigingen in NL en BE."
+  },
+  {
+   "naam": "Verhoeven",
+   "website": "https://www.verhoeven.nl/nl/",
+   "vestigingsplaats": "Venray",
+   "omschrijving": "Verhoeven Timmerfabriek produceert prefab timmerwerk (HSB-wanden, daken, kozijnen) en is medeoprichter van MDLX."
+  },
+  {
+   "naam": "Vivax",
+   "website": "https://www.vivaxhousing.nl/",
+   "vestigingsplaats": "Doetinchem",
+   "omschrijving": "Vivax Housing ontwerpt en realiseert verplaatsbare, energieneutrale tijdelijke woningen van cradle-to-cradle materialen."
+  },
+  {
+   "naam": "VolkerWessels",
+   "website": "https://www.volkerwessels.com/nl/",
+   "vestigingsplaats": "Amersfoort",
+   "omschrijving": "Bouwconcern met o.a. houtbouwspecialist De Groot Vroomshoop en VolkerWessels Vastgoed."
+  },
+  {
+   "naam": "VORM?",
+   "website": "https://vorm.nl/",
+   "vestigingsplaats": "Rotterdam",
+   "omschrijving": "Ontwikkelende bouwer met eigen houtbouwfabriek (DAT Bouwsystemen, Middelharnis) en modulaire houtbouwprojecten als BoogieWood."
+  },
+  {
+   "naam": "Waal",
+   "website": "https://www.waal.nl/",
+   "vestigingsplaats": "Vlaardingen",
+   "omschrijving": "Woningbouwer (ca. 140 medewerkers) die overstapt naar houtbouw, o.a. Valckensteyn Rotterdam en Woodstock Vlaardingen."
+  },
+  {
+   "naam": "WikiHouseNL",
+   "website": "https://wikihousenl.cc/",
+   "vestigingsplaats": "Almere",
+   "omschrijving": "Stichting die het open-source WikiHouse-zelfbouwsysteem in Nederland introduceerde; eerste WikiHouse-wijk in Almere."
+  },
+  {
+   "naam": "WoodInc",
+   "website": "https://woodinc.be/",
+   "omschrijving": "Belgische aanbieder van het STRUCTUREZ-houtskeletsysteem (paal-en-balk in gelamineerd hout) en CircuWallPanels."
+  },
+  {
+   "naam": "Woodteq",
+   "website": "https://woodteq.nl/",
+   "vestigingsplaats": "Holten",
+   "omschrijving": "Engineert, levert en monteert houtconstructies (HSB, CLT, gelamineerd hout); 350+ projecten sinds 1996."
+  },
+  {
+   "naam": "Woody Builders",
+   "website": "https://www.woodybuilders.nl/",
+   "vestigingsplaats": "Nieuwkuijk",
+   "omschrijving": "Voorheen Woody Building Concepts (JAJO); ontwikkelt en bouwt houten bedrijfspanden en kantoren vanuit het Houtlab."
+  },
+  {
+   "naam": "WOUD",
+   "website": "https://woudvoorwonen.nl/",
+   "omschrijving": "Biobased modulaire woningbouwer (gestart 2022) gericht op woningen met minimale voetafdruk voor corporaties en ontwikkelaars."
+  }
+ ]
+}

@@ -8,6 +8,11 @@ import { vindDubbel } from "../src/lib/domain/discovery";
 import { extraheerVoorstellen, splitsClaims } from "../src/lib/domain/enrichment";
 import { extraheerProjectprofiel } from "../src/lib/domain/extractie";
 import { importeerEngagements } from "../src/lib/domain/csv";
+import { maakLegeDatabase } from "../src/lib/domain/seed";
+import { AANVULLING, laadAanvulling } from "../src/lib/domain/aanvulling";
+import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "../src/lib/domain/partnerimport";
+import houtbouwers from "../src/data/houtbouwers-seed.json";
+import { kiesSubpaginas, leesReferenties, pastBijNaam } from "../src/lib/domain/webverrijking";
 
 let fouten = 0;
 function check(naam: string, ok: boolean, detail?: unknown) {
@@ -72,6 +77,33 @@ check("US-29 extractie levert voorstellen met bron web", voorstellen.length > 0 
 check("US-30 aantoonbaar vs geclaimd", voorstellen.some((v) => v.soort === "aantoonbaar"));
 const claims = splitsClaims("Onze MPG-berekening van 0,45 is gemeten. Wij zijn de groenste bouwer.");
 check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclaimd.length === 1, claims);
+
+// Aanvullende dataset (echte partners/projecten) bovenop het houtbouwersoverzicht
+{
+  const leeg = maakLegeDatabase();
+  let t = 0;
+  const id = (p: string) => `${p}-${++t}`;
+  const bron = houtbouwers as { sourceFile: string; partners: Array<{ values: Record<string, string | number | boolean> }> };
+  const rijen = voegRijenSamen(bron.partners.map((p) => rijNaarPartner(p.values)).filter((p): p is NonNullable<typeof p> => Boolean(p)));
+  voegPartnersToe(leeg, rijen, new Map(), bron.sourceFile, id);
+  const voor = leeg.partners.length;
+  const u = laadAanvulling(leeg, new Map(), id);
+  const metWebsite = leeg.partners.filter((p) => p.website).length;
+  check("Aanvulling: projecten geladen", u.projectenNieuw === AANVULLING.projecten.length && leeg.projecten.length === AANVULLING.projecten.length, u);
+  check("Aanvulling: nieuwe partners en aanvulling bestaande", u.partnersNieuw > 50 && u.partnersAangevuld >= 5 && leeg.partners.length === voor + u.partnersNieuw, u);
+  check("Aanvulling: websites bestaande houtbouwers aangevuld", u.websitesAangevuld >= 70 && metWebsite > voor * 0.8, { voor, metWebsite, u });
+  check("Aanvulling: betrokkenheden gekoppeld aan bestaande partners", u.engagementsNieuw >= 40 && leeg.engagements.every((e) => leeg.partners.some((p) => p.id === e.partnerId) && leeg.projecten.some((p) => p.id === e.projectId)), u.engagementsNieuw);
+  const u2 = laadAanvulling(leeg, new Map(), id);
+  check("Aanvulling: herladen is idempotent", u2.partnersNieuw === 0 && u2.projectenNieuw === 0 && u2.engagementsNieuw === 0 && leeg.partners.length === voor + u.partnersNieuw, u2);
+  check("Aanvulling: geen dubbele partners op naam", new Set(leeg.partners.map((p) => p.naam.toLowerCase())).size === leeg.partners.length);
+}
+
+// Internetverrijking (pure delen)
+check("Webverrijking: website past bij naam", pastBijNaam("Giesbers Ontwikkelen en Bouwen", "https://giesberswijchen.nl") && !pastBijNaam("Giesbers", "https://www.funda.nl"));
+const sub = kiesSubpaginas('<a href="/over-ons">Over</a><a href="/projecten">P</a><a href="https://x.nl/duurzaamheid">D</a><a href="/contact">C</a>', "https://x.nl");
+check("Webverrijking: subpagina's gekozen", sub.length === 3 && sub[0] === "https://x.nl/over-ons", sub);
+const refs = leesReferenties("<h2>Casa Vita Pijnacker</h2><h3>Contact</h3><h2>84 woningen Houtwijk</h2>");
+check("Webverrijking: referenties uit koppen", refs.length === 2, refs);
 
 // Documentextractie
 const ex = extraheerProjectprofiel("Projectnaam: Zonnehof\nLocatie: Utrecht\n72 appartementen in middenhuur, hoogstedelijk, circulair en Paris Proof. Start bouw 2027-09, oplevering 2029.");

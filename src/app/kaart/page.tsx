@@ -108,7 +108,7 @@ export default async function KaartPagina({ searchParams }: { searchParams: Prom
             <p className="muted klein-tekst">
               {rol ? `Rol: ${ROL_LABEL[rol]}. ` : ""}
               {status ? `Status: ${STATUS_LABEL[status]}. ` : ""}
-              Klik een cirkel voor het partnerdossier; klik een vierkant om dat project te selecteren.
+              Klik een cirkel voor het partnerdossier; klik een vierkant om dat project te selecteren. Sleep en zoom om in te zoomen op een regio.
             </p>
             {project ? (
               <p className="klein-tekst">

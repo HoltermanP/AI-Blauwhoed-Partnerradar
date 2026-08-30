@@ -32,7 +32,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
 
       <div className="raster raster-zij">
         <Kaart titel="Verrijkingsronde">
-          <VerrijkingStart partners={partners} magBewerken={magBewerken} />
+          <VerrijkingStart partners={partners} magBewerken={magBewerken} externeBronnen={i.externeBronnenToegestaan} />
         </Kaart>
         <Kaart titel="Instellingen en beleid">
           <Definities

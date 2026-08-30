@@ -5,7 +5,7 @@ import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { effectieveFactoren, huidigeBelasting, leidFactorenAf, samenwerking } from "@/lib/domain/derive";
 import { signalenVoor } from "@/lib/domain/signalen";
 import type { Database, Partner } from "@/lib/domain/types";
-import { datum, datumTijd, euro, getal, ROL_LABEL } from "@/lib/format";
+import { datum, datumTijd, euro, getal, ROL_LABEL, waardeTekst } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { Badge, Definities, Kaart, Knop, Leeg, Melding, Metriek, PaginaKop, StatusBadge, Tabs } from "@/components/ui";
 import CapaciteitBeheer from "@/components/partners/CapaciteitBeheer";
@@ -15,6 +15,8 @@ import ContactBeheer from "@/components/partners/ContactBeheer";
 import FactorenBeheer from "@/components/partners/FactorenBeheer";
 import { FinancieelFormulier, KwalificatieChecklist } from "@/components/partners/KwalificatieBeheer";
 import StatusBeheer from "@/components/partners/StatusBeheer";
+import PartnerVerrijken from "@/components/partners/PartnerVerrijken";
+import VoorstelActies from "@/components/verrijking/VoorstelActies";
 
 const TABS = [
   { id: "profiel", label: "Profiel" },
@@ -44,6 +46,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   const signalen = signalenVoor(db, nu).filter((s) => s.partnerId === p.id);
   const engagements = db.engagements.filter((e) => e.partnerId === p.id);
   const evaluaties = db.evaluaties.filter((e) => e.partnerId === p.id);
+  const openVoorstellen = db.verrijkingsvoorstellen.filter((v) => v.partnerId === p.id && v.status === "open");
 
   const tabItems = TABS.map((t) => ({
     ...t,
@@ -72,6 +75,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
               Overzicht
             </Knop>
             {magBewerken ? <Knop href={`/partners/${p.id}/bewerken`}>Bewerken</Knop> : null}
+            <PartnerVerrijken partnerId={p.id} magBewerken={magBewerken} externeBronnen={db.instellingen.externeBronnenToegestaan} heeftWebsite={Boolean(p.website)} />
           </>
         }
       />
@@ -91,6 +95,52 @@ export default async function PartnerDossier({ params, searchParams }: { params:
               </div>
             </div>
           ))}
+        </Kaart>
+      ) : null}
+      {openVoorstellen.length ? (
+        <Kaart titel={`Open verrijkingsvoorstellen (${openVoorstellen.length})`} acties={<Link href="/verrijking">Wachtrij</Link>}>
+          <p className="muted klein-tekst">Gevonden op internet of in aangeleverde tekst; bron &lsquo;web&rsquo;. Pas na acceptatie wordt een voorstel overgenomen in het dossier.</p>
+          <div className="tabelWrap">
+            <table className="tabel">
+              <thead>
+                <tr>
+                  <th>Veld</th>
+                  <th>Huidig → voorgesteld</th>
+                  <th>Soort</th>
+                  <th className="num">Betrouwb.</th>
+                  <th>Bron en citaat</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {openVoorstellen.map((v) => (
+                  <tr key={v.id}>
+                    <td>{v.veld}</td>
+                    <td>
+                      <span className="muted">{waardeTekst(v.huidig)}</span> → <b>{waardeTekst(v.voorgesteld)}</b>
+                    </td>
+                    <td>
+                      <Badge kleur={v.soort === "aantoonbaar" ? "groen" : "geel"}>{v.soort}</Badge>
+                    </td>
+                    <td className="num">{Math.round(v.betrouwbaarheid * 100)}%</td>
+                    <td className="citaatCel">
+                      {v.bronUrl && /^https?:/.test(v.bronUrl) ? (
+                        <a href={v.bronUrl} target="_blank" rel="noreferrer">
+                          {v.bronUrl}
+                        </a>
+                      ) : (
+                        <span className="muted">{v.bronUrl}</span>
+                      )}
+                      <blockquote>{v.citaat}</blockquote>
+                    </td>
+                    <td>
+                      <VoorstelActies id={v.id} magBewerken={magBewerken} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </Kaart>
       ) : null}
       <Tabs items={tabItems} actief={tab} basis={`/partners/${p.id}`} />
