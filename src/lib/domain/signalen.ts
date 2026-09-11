@@ -1,5 +1,6 @@
 // Dashboard-signalen: certificaten (US-06), risico (US-32), afhankelijkheid (US-33), prospects (US-28), evaluaties (US-21).
 import { leidFactorenAf } from "./derive";
+import { budgetStatus } from "./kosten";
 import type { Database, Financieel, Partner, Signaal } from "./types";
 
 export function risicoklasse(f: Financieel | undefined, nu = new Date()): Financieel["risicoklasse"] {
@@ -20,6 +21,11 @@ export function risicoklasse(f: Financieel | undefined, nu = new Date()): Financ
 export function signalenVoor(db: Database, nu = new Date()): Signaal[] {
   const signalen: Signaal[] = [];
   const dag = 24 * 3600 * 1000;
+
+  // Eis 2: melding bij 80% van het AI-maandbudget; boven 100% zijn geplande rondes gepauzeerd.
+  const budget = budgetStatus(db, nu);
+  if (budget.overschreden) signalen.push({ id: "ai-budget-op", soort: "budget", ernst: "kritiek", titel: "AI-maandbudget overschreden", omschrijving: `Verbruik $${budget.verbruikUsd.toFixed(2)} van $${budget.budgetUsd.toFixed(0)}. Geplande verrijkingsrondes zijn gepauzeerd; interactieve functies (zoeken, chat, matchen) gaan voor.`, link: "/beheer" });
+  else if (budget.waarschuwing) signalen.push({ id: "ai-budget-80", soort: "budget", ernst: "waarschuwing", titel: "AI-verbruik boven 80% van het maandbudget", omschrijving: `Verbruik $${budget.verbruikUsd.toFixed(2)} van $${budget.budgetUsd.toFixed(0)} (${Math.round(budget.pct)}%).`, link: "/beheer" });
 
   db.partners.forEach((p: Partner) => {
     p.certificaten.forEach((c) => {

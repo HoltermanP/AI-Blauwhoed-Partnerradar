@@ -547,7 +547,7 @@ export function maakLegeDatabase(): Database {
     engagements: [],
     evaluaties: [],
     audit: [{ id: "a0", op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "init", actie: "lege database aangemaakt" }],
-    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true }
+    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, aiBudgetUsdPerMaand: 100 }
   };
 }
 
@@ -565,11 +565,12 @@ export function maakSeedDatabase(): Database {
     teams: [],
     gewichtsprofielen: GEWICHTSPROFIELEN,
     verrijkingsvoorstellen: [],
+    aiBewerkingen: [],
     audit: [{ id: "a0", op: iso(NU), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "seed", actie: "seed geladen", details: "Demodata geladen" }],
     gebruikers: [],
     importWachtrij: [],
     afwijsredenen: [],
-    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false }
+    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false, aiBudgetUsdPerMaand: 100 }
   };
 }
 

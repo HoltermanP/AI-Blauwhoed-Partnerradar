@@ -16,7 +16,8 @@ import { BASISVELDEN, verrijkVanuitInternet } from "./domain/webverrijking";
 import { effectieveStatus, herkomstExport, wisHerkomst } from "./domain/herkomst";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting } from "./ai";
+import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, zetAanroepDoel } from "./ai";
+import { budgetStatus, schatVerrijkingsronde } from "./domain/kosten";
 import type { BronConnector } from "./domain/discovery";
 import { slaNuOp } from "./store";
 import { matchProject, valideerGewichten } from "./domain/matching";
@@ -453,9 +454,12 @@ export async function slaProjectEisenOp(projectId: string, eisen: ProjectRequire
 
 export async function extraheerProject(tekst: string) {
   return veilig(async () => {
-    await vereisRecht("bewerken");
+    const g = await vereisRecht("bewerken");
     const regels = extraheerProjectprofiel(tekst);
-    const ai = await aiProjectExtractie(tekst);
+    const ai = await alsAIBewerking("projectextractie", g.naam, "projectprofiel uit document", () => {
+      zetAanroepDoel("projectextractie");
+      return aiProjectExtractie(tekst);
+    });
     if (!ai) return regels;
     const types = ["grondgebonden", "appartementen", "hoogbouw", "transformatie", "zorgwonen", "gebiedsontwikkeling"];
     const stijlen = ["traditioneel", "modern", "industrieel", "dorps", "hoogstedelijk"];
@@ -614,15 +618,15 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
     if (process.env.DEMO_DATA === "1") connectors.push(demoConnector);
     if (!connectors.length) throw new Error("Geen bronnen actief: sta externe bronnen toe in Beheer (webzoek) en/of zet KVK_API_KEY.");
     const gevonden = (await Promise.all(connectors.map((c) => c.zoek({ rollen, trefwoorden: woorden, regio: regio || undefined })))).flat();
-    // Locatie en AI-samenvatting vóór de mutatie (async), zodat de mutatie zelf synchroon blijft.
-    const verrijkt = await Promise.all(
+    // Locatie en AI-samenvatting vóór de mutatie (async), zodat de mutatie zelf synchroon blijft. Eén discovery-run = één AI-bewerking (eis 2).
+    const verrijkt = await alsAIBewerking("discovery", g.naam, `discovery ${rollen.join(",")} ${trefwoorden}`.trim(), () => Promise.all(
       gevonden.map(async (k) => {
         const locatie = k.locatie ?? (k.vestigingsplaats ? (await geocodeer(k.vestigingsplaats))?.locatie : undefined);
         const tekst = String(k.ruweData.websiteTekst ?? k.ruweData.profiel ?? "");
         const samenvatting = aiBeschikbaar() && tekst ? await aiSamenvatting({ ...k, id: "", status: "nieuw", opgehaaldOp: "" }, project, tekst) : null;
         return { ...k, locatie, samenvatting: samenvatting ?? undefined };
       })
-    );
+    ));
     const nu = new Date().toISOString();
     const uitkomst = await muteer(g, { entiteit: "discovery", entiteitId: projectId ?? "algemeen", actie: "zoekopdracht gestart", details: `${rollen.join(", ")}; ${trefwoorden}${regio ? `; regio ${regio}` : ""}` }, (db) => {
       const u: DiscoveryUitkomst = { gevonden: gevonden.length, nieuw: 0, alInWachtrij: 0, mogelijkeDubbelen: 0, bronnen: connectors.map((c) => c.naam), regio: regio || undefined };
@@ -761,10 +765,12 @@ export type VerrijkingUitkomst = { partners: number; voorstellen: number; nieuw:
  * Verrijkingsronde: één partner (optioneel met geplakte tekst) of alle partners. Bij 'alle' worden per ronde maximaal
  * `maxPerRonde` partners via internet verrijkt (de minst recent geraadpleegde eerst) zodat de ronde binnen de tijd blijft.
  */
-export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20) {
+export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20, gestartDoor?: string) {
   return veilig(async (): Promise<VerrijkingUitkomst> => {
-    const g = await vereisRecht("bewerken");
+    const g = gestartDoor === "systeem" ? { id: "systeem", naam: "systeem", rol: "beheerder" as const } : await vereisRecht("bewerken");
     const db = await getDb();
+    // Eis 2: boven budget krijgen interactieve functies voorrang; een ronde over het hele bestand start dan niet.
+    if (!partnerId && budgetStatus(db).overschreden) throw new Error("Het AI-maandbudget is overschreden. Geplande verrijkingsrondes zijn gepauzeerd; verrijking van één partner en zoeken/chat blijven mogelijk. Pas het budget aan onder Beheer.");
     const laatstGeraadpleegd = (p: Partner) => p.bronnen.filter((b) => b.soort === "web-verrijking").map((b) => b.opgehaaldOp).sort().pop() ?? "";
     const kandidaten = partnerId ? db.partners.filter((p) => p.id === partnerId) : db.partners.filter((p) => p.status !== "geblokkeerd").sort((a, b) => laatstGeraadpleegd(a).localeCompare(laatstGeraadpleegd(b)));
     const doelen = partnerId ? kandidaten : kandidaten.slice(0, maxPerRonde);
@@ -774,10 +780,12 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     let websitesGevonden = 0;
     // Beperkte parallelliteit: vriendelijk voor de bronnen, snel genoeg voor een ronde.
     const wachtrij = [...doelen];
-    await Promise.all(
+    await alsAIBewerking(partnerId ? "verrijking" : "verrijkingsronde", gestartDoor === "systeem" ? "systeem" : g.naam, partnerId ? `verrijking ${doelen[0]?.naam ?? partnerId}` : `verrijkingsronde (${doelen.length} partners)`, () =>
+      Promise.all(
       Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
         for (let p = wachtrij.shift(); p; p = wachtrij.shift()) {
           try {
+            zetAanroepDoel(`factorextractie ${p.naam}`);
             const r = await verzamelVoorstellen(p, db, tekst);
             nieuweVoorstellen.push(...r.voorstellen);
             if (r.websiteGevonden) websitesGevonden++;
@@ -787,7 +795,7 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
           }
         }
       })
-    );
+    ));
     const nieuw = await bewaarVoorstellen(g, partnerId ?? "alle", nieuweVoorstellen, geraadpleegd);
     revalidatePath("/verrijking");
     if (partnerId) revalidatePath(`/partners/${partnerId}`);
@@ -921,11 +929,12 @@ export async function draaiGewichtsprofielTerug(id: string, versie: number) {
   });
 }
 
-export async function zetInstelling(sleutel: "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving", waarde: string | boolean) {
+export async function zetInstelling(sleutel: "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving" | "aiBudgetUsdPerMaand", waarde: string | boolean | number) {
   return veilig(async () => {
     const g = await vereisRecht("beheer");
     await muteer(g, { entiteit: "instellingen", entiteitId: sleutel, actie: `gewijzigd naar ${waarde}` }, (db) => {
       if (sleutel === "aiProvider") db.instellingen.aiProvider = waarde === "anthropic" ? "anthropic" : "uit";
+      else if (sleutel === "aiBudgetUsdPerMaand") db.instellingen.aiBudgetUsdPerMaand = Math.max(0, Number(waarde) || 0);
       else db.instellingen[sleutel] = Boolean(waarde);
     });
     revalidatePath("/beheer");

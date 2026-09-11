@@ -5,7 +5,9 @@ import { useState, useTransition } from "react";
 import { startVerrijking } from "@/lib/actions";
 import { Melding } from "@/components/ui";
 
-export default function VerrijkingStart({ partners, magBewerken, externeBronnen }: { partners: Array<{ id: string; naam: string }>; magBewerken: boolean; externeBronnen: boolean }) {
+export type RondeSchatting = { batch: number; batchUsd: number; totaal: number; totaalUsd: number; aiActief: boolean; budgetOverschreden: boolean };
+
+export default function VerrijkingStart({ partners, magBewerken, externeBronnen, schatting }: { partners: Array<{ id: string; naam: string }>; magBewerken: boolean; externeBronnen: boolean; schatting: RondeSchatting }) {
   const router = useRouter();
   const [bezig, start] = useTransition();
   const [partnerId, setPartnerId] = useState("");
@@ -34,8 +36,12 @@ export default function VerrijkingStart({ partners, magBewerken, externeBronnen 
           ? "Per ronde worden maximaal 20 partners via internet verrijkt (minst recent geraadpleegde eerst): website opzoeken als die ontbreekt, home/over ons/projecten/duurzaamheid lezen, en voorstellen doen voor website, KVK, plaats, omschrijving, referenties en factorwaarden."
           : "Externe bronnen staan uit: alleen de vastgelegde profieltekst of geplakte tekst wordt gebruikt."}
       </p>
+      <p className="muted klein-tekst">
+        Verwacht voor de volgende ronde: <b>{schatting.batch} AI-bewerking(en)</b>{schatting.aiActief ? <>, geschat <b>${schatting.batchUsd.toFixed(2)}</b></> : " (AI staat uit: alleen regelextractie, geen kosten)"}. Heel het bestand: {schatting.totaal} bewerkingen{schatting.aiActief ? ` (≈ $${schatting.totaalUsd.toFixed(2)})` : ""}.
+      </p>
+      {schatting.budgetOverschreden ? <Melding soort="waarschuwing">AI-maandbudget overschreden: rondes over het hele bestand zijn gepauzeerd. Eén partner verrijken kan nog.</Melding> : null}
       <div className="formulierActies">
-        <button type="button" className="knop" disabled={bezig || !magBewerken} onClick={() => draai()}>
+        <button type="button" className="knop" disabled={bezig || !magBewerken || schatting.budgetOverschreden} onClick={() => draai()}>
           {bezig ? "Bezig…" : externeBronnen ? "Volgende 20 partners verrijken via internet" : "Alle partners verrijken"}
         </button>
         {!magBewerken ? <span className="muted">Recht &lsquo;bewerken&rsquo; vereist.</span> : null}

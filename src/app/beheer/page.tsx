@@ -7,6 +7,9 @@ import { getDb } from "@/lib/store";
 import { Badge, Kaart, Melding, PaginaKop } from "@/components/ui";
 import { Instellingen } from "@/components/beheer/Instellingen";
 import { DemoReset } from "@/components/beheer/DemoReset";
+import AIKosten from "@/components/beheer/AIKosten";
+import { budgetStatus, maandVerbruik } from "@/lib/domain/kosten";
+import { datumTijd } from "@/lib/format";
 
 // US-45: lokale kopie van de RECHTEN-matrix uit src/lib/auth.ts (die exporteert de tabel niet; auth.ts wordt niet gewijzigd).
 // Houd deze tabel gelijk aan auth.ts; de weergave hieronder controleert dat via heeftRecht().
@@ -25,6 +28,10 @@ export default async function BeheerPagina() {
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBeheren = heeftRecht(gebruiker.rol, "beheer");
   const actieveFactoren = db.factoren.filter((f) => f.actief).length;
+  const verbruik = maandVerbruik(db.aiBewerkingen ?? []);
+  const budget = budgetStatus(db);
+  const laatsteBewerkingen = (db.aiBewerkingen ?? []).slice(0, 10);
+  const SOORT_LABEL: Record<string, string> = { verrijking: "verrijking (1 partner)", verrijkingsronde: "verrijkingsronde", discovery: "discovery", projectextractie: "projectextractie", chat: "chat", samenvatting: "samenvatting", overig: "overig" };
 
   return (
     <>
@@ -94,6 +101,39 @@ export default async function BeheerPagina() {
         </div>
 
         <div>
+          <Kaart titel="AI-verbruik en kosten (eis 2)">
+            {budget.overschreden ? <Melding soort="fout">Maandbudget overschreden: geplande verrijkingsrondes zijn gepauzeerd; interactieve functies gaan voor.</Melding> : budget.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
+            <dl className="definities">
+              <div><dt>Maand</dt><dd>{verbruik.maand}</dd></div>
+              <div><dt>Verbruik</dt><dd>${verbruik.kostenUsd.toFixed(2)} van ${budget.budgetUsd.toFixed(0)} ({Math.round(budget.pct)}%)</dd></div>
+              <div><dt>Bewerkingen</dt><dd>{verbruik.bewerkingen} (met {verbruik.aanroepen} modelaanroepen)</dd></div>
+              <div><dt>Tokens</dt><dd>{verbruik.invoerTokens.toLocaleString("nl-NL")} in · {verbruik.uitvoerTokens.toLocaleString("nl-NL")} uit</dd></div>
+            </dl>
+            <AIKosten budget={db.instellingen.aiBudgetUsdPerMaand ?? 0} magBeheren={magBeheren} />
+            {laatsteBewerkingen.length ? (
+              <div className="tabelWrap">
+                <table className="tabel">
+                  <thead>
+                    <tr><th>Wanneer</th><th>Soort</th><th>Door</th><th className="num">Aanroepen</th><th className="num">Tokens in/uit</th><th className="num">Kosten</th></tr>
+                  </thead>
+                  <tbody>
+                    {laatsteBewerkingen.map((b) => (
+                      <tr key={b.id}>
+                        <td>{datumTijd(b.op)}</td>
+                        <td title={b.omschrijving}>{SOORT_LABEL[b.soort] ?? b.soort}</td>
+                        <td>{b.door}</td>
+                        <td className="num">{b.aanroepen.length}</td>
+                        <td className="num">{b.invoerTokens.toLocaleString("nl-NL")} / {b.uitvoerTokens.toLocaleString("nl-NL")}</td>
+                        <td className="num">${b.kostenUsd.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="muted klein-tekst">Nog geen AI-bewerkingen geregistreerd. Elke gebruikershandeling met AI (verrijking, discovery, projectextractie, chat) verschijnt hier met tokens en kosten.</p>
+            )}
+          </Kaart>
           <Kaart titel="Demo">
             <DemoReset magBeheren={magBeheren} />
           </Kaart>

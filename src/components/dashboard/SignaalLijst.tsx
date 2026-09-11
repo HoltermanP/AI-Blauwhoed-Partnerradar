@@ -15,7 +15,8 @@ const SOORT_LABEL: Record<Signaal["soort"], string> = {
   afhankelijkheid: "Afhankelijkheid",
   prospect: "Prospect",
   evaluatie: "Evaluatie",
-  dekking: "Dekking"
+  dekking: "Dekking",
+  budget: "AI-budget"
 };
 
 export function SignaalLijst({ signalen }: { signalen: Signaal[] }) {

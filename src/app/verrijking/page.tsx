@@ -8,6 +8,7 @@ import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import type { EnrichmentVoorstel } from "@/lib/domain/types";
 import { datumTijd, waardeTekst } from "@/lib/format";
 import { getDb } from "@/lib/store";
+import { budgetStatus, schatVerrijkingsronde } from "@/lib/domain/kosten";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
 export const maxDuration = 60;
@@ -26,6 +27,13 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
   const partners = db.partners.filter((p) => p.status !== "geblokkeerd").map((p) => ({ id: p.id, naam: p.naam }));
   const voorstellen = db.verrijkingsvoorstellen.filter((v) => v.status === status);
+  const laatstGeraadpleegd = (p: (typeof db.partners)[number]) => p.bronnen.filter((b) => b.soort === "web-verrijking").map((b) => b.opgehaaldOp).sort().pop() ?? "";
+  const wachtend = db.partners.filter((p) => p.status !== "geblokkeerd");
+  const volgendeBatch = Math.min(20, wachtend.length);
+  const schatting = schatVerrijkingsronde(volgendeBatch);
+  const schattingHeleBestand = schatVerrijkingsronde(wachtend.length);
+  const budget = budgetStatus(db);
+  void laatstGeraadpleegd;
   const partnerNaam = (id: string) => db.partners.find((p) => p.id === id)?.naam ?? id;
   const i = db.instellingen;
 
@@ -35,7 +43,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
 
       <div className="raster raster-zij">
         <Kaart titel="Verrijkingsronde">
-          <VerrijkingStart partners={partners} magBewerken={magBewerken} externeBronnen={i.externeBronnenToegestaan} />
+          <VerrijkingStart partners={partners} magBewerken={magBewerken} externeBronnen={i.externeBronnenToegestaan} schatting={{ batch: volgendeBatch, batchUsd: schatting.geschatteKostenUsd, totaal: wachtend.length, totaalUsd: schattingHeleBestand.geschatteKostenUsd, aiActief: i.aiProvider === "anthropic", budgetOverschreden: budget.overschreden }} />
         </Kaart>
         <Kaart titel="Instellingen en beleid">
           <Definities

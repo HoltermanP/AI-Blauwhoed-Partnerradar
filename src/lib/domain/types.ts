@@ -466,6 +466,30 @@ export type EnrichmentVoorstel = {
   gevondenOp: string;
 };
 
+/** Eis 2: één modelaanroep binnen een bewerking. */
+export type AIAanroep = {
+  model: string;
+  doel: string;
+  invoerTokens: number;
+  uitvoerTokens: number;
+  kostenUsd: number;
+  op: string;
+};
+
+/** Eis 2: één gebruikershandeling = één bewerking, ook als die uit meerdere modelaanroepen bestaat. */
+export type AIBewerking = {
+  id: string;
+  soort: "verrijking" | "verrijkingsronde" | "discovery" | "projectextractie" | "chat" | "samenvatting" | "overig";
+  omschrijving?: string;
+  /** Gebruikersnaam, of "systeem" voor geplande rondes. */
+  door: string;
+  op: string;
+  aanroepen: AIAanroep[];
+  invoerTokens: number;
+  uitvoerTokens: number;
+  kostenUsd: number;
+};
+
 export type Gebruikersrol = "lezer" | "bewerker" | "inkoper" | "beheerder";
 
 export type Gebruiker = { id: string; naam: string; rol: Gebruikersrol };
@@ -483,7 +507,7 @@ export type AuditEntry = {
 
 export type Signaal = {
   id: string;
-  soort: "certificaat" | "risico" | "afhankelijkheid" | "prospect" | "evaluatie" | "dekking";
+  soort: "certificaat" | "risico" | "afhankelijkheid" | "prospect" | "evaluatie" | "dekking" | "budget";
   ernst: "info" | "waarschuwing" | "kritiek";
   titel: string;
   omschrijving: string;
@@ -505,6 +529,7 @@ export type Database = {
   teams: TeamVoorstel[];
   gewichtsprofielen: Gewichtsprofiel[];
   verrijkingsvoorstellen: EnrichmentVoorstel[];
+  aiBewerkingen: AIBewerking[];
   audit: AuditEntry[];
   gebruikers: Gebruiker[];
   importWachtrij: Array<{ id: string; regel: Record<string, string>; reden: string; op: string }>;
@@ -514,5 +539,7 @@ export type Database = {
     afgeschermdeOmgeving: boolean;
     externeBronnenToegestaan: boolean;
     laatsteVerrijking?: string;
+    /** Eis 2: maandbudget voor AI-kosten in USD; bij 80% een melding, daarboven krijgen interactieve functies voorrang op geplande rondes. */
+    aiBudgetUsdPerMaand: number;
   };
 };

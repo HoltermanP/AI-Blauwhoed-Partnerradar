@@ -15,6 +15,7 @@ import houtbouwers from "../src/data/houtbouwers-seed.json";
 import { kiesSubpaginas, leesReferenties, pastBijNaam } from "../src/lib/domain/webverrijking";
 import { maakSeedIdGenerator, migreerDatabase } from "../src/lib/domain/migratie";
 import { effectieveStatus, herkomstExport, wisHerkomst } from "../src/lib/domain/herkomst";
+import { budgetStatus, kostenUsd, maandVerbruik, schatVerrijkingsronde } from "../src/lib/domain/kosten";
 
 let fouten = 0;
 function check(naam: string, ok: boolean, detail?: unknown) {
@@ -129,6 +130,28 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   check("Eis 1: herkomst verwijderbaar (AVG)", n > 0 && kopie.bronnen.length === 0 && kopie.factoren.every((f) => !f.bewijs && !f.toelichting) && kopie.factoren.length === p.factoren.length);
 }
 
+// Eis 2: kosten per AI-bewerking — bewerking -> aanroepen, maandverbruik, budget, schatting vooraf
+{
+  const nu = new Date();
+  const bewerking = { id: "aib-1", soort: "verrijkingsronde" as const, door: "systeem", op: nu.toISOString(), aanroepen: [
+    { model: "claude-opus-5", doel: "factorextractie A", invoerTokens: 7000, uitvoerTokens: 800, kostenUsd: kostenUsd("claude-opus-5", 7000, 800), op: nu.toISOString() },
+    { model: "claude-opus-5", doel: "factorextractie B", invoerTokens: 6000, uitvoerTokens: 700, kostenUsd: kostenUsd("claude-opus-5", 6000, 700), op: nu.toISOString() }
+  ], invoerTokens: 13000, uitvoerTokens: 1500, kostenUsd: kostenUsd("claude-opus-5", 13000, 1500) };
+  check("Eis 2: één bewerking, meerdere aanroepen", bewerking.aanroepen.length === 2 && Math.abs(bewerking.kostenUsd - (bewerking.aanroepen[0].kostenUsd + bewerking.aanroepen[1].kostenUsd)) < 1e-9);
+  check("Eis 2: prijstabel klopt (opus-5 $5/$25 per MTok)", Math.abs(kostenUsd("claude-opus-5", 1_000_000, 1_000_000) - 30) < 1e-9);
+  const verbruik = maandVerbruik([bewerking], nu);
+  check("Eis 2: maandverbruik aggregeert", verbruik.bewerkingen === 1 && verbruik.aanroepen === 2 && verbruik.invoerTokens === 13000);
+  db.aiBewerkingen = [{ ...bewerking, kostenUsd: 85 }];
+  db.instellingen.aiBudgetUsdPerMaand = 100;
+  const b = budgetStatus(db, nu);
+  check("Eis 2: 80%-melding", b.waarschuwing && !b.overschreden && Math.round(b.pct) === 85);
+  db.aiBewerkingen = [{ ...bewerking, kostenUsd: 120 }];
+  check("Eis 2: budget overschreden blokkeert geplande rondes", budgetStatus(db, nu).overschreden);
+  db.aiBewerkingen = [];
+  const schatting = schatVerrijkingsronde(20);
+  check("Eis 2: schatting vooraf", schatting.bewerkingen === 20 && schatting.geschatteKostenUsd > 0);
+}
+
 // Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs
 {
   const oud = maakLegeDatabase();
@@ -140,7 +163,7 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   const giesbers = oud.partners.find((p) => p.naam === "Giesbers")!;
   oud.engagements.push({ id: "eng-x", partnerId: giesbers.id, projectId: "proj-x", rol: "aannemer", periode: { van: "2024-01-01" }, contractwaarde: 1, bron: "handmatig" });
   const u = migreerDatabase(oud, new Map())!;
-  check("Migratie: versie en hernoemde IDs", oud.versie === 3 && u.hernoemd === 103 && giesbers.id === "p-giesbers", { versie: oud.versie, hernoemd: u.hernoemd, id: giesbers.id });
+  check("Migratie: versie en hernoemde IDs", oud.versie >= 3 && u.hernoemd === 103 && giesbers.id === "p-giesbers", { versie: oud.versie, hernoemd: u.hernoemd, id: giesbers.id });
   check("Migratie: verwijzingen meegeschreven", oud.engagements[0].partnerId === "p-giesbers");
   check("Migratie: aanvulling geladen met stabiele IDs", oud.projecten.some((p) => p.id === "proj-casa-vita") && oud.partners.some((p) => p.id === "p-kow"), oud.projecten.map((p) => p.id).slice(0, 3));
   check("Migratie: tweede keer geen effect", migreerDatabase(oud, new Map()) === null);

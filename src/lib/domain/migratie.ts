@@ -2,7 +2,7 @@
 import { laadAanvulling } from "./aanvulling";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 3;
+export const HUIDIGE_VERSIE = 4;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -86,6 +86,11 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
         f.status = f.bron === "web" ? "voorgesteld" : "gevalideerd";
       });
     });
+  }
+  if (van < 4) {
+    // Eis 2: kostenadministratie voor AI-bewerkingen.
+    db.aiBewerkingen = db.aiBewerkingen ?? [];
+    db.instellingen.aiBudgetUsdPerMaand = db.instellingen.aiBudgetUsdPerMaand ?? 100;
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

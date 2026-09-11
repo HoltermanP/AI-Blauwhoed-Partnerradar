@@ -121,6 +121,14 @@ export function nieuwId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}${teller.toString(36)}`;
 }
 
+/** Eis 2: schrijf een AI-bewerking (met haar aanroepen, tokens en kosten) naar de administratie. */
+export async function registreerAIBewerking(b: import("./domain/types").AIBewerking) {
+  const db = await getDb();
+  db.aiBewerkingen.unshift(b);
+  if (db.aiBewerkingen.length > 5000) db.aiBewerkingen.length = 5000;
+  planOpslaan(db);
+}
+
 /** Voer een mutatie uit met auditregel. */
 export async function muteer<T>(gebruiker: Gebruiker, audit: Omit<AuditEntry, "id" | "op" | "door" | "gebruikersrol">, fn: (db: Database) => T): Promise<T> {
   const db = await getDb();

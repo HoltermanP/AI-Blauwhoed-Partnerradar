@@ -1,9 +1,50 @@
 // Claude-integratie (optioneel). Actief zodra ANTHROPIC_API_KEY is gezet. Er gaan uitsluitend openbare bedrijfs- en
 // projectteksten naar het model, nooit contactpersonen (US-48). Zonder sleutel vallen alle aanroepen terug op regels.
+import { AsyncLocalStorage } from "node:async_hooks";
 import Anthropic from "@anthropic-ai/sdk";
-import type { AISamenvatting, Bron, DiscoveryCandidate, Factor, Project } from "./domain/types";
+import { kostenUsd } from "./domain/kosten";
+import { registreerAIBewerking } from "./store";
+import type { AIBewerking, AISamenvatting, Bron, DiscoveryCandidate, Factor, Project } from "./domain/types";
 
 const MODEL = "claude-opus-5";
+
+// ---------- Eis 2: kostenregistratie — één gebruikershandeling = één bewerking, met daaronder de losse modelaanroepen. ----------
+const bewerkingContext = new AsyncLocalStorage<AIBewerking>();
+let doelContext = "";
+
+/**
+ * Voer een gebruikershandeling uit als AI-bewerking: alle modelaanroepen binnen `fn` worden eraan gekoppeld
+ * (tokens, kosten, tijdstip). De bewerking wordt alleen opgeslagen als er daadwerkelijk aanroepen waren.
+ */
+export async function alsAIBewerking<T>(soort: AIBewerking["soort"], door: string, omschrijving: string, fn: () => Promise<T>): Promise<T> {
+  const bestaand = bewerkingContext.getStore();
+  if (bestaand) return fn(); // al binnen een bewerking: niet dubbel tellen
+  const bewerking: AIBewerking = { id: `aib-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, soort, omschrijving, door, op: new Date().toISOString(), aanroepen: [], invoerTokens: 0, uitvoerTokens: 0, kostenUsd: 0 };
+  try {
+    return await bewerkingContext.run(bewerking, fn);
+  } finally {
+    if (bewerking.aanroepen.length) await registreerAIBewerking(bewerking);
+  }
+}
+
+/** Benoem het doel van de eerstvolgende aanroep(en) binnen de lopende bewerking (voor de administratie). */
+export function zetAanroepDoel(doel: string) {
+  doelContext = doel;
+}
+
+function registreerAanroep(invoerTokens: number, uitvoerTokens: number) {
+  const b = bewerkingContext.getStore();
+  const aanroep = { model: MODEL, doel: doelContext || "aanroep", invoerTokens, uitvoerTokens, kostenUsd: kostenUsd(MODEL, invoerTokens, uitvoerTokens), op: new Date().toISOString() };
+  if (!b) {
+    // Losse aanroep buiten een handeling: registreer als eigen bewerking zodat niets buiten de administratie valt.
+    void registreerAIBewerking({ id: `aib-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, soort: "overig", omschrijving: aanroep.doel, door: "systeem", op: aanroep.op, aanroepen: [aanroep], invoerTokens, uitvoerTokens, kostenUsd: aanroep.kostenUsd });
+    return;
+  }
+  b.aanroepen.push(aanroep);
+  b.invoerTokens += invoerTokens;
+  b.uitvoerTokens += uitvoerTokens;
+  b.kostenUsd += aanroep.kostenUsd;
+}
 
 export function aiBeschikbaar() {
   return Boolean(process.env.ANTHROPIC_API_KEY);
@@ -25,6 +66,7 @@ async function jsonAntwoord<T>(system: string, prompt: string, schema: Record<st
       output_config: { effort: "medium", format: { type: "json_schema", schema } },
       messages: [{ role: "user", content: prompt }]
     });
+    registreerAanroep(res.usage.input_tokens, res.usage.output_tokens);
     if (res.stop_reason === "refusal") return null;
     const tekst = res.content.find((b) => b.type === "text");
     return tekst && tekst.type === "text" ? (JSON.parse(tekst.text) as T) : null;
