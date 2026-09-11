@@ -470,6 +470,9 @@ export type EnrichmentVoorstel = {
   gevondenOp: string;
 };
 
+/** B4: herbruikbaar zoekprofiel voor discovery. */
+export type Zoekprofiel = { id: string; naam: string; rollen: Rol[]; trefwoorden: string; regio?: string; door: string; op: string };
+
 /** Geplande/handmatige verrijkingsronde over het bestand; hervatbaar en met verschillenoverzicht. */
 export type VerrijkingsRonde = {
   id: string;
@@ -547,6 +550,7 @@ export type Database = {
   engagements: Engagement[];
   evaluaties: Evaluatie[];
   kandidaten: DiscoveryCandidate[];
+  zoekprofielen: Zoekprofiel[];
   matchRuns: MatchRun[];
   feedback: MatchFeedback[];
   teams: TeamVoorstel[];

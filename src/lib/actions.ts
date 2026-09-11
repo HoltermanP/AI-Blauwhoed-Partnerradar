@@ -690,6 +690,31 @@ export async function markeerGeenDubbel(id: string) {
   });
 }
 
+// ---------- Zoekprofielen (B4) ----------
+export async function slaZoekprofielOp(naam: string, rollen: Rol[], trefwoorden: string, regio?: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    if (!naam.trim()) throw new Error("Geef het zoekprofiel een naam.");
+    if (!rollen.length) throw new Error("Een zoekprofiel heeft minstens één rol.");
+    await muteer(g, { entiteit: "zoekprofiel", entiteitId: naam, actie: "zoekprofiel opgeslagen", details: `${rollen.join(", ")}; ${trefwoorden}` }, (db) => {
+      const bestaand = db.zoekprofielen.find((z) => z.naam.toLowerCase() === naam.trim().toLowerCase());
+      if (bestaand) Object.assign(bestaand, { rollen, trefwoorden, regio, door: g.naam, op: new Date().toISOString() });
+      else db.zoekprofielen.push({ id: nieuwId("zp"), naam: naam.trim(), rollen, trefwoorden, regio, door: g.naam, op: new Date().toISOString() });
+    });
+    revalidatePath("/discovery");
+  });
+}
+
+export async function verwijderZoekprofiel(id: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    await muteer(g, { entiteit: "zoekprofiel", entiteitId: id, actie: "zoekprofiel verwijderd" }, (db) => {
+      db.zoekprofielen = db.zoekprofielen.filter((z) => z.id !== id);
+    });
+    revalidatePath("/discovery");
+  });
+}
+
 // ---------- Verrijking (Epic 6) ----------
 type ExtraBron = { naam: string; url: string; tekst: string };
 

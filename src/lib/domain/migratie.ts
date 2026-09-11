@@ -2,7 +2,7 @@
 import { laadAanvulling } from "./aanvulling";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 5;
+export const HUIDIGE_VERSIE = 6;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -96,6 +96,10 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
     // B3: verrijkingsrondes met verschillenoverzicht en configureerbare bronnen.
     db.verrijkingsrondes = db.verrijkingsrondes ?? [];
     db.instellingen.verrijkingsbronnen = db.instellingen.verrijkingsbronnen ?? [];
+  }
+  if (van < 6) {
+    // B4: opgeslagen zoekprofielen voor discovery.
+    db.zoekprofielen = db.zoekprofielen ?? [];
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

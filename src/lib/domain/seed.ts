@@ -560,6 +560,7 @@ export function maakSeedDatabase(): Database {
     engagements: SEED_ENGAGEMENTS,
     evaluaties: SEED_EVALUATIES,
     kandidaten: [],
+    zoekprofielen: [],
     matchRuns: [],
     feedback: [],
     teams: [],

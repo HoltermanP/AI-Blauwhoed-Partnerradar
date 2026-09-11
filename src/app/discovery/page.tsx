@@ -39,7 +39,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
 
       <div className="raster raster-zij">
         <Kaart titel="Zoekopdracht starten">
-          <DiscoveryStart projecten={projecten} magStarten={magStarten} />
+          <DiscoveryStart profielen={db.zoekprofielen ?? []} projecten={projecten} magStarten={magStarten} />
         </Kaart>
         <Kaart titel="Bronnen en beleid">
           <ul className="lijst">
