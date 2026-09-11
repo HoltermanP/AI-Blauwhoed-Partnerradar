@@ -1,10 +1,11 @@
 "use server";
 // Alle mutaties van het systeem. Elke actie toetst rechten (US-45) en schrijft een auditregel (US-46).
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { cookies } from "next/headers";
 import { GEBRUIKERS, vereisRecht } from "./auth";
 import { afwijsPenalty, demoConnector, kandidaatNaarPartner, normaliseerNaam, samenvattingVoor, vindDubbel } from "./domain/discovery";
-import { extraheerVoorstellen } from "./domain/enrichment";
+import { extraheerVoorstellen, factorNogBevestigd, haalWebsiteOp, inhoudsHash } from "./domain/enrichment";
 import { extraheerProjectprofiel } from "./domain/extractie";
 import { kvkConnector } from "./domain/kvk";
 import { leidEisenAf } from "./domain/projectfactoren";
@@ -134,6 +135,8 @@ export async function slaPartnerOp(id: string | null, invoer: PartnerInvoer) {
     });
   }).then((r) => {
     revalidatePath("/partners");
+    // B3: verrijking bij aanmaken — na de response, zodat de gebruiker niet wacht op internetbronnen.
+    if (!id && r) after(() => startVerrijking(String(r)).catch(() => undefined));
     return r;
   });
 }
@@ -688,13 +691,31 @@ export async function markeerGeenDubbel(id: string) {
 }
 
 // ---------- Verrijking (Epic 6) ----------
-/** Verzamel voorstellen voor één partner: via internet (website zoeken + pagina's lezen) als externe bronnen aan staan, anders uit geplakte/profieltekst. */
-async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string): Promise<{ voorstellen: EnrichmentVoorstel[]; bronUrl: string; paginas: string[]; websiteGevonden: boolean }> {
+type ExtraBron = { naam: string; url: string; tekst: string };
+
+/** Haal de teksten van de geconfigureerde extra bronnen (bijv. Conceptenboulevard) één keer per ronde op. */
+async function haalExtraBronnen(db: Database): Promise<ExtraBron[]> {
+  if (!db.instellingen.externeBronnenToegestaan) return [];
+  const actief = (db.instellingen.verrijkingsbronnen ?? []).filter((b) => b.actief);
+  const r = await Promise.all(actief.map(async (b) => ({ naam: b.naam, url: b.url, tekst: (await haalWebsiteOp(b.url)) ?? "" })));
+  return r.filter((b) => b.tekst);
+}
+
+type VerzamelUitkomst = { voorstellen: EnrichmentVoorstel[]; paginas: string[]; websiteGevonden: boolean; webHash?: string; overgeslagen: boolean };
+
+/**
+ * Verzamel voorstellen voor één partner: via internet (website zoeken + pagina's lezen) als externe bronnen aan staan,
+ * anders uit geplakte/profieltekst. Delta-selectie: is de webinhoud niet gewijzigd sinds de vorige ronde, dan wordt de
+ * partner overgeslagen. Web-waarden die niet meer op de bron terug te vinden zijn, worden 'niet langer bevestigd'.
+ */
+async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, extraBronnen: ExtraBron[] = []): Promise<VerzamelUitkomst> {
   const voorstellen: EnrichmentVoorstel[] = [];
   let bronTekst = tekst ?? null;
   let bronUrl = tekst ? "handmatig aangeleverde openbare tekst" : p.website ?? "";
   let paginas: string[] = [];
   let websiteGevonden = false;
+  let webHash: string | undefined;
+  let vanInternet = false;
   if (!bronTekst && db.instellingen.externeBronnenToegestaan) {
     const web = await verrijkVanuitInternet(p);
     voorstellen.push(...web.voorstellen);
@@ -703,6 +724,10 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string): Pr
     if (web.tekst) {
       bronTekst = web.tekst;
       bronUrl = web.website ?? bronUrl;
+      vanInternet = true;
+      webHash = inhoudsHash(web.tekst);
+      // Delta-selectie: alleen wat sinds de vorige ronde gewijzigd kan zijn wordt opnieuw geëxtraheerd.
+      if (p.webHash && p.webHash === webHash && !extraBronnen.length) return { voorstellen: [], paginas, websiteGevonden, webHash, overgeslagen: true };
     }
   }
   if (!bronTekst) {
@@ -713,6 +738,14 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string): Pr
   } else if (tekst) {
     voorstellen.push(...extraheerVoorstellen(p, bronTekst, bronUrl));
   }
+  // Extra geconfigureerde bronnen: zoek de partnernaam en extraheer uit de omliggende tekst.
+  const naam = normaliseerNaam(p.naam);
+  extraBronnen.forEach((b) => {
+    const idx = normaliseerNaam(b.tekst).indexOf(naam);
+    if (idx < 0) return;
+    const context = b.tekst.slice(Math.max(0, idx - 600), idx + naam.length + 600);
+    voorstellen.push(...extraheerVoorstellen(p, context, b.url));
+  });
   if (aiBeschikbaar() && bronTekst) {
     const ai = await aiFactorExtractie(p.naam, bronTekst, db.factoren);
     (ai ?? []).forEach((a) => {
@@ -724,46 +757,77 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string): Pr
       voorstellen.push({ id: nieuwId("ev-ai"), partnerId: p.id, factorId: a.factorId, veld: optieLabel ? `${f.naam}: ${optieLabel}` : f.naam, huidig: huidig?.waarde ?? null, voorgesteld: a.waarde, bron: "web", bronUrl, betrouwbaarheid: a.aantoonbaar ? 0.6 : 0.35, soort: a.aantoonbaar ? "aantoonbaar" : "geclaimd", citaat: `[Claude] ${a.citaat}`, status: "open", gevondenOp: new Date().toISOString() });
     });
   }
+  // 'Niet langer bevestigd': eerder van het web overgenomen waarden waarvan geen enkel patroon meer op de bron matcht.
+  if (vanInternet && bronTekst) {
+    const nu = new Date().toISOString();
+    p.factoren
+      .filter((f) => f.bron === "web" && !f.afgeleid && effectieveStatus(f, db.factoren.find((x) => x.id === f.factorId)) !== "verouderd")
+      .forEach((f) => {
+        if (factorNogBevestigd(f.factorId, bronTekst!)) return;
+        const def = db.factoren.find((x) => x.id === f.factorId);
+        const veld = def ? (f.optieId ? `${def.naam}: ${def.opties?.find((o) => o.id === f.optieId)?.label ?? f.optieId}` : def.naam) : f.factorId;
+        voorstellen.push({ id: nieuwId("ev-nb"), partnerId: p.id, factorId: f.factorId, veld, huidig: f.waarde, voorgesteld: f.waarde, bron: "web", bronUrl, betrouwbaarheid: 0.5, soort: "geclaimd", aard: "niet_bevestigd", citaat: `De eerder gevonden waarde is bij deze ronde niet meer op ${bronUrl} aangetroffen. Accepteren markeert de waarde als verouderd.`, status: "open", gevondenOp: nu });
+      });
+  }
   // Eis 1: markeer per voorstel de aard (nieuw/gewijzigd) en of het afwijkt van een door een mens gevalideerde waarde.
   voorstellen.forEach((v) => {
     v.aard = v.aard ?? (v.huidig === null ? "nieuw" : "gewijzigd");
-    if (!v.factorId) return;
+    if (!v.factorId || v.aard === "niet_bevestigd") return;
     const huidige = p.factoren.find((x) => x.factorId === v.factorId && (v.veld.includes(":") ? Boolean(x.optieId) : !x.optieId));
     const f = db.factoren.find((x) => x.id === v.factorId);
     if (huidige && effectieveStatus(huidige, f) === "gevalideerd" && JSON.stringify(huidige.waarde) !== JSON.stringify(v.voorgesteld)) v.conflictMetGevalideerd = true;
   });
-  return { voorstellen, bronUrl, paginas, websiteGevonden };
+  return { voorstellen, paginas, websiteGevonden, webHash, overgeslagen: false };
 }
 
-/** Schrijf nieuwe voorstellen (zonder dubbelen) naar de wachtrij en registreer de raadpleging bij de partner. */
-async function bewaarVoorstellen(g: Gebruiker, entiteitId: string, nieuweVoorstellen: EnrichmentVoorstel[], geraadpleegd: Array<{ partnerId: string; paginas: string[] }>) {
+/** Schrijf nieuwe voorstellen (zonder dubbelen) naar de wachtrij, registreer raadpleging + inhoudshash, en werk de ronde bij. */
+async function bewaarVoorstellen(g: Gebruiker, entiteitId: string, nieuweVoorstellen: EnrichmentVoorstel[], geraadpleegd: Array<{ partnerId: string; paginas: string[]; webHash?: string; overgeslagen: boolean }>, rondeId?: string, rondeKlaar?: boolean) {
   let toegevoegd = 0;
   await muteer(g, { entiteit: "verrijking", entiteitId, actie: "verrijkingsronde", details: `${nieuweVoorstellen.length} voorstellen` }, (db) => {
-    const bestaand = new Set(db.verrijkingsvoorstellen.filter((x) => x.status === "open").map((x) => `${x.partnerId}|${x.veld}|${JSON.stringify(x.voorgesteld)}`));
+    const bestaand = new Set(db.verrijkingsvoorstellen.filter((x) => x.status === "open").map((x) => `${x.partnerId}|${x.veld}|${JSON.stringify(x.voorgesteld)}|${x.aard ?? ""}`));
+    const geteld = { nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
     nieuweVoorstellen.forEach((v) => {
-      const sleutel = `${v.partnerId}|${v.veld}|${JSON.stringify(v.voorgesteld)}`;
+      const sleutel = `${v.partnerId}|${v.veld}|${JSON.stringify(v.voorgesteld)}|${v.aard ?? ""}`;
       if (bestaand.has(sleutel)) return;
       bestaand.add(sleutel);
+      v.rondeId = rondeId;
       db.verrijkingsvoorstellen.unshift(v);
       toegevoegd++;
+      if (v.aard === "niet_bevestigd") geteld.nietBevestigd++;
+      else if (v.aard === "nieuw") geteld.nieuw++;
+      else geteld.gewijzigd++;
     });
     const vandaag = new Date().toISOString().slice(0, 10);
-    geraadpleegd.forEach(({ partnerId, paginas }) => {
+    geraadpleegd.forEach(({ partnerId, paginas, webHash }) => {
       const p = db.partners.find((x) => x.id === partnerId);
       if (!p) return;
       p.bronnen = p.bronnen.filter((b) => b.soort !== "web-verrijking" || !paginas.includes(b.url));
       paginas.forEach((url) => p.bronnen.push({ url, opgehaaldOp: vandaag, soort: "web-verrijking" }));
+      if (webHash) p.webHash = webHash;
     });
+    if (rondeId) {
+      const ronde = db.verrijkingsrondes.find((r) => r.id === rondeId);
+      if (ronde) {
+        ronde.partnerIdsVerwerkt.push(...geraadpleegd.map((x) => x.partnerId));
+        ronde.ongewijzigd += geraadpleegd.filter((x) => x.overgeslagen).length;
+        ronde.nieuw += geteld.nieuw;
+        ronde.gewijzigd += geteld.gewijzigd;
+        ronde.nietBevestigd += geteld.nietBevestigd;
+        ronde.bijgewerktOp = new Date().toISOString();
+        if (rondeKlaar) ronde.klaarOp = ronde.bijgewerktOp;
+      }
+    }
     db.instellingen.laatsteVerrijking = new Date().toISOString();
   });
   return toegevoegd;
 }
 
-export type VerrijkingUitkomst = { partners: number; voorstellen: number; nieuw: number; websitesGevonden: number; nogTeGaan: number };
+export type VerrijkingUitkomst = { partners: number; voorstellen: number; nieuw: number; websitesGevonden: number; overgeslagen: number; nogTeGaan: number; rondeId?: string };
 
 /**
- * Verrijkingsronde: één partner (optioneel met geplakte tekst) of alle partners. Bij 'alle' worden per ronde maximaal
- * `maxPerRonde` partners via internet verrijkt (de minst recent geraadpleegde eerst) zodat de ronde binnen de tijd blijft.
+ * Verrijking: één partner (optioneel met geplakte tekst) of een hervatbare ronde over het hele bestand. Een ronde verwerkt
+ * per aanroep maximaal `maxPerRonde` partners (nog niet in deze ronde verwerkt) en houdt een verschillenoverzicht bij:
+ * nieuw / gewijzigd / niet langer bevestigd / ongewijzigd overgeslagen (delta-selectie).
  */
 export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20, gestartDoor?: string) {
   return veilig(async (): Promise<VerrijkingUitkomst> => {
@@ -771,35 +835,44 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     const db = await getDb();
     // Eis 2: boven budget krijgen interactieve functies voorrang; een ronde over het hele bestand start dan niet.
     if (!partnerId && budgetStatus(db).overschreden) throw new Error("Het AI-maandbudget is overschreden. Geplande verrijkingsrondes zijn gepauzeerd; verrijking van één partner en zoeken/chat blijven mogelijk. Pas het budget aan onder Beheer.");
-    const laatstGeraadpleegd = (p: Partner) => p.bronnen.filter((b) => b.soort === "web-verrijking").map((b) => b.opgehaaldOp).sort().pop() ?? "";
-    const kandidaten = partnerId ? db.partners.filter((p) => p.id === partnerId) : db.partners.filter((p) => p.status !== "geblokkeerd").sort((a, b) => laatstGeraadpleegd(a).localeCompare(laatstGeraadpleegd(b)));
+    // Hervatbare ronde-administratie (alleen bij een ronde over het bestand).
+    let ronde = partnerId ? undefined : db.verrijkingsrondes.find((r) => !r.klaarOp);
+    if (!partnerId && !ronde) {
+      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
+      await muteer(g, { entiteit: "verrijking", entiteitId: ronde.id, actie: "verrijkingsronde gestart", details: `${ronde.totaal} partners` }, (d) => d.verrijkingsrondes.unshift(ronde!));
+    }
+    const kandidaten = partnerId
+      ? db.partners.filter((p) => p.id === partnerId)
+      : db.partners.filter((p) => p.status !== "geblokkeerd" && !ronde!.partnerIdsVerwerkt.includes(p.id));
     const doelen = partnerId ? kandidaten : kandidaten.slice(0, maxPerRonde);
     if (partnerId && !doelen.length) throw new Error("Partner niet gevonden.");
+    const extraBronnen = await haalExtraBronnen(db);
     const nieuweVoorstellen: EnrichmentVoorstel[] = [];
-    const geraadpleegd: Array<{ partnerId: string; paginas: string[] }> = [];
+    const geraadpleegd: Array<{ partnerId: string; paginas: string[]; webHash?: string; overgeslagen: boolean }> = [];
     let websitesGevonden = 0;
     // Beperkte parallelliteit: vriendelijk voor de bronnen, snel genoeg voor een ronde.
     const wachtrij = [...doelen];
     await alsAIBewerking(partnerId ? "verrijking" : "verrijkingsronde", gestartDoor === "systeem" ? "systeem" : g.naam, partnerId ? `verrijking ${doelen[0]?.naam ?? partnerId}` : `verrijkingsronde (${doelen.length} partners)`, () =>
       Promise.all(
-      Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
-        for (let p = wachtrij.shift(); p; p = wachtrij.shift()) {
-          try {
-            zetAanroepDoel(`factorextractie ${p.naam}`);
-            const r = await verzamelVoorstellen(p, db, tekst);
-            nieuweVoorstellen.push(...r.voorstellen);
-            if (r.websiteGevonden) websitesGevonden++;
-            geraadpleegd.push({ partnerId: p.id, paginas: r.paginas });
-          } catch (e) {
-            console.warn("Verrijking overgeslagen voor", p.naam, e instanceof Error ? e.message : e);
+        Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
+          for (let p = wachtrij.shift(); p; p = wachtrij.shift()) {
+            try {
+              zetAanroepDoel(`factorextractie ${p.naam}`);
+              const r = await verzamelVoorstellen(p, db, tekst, extraBronnen);
+              nieuweVoorstellen.push(...r.voorstellen);
+              if (r.websiteGevonden) websitesGevonden++;
+              geraadpleegd.push({ partnerId: p.id, paginas: r.paginas, webHash: r.webHash, overgeslagen: r.overgeslagen });
+            } catch (e) {
+              console.warn("Verrijking overgeslagen voor", p.naam, e instanceof Error ? e.message : e);
+            }
           }
-        }
-      })
-    ));
-    const nieuw = await bewaarVoorstellen(g, partnerId ?? "alle", nieuweVoorstellen, geraadpleegd);
+        })
+      ));
+    const nogTeGaan = partnerId ? 0 : Math.max(0, kandidaten.length - doelen.length);
+    const nieuw = await bewaarVoorstellen(g, partnerId ?? ronde?.id ?? "alle", nieuweVoorstellen, geraadpleegd, ronde?.id, !partnerId && nogTeGaan === 0);
     revalidatePath("/verrijking");
     if (partnerId) revalidatePath(`/partners/${partnerId}`);
-    return { partners: doelen.length, voorstellen: nieuweVoorstellen.length, nieuw, websitesGevonden, nogTeGaan: Math.max(0, kandidaten.length - doelen.length) };
+    return { partners: doelen.length, voorstellen: nieuweVoorstellen.length, nieuw, websitesGevonden, overgeslagen: geraadpleegd.filter((x) => x.overgeslagen).length, nogTeGaan, rondeId: ronde?.id };
   });
 }
 
@@ -862,6 +935,25 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
     });
     revalidatePath("/verrijking");
     if (partnerId) revalidatePath(`/partners/${partnerId}`);
+  });
+}
+
+/** B3: extra verrijkingsbronnen beheren (toevoegen/aan-uit/verwijderen) zonder codewijziging. */
+export async function slaVerrijkingsBronOp(bron: { id?: string; naam: string; url: string; actief: boolean } | { verwijderId: string }) {
+  return veilig(async () => {
+    const g = await vereisRecht("beheer");
+    await muteer(g, { entiteit: "instellingen", entiteitId: "verrijkingsbronnen", actie: "verwijderId" in bron ? "bron verwijderd" : "bron opgeslagen", details: "verwijderId" in bron ? bron.verwijderId : `${bron.naam} (${bron.url})` }, (db) => {
+      db.instellingen.verrijkingsbronnen = db.instellingen.verrijkingsbronnen ?? [];
+      if ("verwijderId" in bron) {
+        db.instellingen.verrijkingsbronnen = db.instellingen.verrijkingsbronnen.filter((b) => b.id !== bron.verwijderId);
+        return;
+      }
+      if (!/^https?:\/\//.test(bron.url)) throw new Error("Bron-URL moet met http(s) beginnen.");
+      const idx = db.instellingen.verrijkingsbronnen.findIndex((b) => b.id === bron.id);
+      if (idx >= 0) db.instellingen.verrijkingsbronnen[idx] = { ...db.instellingen.verrijkingsbronnen[idx], naam: bron.naam, url: bron.url, actief: bron.actief };
+      else db.instellingen.verrijkingsbronnen.push({ id: nieuwId("vb"), naam: bron.naam, url: bron.url, actief: bron.actief });
+    });
+    revalidatePath("/verrijking");
   });
 }
 

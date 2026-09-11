@@ -25,6 +25,20 @@ const REGELS: Regel[] = [
 
 const MARKETING = /(duurzaamste|groenste|toonaangevend|marktleider|innovatief|vooruitstrevend|100% duurzaam|klimaatneutraal bedrijf)/i;
 
+/** Delta-selectie: goedkope, stabiele inhoudshash (djb2) van de gelezen brontekst. */
+export function inhoudsHash(tekst: string) {
+  let h = 5381;
+  for (let i = 0; i < tekst.length; i++) h = ((h << 5) + h + tekst.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+/** 'Niet langer bevestigd': komt er voor deze factor nog enig extractiepatroon in de tekst voor? */
+export function factorNogBevestigd(factorId: string, tekst: string) {
+  const regels = REGELS.filter((r) => r.factorId === factorId);
+  if (!regels.length) return true; // geen patroon voor deze factor: geen uitspraak mogelijk
+  return regels.some((r) => r.patroon.test(tekst));
+}
+
 export function striptHtml(html: string) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")

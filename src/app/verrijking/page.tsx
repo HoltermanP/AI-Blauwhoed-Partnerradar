@@ -3,6 +3,7 @@ import Link from "next/link";
 import ClaimsSplitser from "@/components/verrijking/ClaimsSplitser";
 import VerrijkingStart from "@/components/verrijking/VerrijkingStart";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
+import BronnenBeheer from "@/components/verrijking/BronnenBeheer";
 import { Badge, Definities, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import type { EnrichmentVoorstel } from "@/lib/domain/types";
@@ -21,12 +22,12 @@ const STATUSSEN: Array<{ id: VStatus; label: string }> = [
 ];
 
 export default async function VerrijkingPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { status: statusParam } = await searchParams;
+  const { status: statusParam, ronde: rondeParam } = await searchParams;
   const status: VStatus = STATUSSEN.some((s) => s.id === statusParam) ? (statusParam as VStatus) : "open";
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
   const partners = db.partners.filter((p) => p.status !== "geblokkeerd").map((p) => ({ id: p.id, naam: p.naam }));
-  const voorstellen = db.verrijkingsvoorstellen.filter((v) => v.status === status);
+  const voorstellen = db.verrijkingsvoorstellen.filter((v) => v.status === status && (!rondeParam || v.rondeId === rondeParam));
   const laatstGeraadpleegd = (p: (typeof db.partners)[number]) => p.bronnen.filter((b) => b.soort === "web-verrijking").map((b) => b.opgehaaldOp).sort().pop() ?? "";
   const wachtend = db.partners.filter((p) => p.status !== "geblokkeerd");
   const volgendeBatch = Math.min(20, wachtend.length);
@@ -64,7 +65,50 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
         </Kaart>
       </div>
 
-      <Kaart titel="Wachtrij voorstellen">
+      <Kaart titel="Rondes en verschillenoverzicht">
+        {db.verrijkingsrondes.length ? (
+          <div className="tabelWrap">
+            <table className="tabel">
+              <thead>
+                <tr>
+                  <th>Gestart</th>
+                  <th>Door</th>
+                  <th>Voortgang</th>
+                  <th className="num">Nieuw</th>
+                  <th className="num">Gewijzigd</th>
+                  <th className="num">Niet bevestigd</th>
+                  <th className="num">Ongewijzigd</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {db.verrijkingsrondes.slice(0, 8).map((r) => (
+                  <tr key={r.id}>
+                    <td>{datumTijd(r.gestartOp)}</td>
+                    <td>{r.door}</td>
+                    <td>{r.klaarOp ? <Badge kleur="groen">afgerond {datumTijd(r.klaarOp)}</Badge> : <Badge kleur="geel">{r.partnerIdsVerwerkt.length} van {r.totaal}</Badge>}</td>
+                    <td className="num">{r.nieuw}</td>
+                    <td className="num">{r.gewijzigd}</td>
+                    <td className="num">{r.nietBevestigd}</td>
+                    <td className="num" title="Delta-selectie: broninhoud niet gewijzigd sinds de vorige ronde">{r.ongewijzigd}</td>
+                    <td>
+                      <Link href={`/verrijking?ronde=${r.id}`}>Alleen verschillen van deze ronde</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <Leeg titel="Nog geen rondes" tekst="Start een verrijkingsronde; alleen de gevonden verschillen (nieuw / gewijzigd / niet langer bevestigd) hoeven beoordeeld te worden." />
+        )}
+      </Kaart>
+
+      <Kaart titel="Extra bronnen (configuratie)">
+        <BronnenBeheer bronnen={i.verrijkingsbronnen ?? []} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
+      </Kaart>
+
+      <Kaart titel={rondeParam ? "Verschillen van de gekozen ronde" : "Wachtrij voorstellen"} acties={rondeParam ? <Link href="/verrijking">Alle voorstellen</Link> : null}>
         <nav className="tabs" aria-label="Status">
           {STATUSSEN.map((s) => (
             <Link key={s.id} href={`/verrijking?status=${s.id}`} className={s.id === status ? "active" : ""} scroll={false}>

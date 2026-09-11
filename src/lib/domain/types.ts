@@ -218,6 +218,8 @@ export type Partner = {
   kwalificatie: Kwalificatie[];
   financieel?: Financieel;
   bronnen: Array<{ url: string; opgehaaldOp: string; soort: string }>;
+  /** Inhoudshash van de laatst gelezen webbronnen; ongewijzigd = partner overslaan in de volgende ronde (delta-selectie). */
+  webHash?: string;
   /** Ruwe brondata per geïmporteerde rij (bijv. per woningconcept uit het Excel-overzicht): alle oorspronkelijke kolommen. */
   brongegevens?: Array<{ bron: string; op: string; titel?: string; velden: Record<string, string> }>;
   tags: string[];
@@ -461,10 +463,31 @@ export type EnrichmentVoorstel = {
   aard?: "nieuw" | "gewijzigd" | "niet_bevestigd";
   /** De huidige waarde is door een mens gevalideerd; dit voorstel is een afwijkend signaal en overschrijft nooit stilzwijgend. */
   conflictMetGevalideerd?: boolean;
+  /** Ronde waarin dit voorstel is gevonden (voor het verschillenoverzicht per ronde). */
+  rondeId?: string;
   citaat: string;
   status: "open" | "geaccepteerd" | "afgewezen";
   gevondenOp: string;
 };
+
+/** Geplande/handmatige verrijkingsronde over het bestand; hervatbaar en met verschillenoverzicht. */
+export type VerrijkingsRonde = {
+  id: string;
+  gestartOp: string;
+  bijgewerktOp: string;
+  klaarOp?: string;
+  door: string;
+  totaal: number;
+  partnerIdsVerwerkt: string[];
+  /** Partners overgeslagen omdat de broninhoud niet wijzigde sinds de vorige ronde (delta-selectie). */
+  ongewijzigd: number;
+  nieuw: number;
+  gewijzigd: number;
+  nietBevestigd: number;
+};
+
+/** Configureerbare extra verrijkingsbron (openbare URL, bijv. Conceptenboulevard of een brochurepagina). Toevoegbaar zonder codewijziging. */
+export type VerrijkingsBron = { id: string; naam: string; url: string; actief: boolean };
 
 /** Eis 2: één modelaanroep binnen een bewerking. */
 export type AIAanroep = {
@@ -529,6 +552,7 @@ export type Database = {
   teams: TeamVoorstel[];
   gewichtsprofielen: Gewichtsprofiel[];
   verrijkingsvoorstellen: EnrichmentVoorstel[];
+  verrijkingsrondes: VerrijkingsRonde[];
   aiBewerkingen: AIBewerking[];
   audit: AuditEntry[];
   gebruikers: Gebruiker[];
@@ -541,5 +565,7 @@ export type Database = {
     laatsteVerrijking?: string;
     /** Eis 2: maandbudget voor AI-kosten in USD; bij 80% een melding, daarboven krijgen interactieve functies voorrang op geplande rondes. */
     aiBudgetUsdPerMaand: number;
+    /** Extra openbare verrijkingsbronnen (beheerbaar, geen codewijziging nodig). */
+    verrijkingsbronnen: VerrijkingsBron[];
   };
 };

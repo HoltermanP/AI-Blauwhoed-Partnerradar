@@ -5,7 +5,7 @@ import { stelTeamSamen } from "../src/lib/domain/team";
 import { signalenVoor } from "../src/lib/domain/signalen";
 import { leidFactorenAf } from "../src/lib/domain/derive";
 import { vindDubbel } from "../src/lib/domain/discovery";
-import { extraheerVoorstellen, splitsClaims } from "../src/lib/domain/enrichment";
+import { extraheerVoorstellen, factorNogBevestigd, inhoudsHash, splitsClaims } from "../src/lib/domain/enrichment";
 import { extraheerProjectprofiel } from "../src/lib/domain/extractie";
 import { importeerEngagements } from "../src/lib/domain/csv";
 import { maakLegeDatabase } from "../src/lib/domain/seed";
@@ -150,6 +150,14 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   db.aiBewerkingen = [];
   const schatting = schatVerrijkingsronde(20);
   check("Eis 2: schatting vooraf", schatting.bewerkingen === 20 && schatting.geschatteKostenUsd > 0);
+}
+
+// B3: delta-hash en 'niet langer bevestigd'
+{
+  const t1 = "Wij bouwen in CLT met een MPG-berekening van 0,52.";
+  check("B3: inhoudshash stabiel en gevoelig", inhoudsHash(t1) === inhoudsHash(t1) && inhoudsHash(t1) !== inhoudsHash(t1 + "!"));
+  check("B3: factor nog bevestigd", factorNogBevestigd("mpg", t1) && factorNogBevestigd("bouwsysteem", t1));
+  check("B3: factor niet langer bevestigd", !factorNogBevestigd("mpg", "Wij bouwen traditioneel.") && factorNogBevestigd("evaluatiescore", "geen patroon voor deze factor"));
 }
 
 // Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs

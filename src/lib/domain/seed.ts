@@ -547,7 +547,7 @@ export function maakLegeDatabase(): Database {
     engagements: [],
     evaluaties: [],
     audit: [{ id: "a0", op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "init", actie: "lege database aangemaakt" }],
-    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, aiBudgetUsdPerMaand: 100 }
+    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, aiBudgetUsdPerMaand: 100, verrijkingsbronnen: [{ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: false }] }
   };
 }
 
@@ -565,12 +565,13 @@ export function maakSeedDatabase(): Database {
     teams: [],
     gewichtsprofielen: GEWICHTSPROFIELEN,
     verrijkingsvoorstellen: [],
+    verrijkingsrondes: [],
     aiBewerkingen: [],
     audit: [{ id: "a0", op: iso(NU), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "seed", actie: "seed geladen", details: "Demodata geladen" }],
     gebruikers: [],
     importWachtrij: [],
     afwijsredenen: [],
-    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false, aiBudgetUsdPerMaand: 100 }
+    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false, aiBudgetUsdPerMaand: 100, verrijkingsbronnen: [] }
   };
 }
 

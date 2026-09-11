@@ -22,7 +22,7 @@ export default function VerrijkingStart({ partners, magBewerken, externeBronnen,
       const r = await startVerrijking(id, t);
       if (!r.ok) return setFout(r.fout);
       const u = r.data!;
-      setSucces(`${u.partners} partner(s) geraadpleegd, ${u.voorstellen} voorstel(len) gevonden waarvan ${u.nieuw} nieuw in de wachtrij${u.websitesGevonden ? `; ${u.websitesGevonden} website(s) gevonden` : ""}${u.nogTeGaan ? `. Nog ${u.nogTeGaan} partner(s) te gaan — start de ronde opnieuw.` : "."}`);
+      setSucces(`${u.partners} partner(s) geraadpleegd (${u.overgeslagen} ongewijzigd overgeslagen), ${u.voorstellen} voorstel(len) gevonden waarvan ${u.nieuw} nieuw in de wachtrij${u.websitesGevonden ? `; ${u.websitesGevonden} website(s) gevonden` : ""}${u.nogTeGaan ? `. Nog ${u.nogTeGaan} partner(s) te gaan in deze ronde — klik opnieuw om te hervatten.` : ". Ronde afgerond; bekijk het verschillenoverzicht hieronder."}`);
       router.refresh();
     });
   };
