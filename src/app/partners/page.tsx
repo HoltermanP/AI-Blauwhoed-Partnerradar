@@ -75,6 +75,20 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
   const telling = kenmerken.map((k, i) => db.partners.filter((p) => effectieveFactoren(p, db, nu).some((f) => f.factorId === k.factorId && voldoetAan(f, k, kenmerkFactorenActief[i]))).length);
   const kenmerkFactoren = db.factoren.filter((f) => f.actief && (f.schaal.soort === "niveau" || f.schaal.soort === "getal" || f.schaal.soort === "percentage"));
   const gefilterd = !!(q || rol || status || cert || plaats || factorId || project);
+  // B5: kolomkeuze via de querystring (checkboxes in het filterformulier).
+  const KOLOMMEN: Array<{ id: string; label: string }> = [
+    { id: "status", label: "Status" },
+    { id: "rollen", label: "Rollen" },
+    { id: "plaats", label: "Plaats" },
+    { id: "medewerkers", label: "Medewerkers" },
+    { id: "kenmerken", label: "Kernkenmerken" },
+    { id: "certificaten", label: "Certificaten" },
+    { id: "evaluatie", label: "Evaluatie" },
+    { id: "projecten", label: "Projecten" },
+    { id: "website", label: "Website" }
+  ];
+  const kolomKeuze = typeof sp.kolommen === "string" && sp.kolommen ? new Set(sp.kolommen.split(",")) : new Set(KOLOMMEN.map((k) => k.id).filter((id) => id !== "website"));
+  const kol = (id: string) => kolomKeuze.has(id);
 
   return (
     <>
@@ -173,6 +187,16 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
               </p>
             ) : null}
           </div>
+          <details style={{ marginBottom: 8 }}>
+            <summary className="muted klein-tekst" style={{ cursor: "pointer" }}>Kolommen kiezen ({kolomKeuze.size} van {KOLOMMEN.length})</summary>
+            <div className="vinkjes" style={{ marginTop: 6 }}>
+              {KOLOMMEN.map((k) => (
+                <label key={k.id}>
+                  <input type="checkbox" name="kolommen" value={k.id} defaultChecked={kol(k.id)} /> {k.label}
+                </label>
+              ))}
+            </div>
+          </details>
           <div className="formulierActies">
             <button type="submit" className="knop klein">
               Filteren
@@ -195,17 +219,16 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
               <thead>
                 <tr>
                   <th>Partner</th>
-                  <th>Status</th>
-                  <th>Rollen</th>
-                  <th>Plaats</th>
+                  {kol("status") ? <th>Status</th> : null}
+                  {kol("rollen") ? <th>Rollen</th> : null}
+                  {kol("plaats") ? <th>Plaats</th> : null}
                   {centrum ? <th className="num">Afstand</th> : null}
-                  <th className="num">Medewerkers</th>
-                  {KERNFACTOREN.map((k) => (
-                    <th key={k.id}>{k.label}</th>
-                  ))}
-                  <th>Certificaten</th>
-                  <th className="num">Evaluatie</th>
-                  <th className="num">Projecten</th>
+                  {kol("medewerkers") ? <th className="num">Medewerkers</th> : null}
+                  {kol("kenmerken") ? KERNFACTOREN.map((k) => <th key={k.id}>{k.label}</th>) : null}
+                  {kol("certificaten") ? <th>Certificaten</th> : null}
+                  {kol("evaluatie") ? <th className="num">Evaluatie</th> : null}
+                  {kol("projecten") ? <th className="num">Projecten</th> : null}
+                  {kol("website") ? <th>Website</th> : null}
                   <th></th>
                 </tr>
               </thead>
@@ -219,23 +242,30 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
                       <br />
                       <small className="muted">KVK {p.kvk}</small>
                     </td>
-                    <td>
-                      <StatusBadge status={p.status} />
-                    </td>
-                    <td>{p.rollen.map((r) => ROL_LABEL[r]).join(", ")}</td>
-                    <td>{p.vestigingsplaats}</td>
-                    {centrum ? <td className="num">{afstand !== null ? `${afstand} km` : "–"}</td> : null}
-                    <td className="num">{getal(p.medewerkers)}</td>
-                    {KERNFACTOREN.map((k) => (
-                      <td key={k.id}>
-                        <KernFactor factorId={k.id} factoren={db.factoren} alle={alle} />
+                    {kol("status") ? (
+                      <td>
+                        <StatusBadge status={p.status} />
                       </td>
-                    ))}
-                    <td>
-                      <CertificaatChips partner={p} />
-                    </td>
-                    <td className="num">{afgeleid.statistieken.evaluatiescore !== null ? getal(afgeleid.statistieken.evaluatiescore, 1) : <span className="muted">–</span>}</td>
-                    <td className="num">{afgeleid.statistieken.aantalProjecten}</td>
+                    ) : null}
+                    {kol("rollen") ? <td>{p.rollen.map((r) => ROL_LABEL[r]).join(", ")}</td> : null}
+                    {kol("plaats") ? <td>{p.vestigingsplaats}</td> : null}
+                    {centrum ? <td className="num">{afstand !== null ? `${afstand} km` : "–"}</td> : null}
+                    {kol("medewerkers") ? <td className="num">{getal(p.medewerkers)}</td> : null}
+                    {kol("kenmerken")
+                      ? KERNFACTOREN.map((k) => (
+                          <td key={k.id}>
+                            <KernFactor factorId={k.id} factoren={db.factoren} alle={alle} />
+                          </td>
+                        ))
+                      : null}
+                    {kol("certificaten") ? (
+                      <td>
+                        <CertificaatChips partner={p} />
+                      </td>
+                    ) : null}
+                    {kol("evaluatie") ? <td className="num">{afgeleid.statistieken.evaluatiescore !== null ? getal(afgeleid.statistieken.evaluatiescore, 1) : <span className="muted">–</span>}</td> : null}
+                    {kol("projecten") ? <td className="num">{afgeleid.statistieken.aantalProjecten}</td> : null}
+                    {kol("website") ? <td>{p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="klein-tekst">{p.website.replace(/^https?:\/\/(www\.)?/, "")}</a> : <span className="muted">–</span>} </td> : null}
                     <td>
                       <Link href={`/partners/${p.id}?tab=brondata`} className="klein-tekst">
                         Alle data →

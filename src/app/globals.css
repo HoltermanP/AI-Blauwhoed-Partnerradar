@@ -1320,3 +1320,8 @@ a:not(.knop):not(.chip):not(.badge) { color: var(--blue); }
 .brondataBlok h3 { font-size: 15px; margin-bottom: 8px; }
 .brondataTabel td { padding: 4px 8px; font-size: 12px; overflow-wrap: anywhere; }
 .brondataTabel td:first-child { width: 40%; }
+
+/* B5: chat */
+.chatBeurt { margin-bottom: 14px; }
+.chatVraag { margin: 0 0 6px; }
+.chatAntwoord { background: var(--surface-2, #f4f6f8); border-radius: 10px; padding: 10px 12px; }

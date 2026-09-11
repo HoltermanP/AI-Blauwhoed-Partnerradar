@@ -17,7 +17,8 @@ import { BASISVELDEN, verrijkVanuitInternet } from "./domain/webverrijking";
 import { effectieveStatus, herkomstExport, wisHerkomst } from "./domain/herkomst";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, zetAanroepDoel } from "./ai";
+import { aiBeschikbaar, aiChat, aiFactorExtractie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, zetAanroepDoel } from "./ai";
+import { chatContext } from "./domain/chat";
 import { budgetStatus, schatVerrijkingsronde } from "./domain/kosten";
 import type { BronConnector } from "./domain/discovery";
 import { slaNuOp } from "./store";
@@ -687,6 +688,40 @@ export async function markeerGeenDubbel(id: string) {
       if (k) k.mogelijkeDubbelVan = undefined;
     });
     revalidatePath("/discovery");
+  });
+}
+
+// ---------- Chat over het partnerbestand (B5) ----------
+export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; viaAI: boolean };
+
+/**
+ * B5: beantwoord een vraag over het partnerbestand. Gebruikt uitsluitend databaserecords en verwijst naar de
+ * onderliggende partners. Elke vraag is één AI-bewerking (eis 2). Zonder API-sleutel: semantische zoekresultaten.
+ */
+export async function stelChatVraag(vraag: string, historie: Array<{ vraag: string; antwoord: string }> = []) {
+  return veilig(async (): Promise<ChatAntwoord> => {
+    const g = await vereisRecht("lezen");
+    if (!vraag.trim()) throw new Error("Stel een vraag.");
+    const db = await getDb();
+    const { partners, records } = chatContext(db, vraag);
+    if (aiBeschikbaar()) {
+      const r = await alsAIBewerking("chat", g.naam, vraag.slice(0, 120), () => {
+        zetAanroepDoel("chatvraag");
+        return aiChat(vraag, JSON.stringify(records), historie.slice(-4));
+      });
+      if (r) {
+        const genoemd = r.partnerIds.map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p));
+        return { antwoord: r.antwoord, partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), viaAI: true };
+      }
+    }
+    // Terugval zonder AI: semantische treffers met een eerlijke uitleg.
+    return {
+      antwoord: partners.length
+        ? `AI staat uit (geen ANTHROPIC_API_KEY); dit zijn de partnerrecords die semantisch het best bij de vraag passen. Open een partner voor de details.`
+        : "Geen passende partners gevonden in de database voor deze vraag.",
+      partners: partners.slice(0, 8).map((p) => ({ id: p.id, naam: p.naam })),
+      viaAI: false
+    };
   });
 }
 

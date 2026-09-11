@@ -177,4 +177,23 @@ export async function aiProjectExtractie(tekst: string): Promise<AIProjectExtrac
   );
 }
 
+export type AIChatAntwoord = { antwoord: string; partnerIds: string[] };
+
+/**
+ * B5: chat over het partnerbestand. Het model krijgt uitsluitend records uit de database mee en mag niets verzinnen;
+ * elk antwoord verwijst naar de onderliggende partner-ids.
+ */
+export async function aiChat(vraag: string, context: string, historie: Array<{ vraag: string; antwoord: string }>): Promise<AIChatAntwoord | null> {
+  return jsonAntwoord<AIChatAntwoord>(
+    "Je beantwoordt vragen van een medewerker van woningontwikkelaar Blauwhoed over hun eigen partnerdatabase, in het Nederlands. Gebruik UITSLUITEND de meegeleverde partnerrecords; verzin geen partners, cijfers of eigenschappen. Staat het antwoord niet in de records, zeg dat dan expliciet en stel voor welk filter of welke verrijking zou helpen. Noem partners bij naam en geef hun id's terug in partnerIds (alleen id's uit de records). Wees feitelijk en beknopt; onderscheid gevalideerde waarden van voorgestelde (status staat per waarde in de records).",
+    `${historie.map((h) => `Eerdere vraag: ${h.vraag}\nEerder antwoord: ${h.antwoord}`).join("\n\n")}\n\nPartnerrecords (JSON):\n${context}\n\nVraag: ${vraag}`,
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["antwoord", "partnerIds"],
+      properties: { antwoord: { type: "string" }, partnerIds: { type: "array", items: { type: "string" } } }
+    }
+  );
+}
+
 export const AI_BRON: Bron = "web";
