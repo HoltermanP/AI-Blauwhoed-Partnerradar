@@ -15,6 +15,7 @@ import houtbouwers from "../src/data/houtbouwers-seed.json";
 import { kiesSubpaginas, leesReferenties, pastBijNaam } from "../src/lib/domain/webverrijking";
 import { maakSeedIdGenerator, migreerDatabase } from "../src/lib/domain/migratie";
 import { effectieveStatus, herkomstExport, wisHerkomst } from "../src/lib/domain/herkomst";
+import { leidVerbandenAf } from "../src/lib/domain/verbanden";
 import { budgetStatus, kostenUsd, maandVerbruik, schatVerrijkingsronde } from "../src/lib/domain/kosten";
 
 let fouten = 0;
@@ -158,6 +159,12 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   check("B3: inhoudshash stabiel en gevoelig", inhoudsHash(t1) === inhoudsHash(t1) && inhoudsHash(t1) !== inhoudsHash(t1 + "!"));
   check("B3: factor nog bevestigd", factorNogBevestigd("mpg", t1) && factorNogBevestigd("bouwsysteem", t1));
   check("B3: factor niet langer bevestigd", !factorNogBevestigd("mpg", "Wij bouwen traditioneel.") && factorNogBevestigd("evaluatiescore", "geen patroon voor deze factor"));
+}
+
+// B7: verbanden met bron, als signaal
+{
+  const verbanden = leidVerbandenAf(db);
+  check("B7: verbanden uit gedeelde projecthistorie met bron", verbanden.length > 0 && verbanden.every((v) => v.bronnen.length > 0) && verbanden.some((v) => v.bronnen.some((b) => b.soort === "project")));
 }
 
 // Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs

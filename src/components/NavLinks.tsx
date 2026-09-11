@@ -12,6 +12,7 @@ const LINKS: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: "/factoren", label: "Factoren" },
   { href: "/kaart", label: "Kaart" },
   { href: "/historie", label: "Historie" },
+  { href: "/verbanden", label: "Verbanden" },
   { href: "/discovery", label: "Discovery" },
   { href: "/verrijking", label: "Verrijking" },
   { href: "/beheer", label: "Beheer" }
