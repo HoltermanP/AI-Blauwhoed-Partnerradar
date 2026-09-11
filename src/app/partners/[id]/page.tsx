@@ -17,6 +17,7 @@ import { FinancieelFormulier, KwalificatieChecklist } from "@/components/partner
 import StatusBeheer from "@/components/partners/StatusBeheer";
 import PartnerVerrijken from "@/components/partners/PartnerVerrijken";
 import HerkomstActies from "@/components/partners/HerkomstActies";
+import DocumentenBeheer from "@/components/partners/DocumentenBeheer";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
@@ -30,6 +31,7 @@ const TABS = [
   { id: "historie", label: "Historie" },
   { id: "kwalificatie", label: "Kwalificatie" },
   { id: "contact", label: "Contact" },
+  { id: "documenten", label: "Documenten" },
   { id: "brondata", label: "Brondata" }
 ];
 
@@ -55,7 +57,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   const tabItems = TABS.map((t) => ({
     ...t,
     aantal:
-      t.id === "certificaten" ? p.certificaten.length : t.id === "historie" ? engagements.length : t.id === "contact" ? p.contactpersonen.length : t.id === "factoren" ? effectieveFactoren(p, db, nu).length : t.id === "brondata" ? (p.brongegevens?.length ?? 0) : undefined
+      t.id === "certificaten" ? p.certificaten.length : t.id === "historie" ? engagements.length : t.id === "contact" ? p.contactpersonen.length : t.id === "documenten" ? (p.documenten?.length ?? 0) : t.id === "factoren" ? effectieveFactoren(p, db, nu).length : t.id === "brondata" ? (p.brongegevens?.length ?? 0) : undefined
   }));
 
   return (
@@ -194,6 +196,11 @@ export default async function PartnerDossier({ params, searchParams }: { params:
             </Kaart>
           </div>
         </div>
+      ) : null}
+      {tab === "documenten" ? (
+        <Kaart titel="Documenten">
+          <DocumentenBeheer partnerId={p.id} documenten={p.documenten ?? []} magBewerken={magBewerken} />
+        </Kaart>
       ) : null}
       {tab === "brondata" ? (
         <Kaart titel="Herkomst en AVG (eis 1)">

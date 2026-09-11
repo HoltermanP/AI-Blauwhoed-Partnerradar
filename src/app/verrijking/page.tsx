@@ -26,10 +26,10 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
   const status: VStatus = STATUSSEN.some((s) => s.id === statusParam) ? (statusParam as VStatus) : "open";
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
-  const partners = db.partners.filter((p) => p.status !== "geblokkeerd").map((p) => ({ id: p.id, naam: p.naam }));
+  const partners = db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd").map((p) => ({ id: p.id, naam: p.naam }));
   const voorstellen = db.verrijkingsvoorstellen.filter((v) => v.status === status && (!rondeParam || v.rondeId === rondeParam));
   const laatstGeraadpleegd = (p: (typeof db.partners)[number]) => p.bronnen.filter((b) => b.soort === "web-verrijking").map((b) => b.opgehaaldOp).sort().pop() ?? "";
-  const wachtend = db.partners.filter((p) => p.status !== "geblokkeerd");
+  const wachtend = db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd");
   const volgendeBatch = Math.min(20, wachtend.length);
   const schatting = schatVerrijkingsronde(volgendeBatch);
   const schattingHeleBestand = schatVerrijkingsronde(wachtend.length);

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import CsvImport from "@/components/historie/CsvImport";
 import WachtrijRegel from "@/components/historie/WachtrijRegel";
-import { Badge, Kaart, Leeg, PaginaKop } from "@/components/ui";
+import { Badge, Kaart, Knop, Leeg, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { collaborationEdges, leidFactorenAf } from "@/lib/domain/derive";
 import { ROLLEN, type Rol } from "@/lib/domain/types";
@@ -34,7 +34,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PaginaKop eyebrow="Epic 4" titel="Historie" intro="Projecthistorie is het bewijs boven zelfbeeld: engagements, kostenvastheid, planningsbetrouwbaarheid en samenwerkingsnetwerk." />
+      <PaginaKop eyebrow="Epic 4" titel="Historie" intro="Projecthistorie is het bewijs boven zelfbeeld: engagements, kostenvastheid, planningsbetrouwbaarheid en samenwerkingsnetwerk." acties={<Knop href="/api/export/historie" variant="secundair">Export (CSV)</Knop>} />
 
       <Kaart titel={`Engagements (${engagements.length})`}>
         <form className="formulier historieFilters" method="get">

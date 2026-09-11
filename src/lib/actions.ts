@@ -40,6 +40,7 @@ import type {
   KwalificatieItem,
   MatchFeedback,
   Partner,
+  PartnerDocument,
   PartnerFactor,
   PartnerStatus,
   Project,
@@ -898,12 +899,12 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     // Hervatbare ronde-administratie (alleen bij een ronde over het bestand).
     let ronde = partnerId ? undefined : db.verrijkingsrondes.find((r) => !r.klaarOp);
     if (!partnerId && !ronde) {
-      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
+      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
       await muteer(g, { entiteit: "verrijking", entiteitId: ronde.id, actie: "verrijkingsronde gestart", details: `${ronde.totaal} partners` }, (d) => d.verrijkingsrondes.unshift(ronde!));
     }
     const kandidaten = partnerId
       ? db.partners.filter((p) => p.id === partnerId)
-      : db.partners.filter((p) => p.status !== "geblokkeerd" && !ronde!.partnerIdsVerwerkt.includes(p.id));
+      : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && !ronde!.partnerIdsVerwerkt.includes(p.id));
     const doelen = partnerId ? kandidaten : kandidaten.slice(0, maxPerRonde);
     if (partnerId && !doelen.length) throw new Error("Partner niet gevonden.");
     const extraBronnen = await haalExtraBronnen(db);
@@ -1014,6 +1015,39 @@ export async function slaVerrijkingsBronOp(bron: { id?: string; naam: string; ur
       else db.instellingen.verrijkingsbronnen.push({ id: nieuwId("vb"), naam: bron.naam, url: bron.url, actief: bron.actief });
     });
     revalidatePath("/verrijking");
+  });
+}
+
+// ---------- Documenten per partner (onderdeel 1) ----------
+export async function slaPartnerDocumentOp(partnerId: string, doc: { id?: string; naam: string; soort: PartnerDocument["soort"]; url?: string; tekst?: string; toelichting?: string }) {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    if (!doc.naam.trim()) throw new Error("Geef het document een naam.");
+    if (doc.url && !/^https?:\/\//.test(doc.url)) throw new Error("Document-URL moet met http(s) beginnen.");
+    await muteer(g, { entiteit: "partner_document", entiteitId: partnerId, actie: doc.id ? "document bijgewerkt" : "document toegevoegd", details: doc.naam }, (db) => {
+      const p = db.partners.find((x) => x.id === partnerId);
+      if (!p) throw new Error("Partner niet gevonden.");
+      p.documenten = p.documenten ?? [];
+      const idx = p.documenten.findIndex((d) => d.id === doc.id);
+      const record: PartnerDocument = { id: doc.id ?? nieuwId("doc"), naam: doc.naam.trim(), soort: doc.soort, url: doc.url || undefined, tekst: doc.tekst?.slice(0, 40000) || undefined, toelichting: doc.toelichting || undefined, toegevoegdDoor: g.naam, op: new Date().toISOString().slice(0, 10) };
+      if (idx >= 0) p.documenten[idx] = record;
+      else p.documenten.push(record);
+      p.bijgewerktOp = new Date().toISOString();
+    });
+    revalidatePath(`/partners/${partnerId}`);
+  });
+}
+
+export async function verwijderPartnerDocument(partnerId: string, docId: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    await muteer(g, { entiteit: "partner_document", entiteitId: partnerId, actie: "document verwijderd", details: docId }, (db) => {
+      const p = db.partners.find((x) => x.id === partnerId);
+      if (!p) throw new Error("Partner niet gevonden.");
+      p.documenten = (p.documenten ?? []).filter((d) => d.id !== docId);
+      p.bijgewerktOp = new Date().toISOString();
+    });
+    revalidatePath(`/partners/${partnerId}`);
   });
 }
 

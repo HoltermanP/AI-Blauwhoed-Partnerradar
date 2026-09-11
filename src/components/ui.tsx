@@ -43,7 +43,8 @@ const statusKleur: Record<PartnerStatus, "grijs" | "blauw" | "groen" | "geel" | 
   preferred: "groen",
   prospect: "geel",
   afgewezen: "grijs",
-  geblokkeerd: "rood"
+  geblokkeerd: "rood",
+  gearchiveerd: "grijs"
 };
 
 export function StatusBadge({ status }: { status: PartnerStatus }) {

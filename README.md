@@ -13,6 +13,15 @@ npm run smoke      # rooktest van de domeinlogica (matching, team, afleiding, di
 npm run typecheck
 ```
 
+## Nieuw in deze fase (acht onderdelen + twee dwarsdoorsnijdende eisen)
+
+- **Eis 1 — herkomst en status per gegeven**: elke waarde draagt bron, datum, betrouwbaarheid en status (voorgesteld / gevalideerd / verouderd). Alleen een mens valideert; een herverrijking die iets anders vindt wordt een signaal naast de gevalideerde waarde ("wijkt af van gevalideerd"); per veld is een vervaltermijn instelbaar (Beheer → Factoren); herkomst is per partner exporteerbaar en verwijderbaar (AVG, partnertab Brondata).
+- **Eis 2 — kosten per AI-bewerking**: één gebruikershandeling = één bewerking met daaronder de modelaanroepen (tokens, model, kosten, tijdstip, gebruiker of "systeem"). Beheer toont maandverbruik tegen een instelbaar budget met 80%-melding; boven budget starten geplande rondes niet en houden interactieve functies voorrang; het verrijkingsscherm toont vooraf verwachte bewerkingen en kosten.
+- **Verrijking**: bij aanmaken, op verzoek (knop op elk dossier) en als hervatbare ronde (knop of cron). Rondes hebben een verschillenoverzicht (nieuw / gewijzigd / niet langer bevestigd / ongewijzigd overgeslagen via inhoudshash); extra openbare bronnen zijn configuratie, geen code.
+- **Zoeken — drie ingangen**: AI-chat (/chat, verwijst altijd naar onderliggende partnerrecords), klassiek filteren met kolomkeuze (/partners), semantisch zoeken (/zoeken).
+- **Verbanden** (/verbanden): afgeleid uit gedeelde projecthistorie en openbare vermeldingen, altijd met bron, gepresenteerd als signaal.
+- **Overig**: archiveren i.p.v. verwijderen (status gearchiveerd, buiten zoeken/matching/verbanden), documenten per partner (URL/tekst), CSV-export van partners (incl. herkomststatus per waarde) en projecthistorie, datakwaliteit per veld en partnertype (Beheer), veldkoppeling en fuzzy dubbelencontrole bij import, opgeslagen zoekprofielen voor discovery.
+
 ## Productiegebruik (echte data)
 
 **Hosting**: stel op productie `DATABASE_URL` (Neon) in. Zonder die variabele bouwt elke serverless-instantie zijn eigen in-memory database op; lezen werkt (IDs zijn stabiel en naam-gebaseerd, bijv. `p-giesbers`), maar wijzigingen gaan verloren zodra een instantie wordt gerecycled. Een opgeslagen database wordt bij het laden automatisch gemigreerd naar de huidige versie (`src/lib/domain/migratie.ts`: tijdstempel-IDs → stabiele IDs, aanvullende dataset) en direct teruggeschreven.

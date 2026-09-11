@@ -9,6 +9,9 @@ import { Instellingen } from "@/components/beheer/Instellingen";
 import { DemoReset } from "@/components/beheer/DemoReset";
 import AIKosten from "@/components/beheer/AIKosten";
 import { budgetStatus, maandVerbruik } from "@/lib/domain/kosten";
+import { basisVeldKwaliteit, veldKwaliteit } from "@/lib/domain/datakwaliteit";
+import { ROLLEN, type Rol } from "@/lib/domain/types";
+import { ROL_LABEL } from "@/lib/format";
 import { datumTijd } from "@/lib/format";
 
 // US-45: lokale kopie van de RECHTEN-matrix uit src/lib/auth.ts (die exporteert de tabel niet; auth.ts wordt niet gewijzigd).
@@ -24,13 +27,17 @@ const RECHTEN: Array<{ id: Parameters<typeof heeftRecht>[1]; label: string; uitl
 ];
 const ROLLEN_GEBRUIKER: Gebruikersrol[] = ["lezer", "bewerker", "inkoper", "beheerder"];
 
-export default async function BeheerPagina() {
+export default async function BeheerPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
+  const dkRol = ROLLEN.includes(sp.dkrol as Rol) ? (sp.dkrol as Rol) : undefined;
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBeheren = heeftRecht(gebruiker.rol, "beheer");
   const actieveFactoren = db.factoren.filter((f) => f.actief).length;
   const verbruik = maandVerbruik(db.aiBewerkingen ?? []);
   const budget = budgetStatus(db);
   const laatsteBewerkingen = (db.aiBewerkingen ?? []).slice(0, 10);
+  const kwaliteit = veldKwaliteit(db, dkRol);
+  const basisKwaliteit = basisVeldKwaliteit(db, dkRol);
   const SOORT_LABEL: Record<string, string> = { verrijking: "verrijking (1 partner)", verrijkingsronde: "verrijkingsronde", discovery: "discovery", projectextractie: "projectextractie", chat: "chat", samenvatting: "samenvatting", overig: "overig" };
 
   return (
@@ -101,6 +108,40 @@ export default async function BeheerPagina() {
         </div>
 
         <div>
+          <Kaart titel="Datakwaliteit per veld (B8)">
+            <form method="get" className="formulierActies" style={{ marginBottom: 10 }}>
+              <label>
+                Partnertype
+                <select name="dkrol" defaultValue={dkRol ?? ""}>
+                  <option value="">Alle rollen</option>
+                  {ROLLEN.map((r) => (
+                    <option key={r} value={r}>{ROL_LABEL[r]}</option>
+                  ))}
+                </select>
+              </label>
+              <button type="submit" className="knop klein">Tonen</button>
+            </form>
+            <p className="muted klein-tekst">Basisvelden: {basisKwaliteit.map((b) => `${b.veld} ${b.pct}%`).join(" · ")}</p>
+            <div className="tabelWrap">
+              <table className="tabel">
+                <thead>
+                  <tr><th>Veld</th><th className="num">Relevant</th><th className="num">Volledig</th><th className="num">Gevalideerd</th><th className="num">Verouderd</th><th className="num">Gem. betrouwb.</th></tr>
+                </thead>
+                <tbody>
+                  {kwaliteit.map((k) => (
+                    <tr key={k.factorId}>
+                      <td><b>{k.naam}</b><div className="muted klein-tekst">{k.categorie}</div></td>
+                      <td className="num">{k.relevant}</td>
+                      <td className="num"><Badge kleur={k.pctVolledig >= 60 ? "groen" : k.pctVolledig >= 25 ? "geel" : "rood"}>{k.pctVolledig}%</Badge></td>
+                      <td className="num">{k.pctGevalideerd}%</td>
+                      <td className="num">{k.pctVerouderd ? <Badge kleur="rood">{k.pctVerouderd}%</Badge> : "0%"}</td>
+                      <td className="num">{k.gemBetrouwbaarheid !== null ? `${k.gemBetrouwbaarheid}%` : "–"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Kaart>
           <Kaart titel="AI-verbruik en kosten (eis 2)">
             {budget.overschreden ? <Melding soort="fout">Maandbudget overschreden: geplande verrijkingsrondes zijn gepauzeerd; interactieve functies gaan voor.</Melding> : budget.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
             <dl className="definities">

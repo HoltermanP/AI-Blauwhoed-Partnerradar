@@ -1,7 +1,8 @@
 // Kern-domeinmodel van de Slimme Partnerdatabase.
 // Zie backlog hoofdstuk 2 (datamodel) en 3 (factorenmodel).
 
-export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd";
+/** 'gearchiveerd' vervangt verwijderen: de partner blijft raadpleegbaar maar telt niet mee in zoeken, matching en verbanden. */
+export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd" | "gearchiveerd";
 
 export type Rol = "architect" | "aannemer" | "installateur" | "adviseur" | "leverancier" | "ontwikkelpartner";
 
@@ -187,6 +188,18 @@ export type Financieel = {
   toelichting?: string;
 };
 
+/** Onderdeel 1: document per partner — verwijzing (URL) en/of geplakte openbare tekst; binaire opslag vergt een blobdienst en valt buiten scope. */
+export type PartnerDocument = {
+  id: string;
+  naam: string;
+  soort: "brochure" | "certificaat" | "contract" | "referentie" | "overig";
+  url?: string;
+  tekst?: string;
+  toelichting?: string;
+  toegevoegdDoor: string;
+  op: string;
+};
+
 export type Geo = { lat: number; lng: number };
 
 export type Partner = {
@@ -215,6 +228,7 @@ export type Partner = {
   factoren: PartnerFactor[];
   certificaten: Certificaat[];
   contactpersonen: Contactpersoon[];
+  documenten?: PartnerDocument[];
   kwalificatie: Kwalificatie[];
   financieel?: Financieel;
   bronnen: Array<{ url: string; opgehaaldOp: string; soort: string }>;

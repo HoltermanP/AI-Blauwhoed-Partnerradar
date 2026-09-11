@@ -18,7 +18,7 @@ function sleutel(a: string, b: string) {
 /** Leid verbanden af uit gedeelde projecthistorie en uit naamsvermeldingen in openbare teksten (referenties/omschrijving). */
 export function leidVerbandenAf(db: Database): Verband[] {
   const map = new Map<string, Verband>();
-  const partners = db.partners.filter((p) => p.status !== "geblokkeerd" && (p.status as string) !== "gearchiveerd");
+  const partners = db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd");
   const voeg = (a: Partner, b: Partner, bron: VerbandBron) => {
     if (a.id === b.id) return;
     const k = sleutel(a.id, b.id);

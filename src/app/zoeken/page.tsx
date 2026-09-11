@@ -8,7 +8,7 @@ import { ROL_LABEL, STATUS_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
 
 const VOORBEELDEN = ["circulaire houtbouw met demontabele gevel", "hoogstedelijke woontoren", "transformatie monument", "zorgwonen met sterke planningsdiscipline"];
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd"];
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
 const CERTIFICATEN: CertificaatType[] = ["ISO 9001", "ISO 14001", "VCA", "CO2-prestatieladder", "FSC", "PEFC", "BREEAM-expertise", "Woonkeur", "KOMO"];
 
 /** De zin uit omschrijving/referenties met de meeste semantische treffers. */

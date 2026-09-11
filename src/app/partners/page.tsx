@@ -14,7 +14,7 @@ import { parseKenmerken, type KenmerkEis } from "@/components/partners/kenmerken
 import { leidEisenAf } from "@/lib/domain/projectfactoren";
 
 
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd"];
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
 
 export default async function PartnersPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -65,6 +65,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       }
       if (rol && !p.rollen.includes(rol)) return false;
       if (status && p.status !== status) return false;
+      if (!status && p.status === "gearchiveerd") return false; // gearchiveerd alleen via het statusfilter
       if (cert && !p.certificaten.some((c) => c.type === cert && new Date(c.geldigTot) >= nu)) return false;
       if (centrum && afstand !== null && straal && afstand > straal) return false;
       if (kenmerken.length && !voldoet) return false;
@@ -100,10 +101,11 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
           magBewerken ? (
             <>
               <PartnerImport magBewerken={magBewerken} />
+              <Knop href="/api/export/partners" variant="secundair">Export (CSV)</Knop>
               <Knop href="/partners/nieuw">Nieuwe partner</Knop>
             </>
           ) : (
-            <span className="muted klein-tekst">Uw rol mag geen partners toevoegen.</span>
+            <Knop href="/api/export/partners" variant="secundair">Export (CSV)</Knop>
           )
         }
       />

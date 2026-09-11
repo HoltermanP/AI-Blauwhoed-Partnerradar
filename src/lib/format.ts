@@ -19,7 +19,8 @@ export const STATUS_LABEL: Record<PartnerStatus, string> = {
   prospect: "Prospect",
   afgewezen: "Afgewezen",
   preferred: "Preferred",
-  geblokkeerd: "Geblokkeerd"
+  geblokkeerd: "Geblokkeerd",
+  gearchiveerd: "Gearchiveerd"
 };
 
 export function waardeTekst(w: FactorWaarde | null | undefined): string {

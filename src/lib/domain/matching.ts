@@ -105,6 +105,7 @@ export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: Mat
   const { project } = ctx;
   const u = (soort: Uitsluiting["soort"], reden: string, factorId?: string): Uitsluiting => ({ partnerId: partner.id, partnerNaam: partner.naam, reden, soort, factorId });
 
+  if (partner.status === "gearchiveerd") return u("status", "Gearchiveerd: telt niet mee in matching.", "uitsluiting");
   if (partner.status === "geblokkeerd" && (!partner.geblokkeerdTot || new Date(partner.geblokkeerdTot) >= nu))
     return u("status", `Geblokkeerd${partner.statusReden ? `: ${partner.statusReden}` : ""}${partner.geblokkeerdTot ? ` (tot ${partner.geblokkeerdTot})` : ""}.`, "uitsluiting");
   if (partner.status === "afgewezen") return u("status", `Afgewezen${partner.statusReden ? `: ${partner.statusReden}` : ""}.`, "uitsluiting");
@@ -285,7 +286,7 @@ export function matchProject(ctx: MatchContext, eisen = ctx.project.eisen): RolR
 /** US-15: vrije semantische zoekopdracht over alle partners. */
 export function semantischZoeken(db: Database, vraag: string, limiet = 20) {
   return db.partners
-    .filter((p) => p.status !== "geblokkeerd")
+    .filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd")
     .map((p) => {
       const s = semantischeGelijkenis(vraag, profieltekst(p));
       return { partner: p, score: Math.round(s.score * 100), treffers: s.treffers };

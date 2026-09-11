@@ -8,7 +8,7 @@ import type { PartnerStatus } from "@/lib/domain/types";
 import { STATUS_LABEL } from "@/lib/format";
 import { Melding } from "@/components/ui";
 
-const KEUZES: PartnerStatus[] = ["bekend", "preferred", "afgewezen", "geblokkeerd"];
+const KEUZES: PartnerStatus[] = ["bekend", "preferred", "afgewezen", "geblokkeerd", "gearchiveerd"];
 
 export default function StatusBeheer({ partnerId, huidig, reden, geblokkeerdTot, magBewerken, magPromoveren }: { partnerId: string; huidig: PartnerStatus; reden?: string; geblokkeerdTot?: string; magBewerken: boolean; magPromoveren: boolean }) {
   const router = useRouter();

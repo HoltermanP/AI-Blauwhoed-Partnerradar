@@ -31,6 +31,6 @@ export function chatRecord(p: Partner, db: Database) {
 /** Selecteer de relevantste partners voor een vraag (semantisch) en geef ze als compacte records. */
 export function chatContext(db: Database, vraag: string, max = 15) {
   const treffers = semantischZoeken(db, vraag, max);
-  const partners = treffers.length ? treffers.map((t) => t.partner) : db.partners.filter((p) => p.status !== "geblokkeerd").slice(0, max);
+  const partners = treffers.length ? treffers.map((t) => t.partner) : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd").slice(0, max);
   return { partners, records: partners.map((p) => chatRecord(p, db)) };
 }

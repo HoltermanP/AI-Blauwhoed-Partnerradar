@@ -8,7 +8,7 @@ import { getDb } from "@/lib/store";
 import { Kaart, Leeg, PaginaKop, StatusBadge } from "@/components/ui";
 import { NederlandKaart, STATUS_KLEUR, type KaartKoppeling } from "@/components/kaart/NederlandKaart";
 
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd"];
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
 const isRol = (r: string | undefined): r is Rol => !!r && (ROLLEN as string[]).includes(r);
 const isStatus = (s: string | undefined): s is PartnerStatus => !!s && (STATUSSEN as string[]).includes(s);
 

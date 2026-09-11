@@ -1,6 +1,7 @@
 // Partners importeren uit Excel/CSV (o.a. het Blauwhoed-overzicht houtbouwers). Kolommen worden soepel herkend;
 // bruikbare kenmerken worden als factorwaarde met bron 'opgave' vastgelegd, de rest als tags/omschrijving.
 import { normaliseerNaam } from "./discovery";
+import { naamGelijkenis } from "./fuzzy";
 import type { Bron, Database, Geo, PartnerFactor, Rol } from "./types";
 
 export type ImportRij = Record<string, string | number | boolean | null | undefined>;
@@ -179,7 +180,10 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
   const uitkomst: ImportUitkomst = { gelezen: partners.length, nieuw: 0, bijgewerkt: 0, overgeslagen: [], zonderLocatie: 0 };
   const nu = new Date().toISOString();
   partners.forEach((p) => {
-    const bestaand = db.partners.find((x) => (p.kvk && x.kvk === p.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(p.naam));
+    const bestaand =
+      db.partners.find((x) => (p.kvk && x.kvk === p.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(p.naam)) ??
+      // Fuzzy op naam (onderdeel 3), behoudend zodat verschillende bedrijven niet samensmelten.
+      db.partners.map((x) => ({ x, score: naamGelijkenis(x.naam, p.naam) })).filter((r) => r.score >= 0.92).sort((a, b) => b.score - a.score)[0]?.x;
     const geo = p.plaats ? locaties.get(p.plaats) ?? null : null;
     const factoren: PartnerFactor[] = p.factoren.map((f) => ({ ...f, peildatum: nu.slice(0, 10), status: f.status ?? (f.bron === "web" ? "voorgesteld" : "gevalideerd") }));
     if (bestaand) {

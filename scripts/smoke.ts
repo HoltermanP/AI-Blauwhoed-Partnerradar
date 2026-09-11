@@ -16,6 +16,9 @@ import { kiesSubpaginas, leesReferenties, pastBijNaam } from "../src/lib/domain/
 import { maakSeedIdGenerator, migreerDatabase } from "../src/lib/domain/migratie";
 import { effectieveStatus, herkomstExport, wisHerkomst } from "../src/lib/domain/herkomst";
 import { leidVerbandenAf } from "../src/lib/domain/verbanden";
+import { naamGelijkenis } from "../src/lib/domain/fuzzy";
+import { naarCsv, partnersCsv } from "../src/lib/domain/export";
+import { veldKwaliteit } from "../src/lib/domain/datakwaliteit";
 import { budgetStatus, kostenUsd, maandVerbruik, schatVerrijkingsronde } from "../src/lib/domain/kosten";
 
 let fouten = 0;
@@ -165,6 +168,21 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
 {
   const verbanden = leidVerbandenAf(db);
   check("B7: verbanden uit gedeelde projecthistorie met bron", verbanden.length > 0 && verbanden.every((v) => v.bronnen.length > 0) && verbanden.some((v) => v.bronnen.some((b) => b.soort === "project")));
+}
+
+// B8: fuzzy dubbelen, export, datakwaliteit, archiveren
+{
+  check("B8: fuzzy naamvergelijking", naamGelijkenis("Giesbers Ontwikkelen en Bouwen", "Giesbers Wijchen") > 0.4 && naamGelijkenis("Van Wijnen B.V.", "van wijnen") === 1 && naamGelijkenis("Dura Vermeer", "Heijmans") < 0.3);
+  check("B8: dubbel via fuzzy naam", vindDubbel({ naam: "Woudbouw Group" }, db.partners)?.partner.id === "p-woudbouw");
+  const csv = partnersCsv(db);
+  check("B8: partnerexport CSV met herkomststatus", csv.includes("Naam;KVK;Status") && csv.includes("[gevalideerd") && csv.split("\r\n").length > db.partners.length);
+  check("B8: naarCsv ontsnapt", naarCsv([{ a: 'x;"y"' }]).includes('"x;""y"""'));
+  const kwaliteit = veldKwaliteit(db);
+  check("B8: datakwaliteit per veld", kwaliteit.length > 10 && kwaliteit.every((k) => k.pctVolledig >= 0 && k.pctVolledig <= 100));
+  const gearchiveerd = { ...db.partners[0], id: "p-arch-test", naam: "Archieftest BV", status: "gearchiveerd" as const };
+  db.partners.push(gearchiveerd);
+  check("B8: gearchiveerd buiten verbanden en semantisch zoeken", !leidVerbandenAf(db).some((v) => v.a.id === gearchiveerd.id || v.b.id === gearchiveerd.id) && !semantischZoeken(db, "houtbouw", 200).some((t) => t.partner.id === gearchiveerd.id));
+  db.partners = db.partners.filter((p) => p.id !== gearchiveerd.id);
 }
 
 // Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs

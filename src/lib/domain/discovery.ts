@@ -2,6 +2,7 @@
 import { DEMO_BEDRIJVEN_EXTRA } from "./bronnen-demo";
 import { semantischeGelijkenis } from "./embedding";
 import { geocode } from "./geo";
+import { naamGelijkenis } from "./fuzzy";
 import type { AISamenvatting, Database, DiscoveryCandidate, Partner, Project, Rol } from "./types";
 
 export function normaliseerNaam(naam: string) {
@@ -25,6 +26,12 @@ export function vindDubbel(kandidaat: Pick<DiscoveryCandidate, "naam" | "kvk" | 
   const naam = normaliseerNaam(kandidaat.naam);
   const opNaam = partners.find((p) => normaliseerNaam(p.naam) === naam);
   if (opNaam) return { partner: opNaam, reden: `Naam komt overeen met ${opNaam.naam}` };
+  // Fuzzy op naam (onderdeel 3): sterk gelijkende namen zijn een mogelijk dubbel.
+  const fuzzy = partners
+    .map((p) => ({ p, score: naamGelijkenis(kandidaat.naam, p.naam) }))
+    .filter((x) => x.score >= 0.85)
+    .sort((a, b) => b.score - a.score)[0];
+  if (fuzzy) return { partner: fuzzy.p, reden: `Naam lijkt sterk op ${fuzzy.p.naam} (${Math.round(fuzzy.score * 100)}%)` };
   const adres = normaliseerAdres(kandidaat.adres);
   if (adres) {
     const opAdres = partners.find((p) => normaliseerAdres(p.adres) === adres && p.vestigingsplaats.toLowerCase() === (kandidaat.vestigingsplaats ?? "").toLowerCase());
