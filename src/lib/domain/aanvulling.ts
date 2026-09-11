@@ -124,11 +124,11 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
       const m = KENMERK_FACTOR[k];
       if (!m) return;
       const idx = factoren.findIndex((f) => f.factorId === m.factorId && (f.optieId ?? "") === (m.optieId ?? ""));
-      const record: PartnerFactor = { factorId: m.factorId, optieId: m.optieId, waarde: m.waarde, bron: "web", betrouwbaarheid: 0.5, peildatum: AANVULLING.peildatum, bewijs: { soort: "url", ref: a.bronUrl, label: a.bronUrl }, toelichting: `geclaimd: kenmerk '${k}' op openbare bron` };
+      const record: PartnerFactor = { factorId: m.factorId, optieId: m.optieId, waarde: m.waarde, bron: "web", betrouwbaarheid: 0.5, status: "voorgesteld", peildatum: AANVULLING.peildatum, bewijs: { soort: "url", ref: a.bronUrl, label: a.bronUrl }, toelichting: `geclaimd: kenmerk '${k}' op openbare bron` };
       if (idx < 0) factoren.push(record);
       else if (typeof m.waarde === "number" && m.waarde > Number(factoren[idx].waarde)) factoren[idx] = record;
     });
-    if (a.medewerkers) factoren.push({ factorId: "organisatieomvang", waarde: a.medewerkers, bron: "web", betrouwbaarheid: 0.5, peildatum: AANVULLING.peildatum, bewijs: { soort: "url", ref: a.bronUrl, label: a.bronUrl } });
+    if (a.medewerkers) factoren.push({ factorId: "organisatieomvang", waarde: a.medewerkers, bron: "web", betrouwbaarheid: 0.5, status: "voorgesteld", peildatum: AANVULLING.peildatum, bewijs: { soort: "url", ref: a.bronUrl, label: a.bronUrl } });
     const tags = [...(a.certificaten ?? []).map((c) => `certificaat:${c}`), ...(a.kenmerken ?? []), ...(a.blauwhoedRelatie ? ["blauwhoed-relatie"] : [])];
     const bestaand = (a.kvk && db.partners.find((p) => p.kvk === a.kvk)) || vindPartner(db, a.naam);
     if (bestaand) {

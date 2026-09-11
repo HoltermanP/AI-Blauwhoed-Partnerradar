@@ -13,6 +13,7 @@ import { geocodeer } from "./domain/geocode";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type ImportUitkomst } from "./domain/partnerimport";
 import { webzoekConnector } from "./domain/webzoek";
 import { BASISVELDEN, verrijkVanuitInternet } from "./domain/webverrijking";
+import { effectieveStatus, herkomstExport, wisHerkomst } from "./domain/herkomst";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
 import { aiBeschikbaar, aiFactorExtractie, aiProjectExtractie, aiSamenvatting } from "./ai";
@@ -166,7 +167,8 @@ export async function slaPartnerFactorOp(partnerId: string, factor: Omit<Partner
       if (!f || !f.actief) throw new Error("Factor bestaat niet of is gearchiveerd.");
       if (f.opties && factor.optieId && !f.opties.some((o) => o.id === factor.optieId && o.actief)) throw new Error("Optie komt niet uit de waardenlijst.");
       const idx = p.factoren.findIndex((x) => x.factorId === factor.factorId && (x.optieId ?? "") === (factor.optieId ?? ""));
-      const record: PartnerFactor = { ...factor, peildatum: factor.peildatum ?? new Date().toISOString().slice(0, 10) };
+      // Handmatige invoer is een menselijke vaststelling: status 'gevalideerd' met naam en datum (eis 1).
+      const record: PartnerFactor = { ...factor, peildatum: factor.peildatum ?? new Date().toISOString().slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdOp: new Date().toISOString().slice(0, 10) };
       if (idx >= 0) p.factoren[idx] = record;
       else p.factoren.push(record);
       p.bijgewerktOp = new Date().toISOString();
@@ -718,6 +720,14 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string): Pr
       voorstellen.push({ id: nieuwId("ev-ai"), partnerId: p.id, factorId: a.factorId, veld: optieLabel ? `${f.naam}: ${optieLabel}` : f.naam, huidig: huidig?.waarde ?? null, voorgesteld: a.waarde, bron: "web", bronUrl, betrouwbaarheid: a.aantoonbaar ? 0.6 : 0.35, soort: a.aantoonbaar ? "aantoonbaar" : "geclaimd", citaat: `[Claude] ${a.citaat}`, status: "open", gevondenOp: new Date().toISOString() });
     });
   }
+  // Eis 1: markeer per voorstel de aard (nieuw/gewijzigd) en of het afwijkt van een door een mens gevalideerde waarde.
+  voorstellen.forEach((v) => {
+    v.aard = v.aard ?? (v.huidig === null ? "nieuw" : "gewijzigd");
+    if (!v.factorId) return;
+    const huidige = p.factoren.find((x) => x.factorId === v.factorId && (v.veld.includes(":") ? Boolean(x.optieId) : !x.optieId));
+    const f = db.factoren.find((x) => x.id === v.factorId);
+    if (huidige && effectieveStatus(huidige, f) === "gevalideerd" && JSON.stringify(huidige.waarde) !== JSON.stringify(v.voorgesteld)) v.conflictMetGevalideerd = true;
+  });
   return { voorstellen, bronUrl, paginas, websiteGevonden };
 }
 
@@ -823,7 +833,19 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
       }
       const optieLabel = v.veld.includes(":") ? v.veld.split(":")[1].trim().toLowerCase() : undefined;
       const optie = optieLabel ? db.factoren.find((f) => f.id === v.factorId)?.opties?.find((o) => o.label.toLowerCase() === optieLabel || o.id === optieLabel.replace(/ /g, "_"))?.id : undefined;
-      const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: "web", betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? "web" }, peildatum: v.gevondenOp.slice(0, 10), toelichting: `${v.soort}: ${v.citaat}` };
+      if (v.aard === "niet_bevestigd") {
+        // 'Niet langer bevestigd' geaccepteerd: de waarde blijft staan maar wordt door een mens op 'verouderd' gezet.
+        const doel = p.factoren.find((x) => x.factorId === v.factorId && (x.optieId ?? "") === (optie ?? "") && JSON.stringify(x.waarde) === JSON.stringify(v.huidig)) ?? p.factoren.find((x) => x.factorId === v.factorId && (x.optieId ?? "") === (optie ?? ""));
+        if (doel) {
+          doel.status = "verouderd";
+          doel.toelichting = [doel.toelichting, `Niet langer bevestigd op ${v.bronUrl ?? "bron"} (${v.gevondenOp.slice(0, 10)}), beoordeeld door ${g.naam}.`].filter(Boolean).join(" ");
+        }
+        p.bronnen.push({ url: v.bronUrl ?? "", opgehaaldOp: v.gevondenOp.slice(0, 10), soort: "verrijking" });
+        p.bijgewerktOp = nu;
+        return;
+      }
+      // Acceptatie is een menselijke beoordeling: de nieuwe waarde is daarmee gevalideerd (eis 1).
+      const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: "web", betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? "web" }, peildatum: v.gevondenOp.slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdOp: nu.slice(0, 10), toelichting: `${v.soort}: ${v.citaat}` };
       const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
       if (idx >= 0) p.factoren[idx] = record;
       else p.factoren.push(record);
@@ -832,6 +854,34 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
     });
     revalidatePath("/verrijking");
     if (partnerId) revalidatePath(`/partners/${partnerId}`);
+  });
+}
+
+// ---------- Herkomst (AVG, eis 1) ----------
+/** AVG: exporteer alle herkomstinformatie (bron, datum, betrouwbaarheid, status per waarde) van één partner. */
+export async function exporteerHerkomst(partnerId: string) {
+  return veilig(async () => {
+    await vereisRecht("lezen");
+    const db = await getDb();
+    const p = db.partners.find((x) => x.id === partnerId);
+    if (!p) throw new Error("Partner niet gevonden.");
+    return herkomstExport(p, db.factoren);
+  });
+}
+
+/** AVG: verwijder alle herkomstinformatie van één partner (bronnen, bewijs, citaten, ruwe brondata). */
+export async function wisHerkomstPartner(partnerId: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("beheer");
+    const n = await muteer(g, { entiteit: "partner", entiteitId: partnerId, actie: "herkomst gewist (AVG)" }, (db) => {
+      const p = db.partners.find((x) => x.id === partnerId);
+      if (!p) throw new Error("Partner niet gevonden.");
+      const n = wisHerkomst(p);
+      p.bijgewerktOp = new Date().toISOString();
+      return n;
+    });
+    revalidatePath(`/partners/${partnerId}`);
+    return n;
   });
 }
 

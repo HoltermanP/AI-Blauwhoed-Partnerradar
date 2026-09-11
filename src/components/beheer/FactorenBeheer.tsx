@@ -165,6 +165,7 @@ function FactorRij({ factor: f, gebruik: g, magBeheren, bezig, bewerkt, onBewerk
   const [omschrijving, setOmschrijving] = useState(f.omschrijving);
   const [type, setType] = useState<FactorType>(f.type);
   const [rollen, setRollen] = useState<Rol[]>(f.rollen);
+  const [vervalMaanden, setVervalMaanden] = useState(f.vervalMaanden ? String(f.vervalMaanden) : "");
   const [nieuweOptie, setNieuweOptie] = useState("");
   const [hernoem, setHernoem] = useState<{ id: string; label: string } | null>(null);
   const magOpties = f.schaal.soort === "niveau" || f.schaal.soort === "keuze";
@@ -180,7 +181,10 @@ function FactorRij({ factor: f, gebruik: g, magBeheren, bezig, bewerkt, onBewerk
           {f.samengevoegdIn ? <div className="muted klein-tekst">Samengevoegd in: {f.samengevoegdIn}</div> : null}
         </td>
         <td><Badge kleur={TYPE_KLEUR[f.type]}>{f.type}</Badge></td>
-        <td className="klein-tekst">{schaalTekst(f.schaal)}</td>
+        <td className="klein-tekst">
+          {schaalTekst(f.schaal)}
+          {f.vervalMaanden ? <div className="muted">vervalt na {f.vervalMaanden} mnd</div> : null}
+        </td>
         <td className="klein-tekst">{f.rollen.length === 0 ? <span className="muted">alle</span> : f.rollen.map((r) => ROL_LABEL[r]).join(", ")}</td>
         <td>
           {f.opties?.map((o) => (
@@ -231,6 +235,10 @@ function FactorRij({ factor: f, gebruik: g, magBeheren, bezig, bewerkt, onBewerk
                 Omschrijving
                 <textarea value={omschrijving} onChange={(e) => setOmschrijving(e.target.value)} />
               </label>
+              <label>
+                Vervaltermijn in maanden (eis 1: een waarde ouder dan deze termijn geldt automatisch als &lsquo;verouderd&rsquo;; leeg = verjaart niet)
+                <input type="number" min={1} value={vervalMaanden} onChange={(e) => setVervalMaanden(e.target.value)} style={{ maxWidth: 140 }} />
+              </label>
               <div className="vinkjes">
                 <span className="muted klein-tekst">Rollen (geen = alle):</span>
                 {ROLLEN.map((r) => (
@@ -240,7 +248,7 @@ function FactorRij({ factor: f, gebruik: g, magBeheren, bezig, bewerkt, onBewerk
                 ))}
               </div>
               <div className="formulierActies">
-                <button type="button" className="knop klein" disabled={bezig || !naam.trim()} onClick={() => onOpslaan({ ...f, naam: naam.trim(), omschrijving, type, rollen })}>
+                <button type="button" className="knop klein" disabled={bezig || !naam.trim()} onClick={() => onOpslaan({ ...f, naam: naam.trim(), omschrijving, type, rollen, vervalMaanden: Number(vervalMaanden) > 0 ? Number(vervalMaanden) : undefined })}>
                   Factor opslaan (nieuwe versie)
                 </button>
                 <span className="muted klein-tekst">Schaal en categorie wijzigen niet: dat zou bestaande partnerwaarden onvergelijkbaar maken. Maak dan een nieuwe factor en voeg samen.</span>

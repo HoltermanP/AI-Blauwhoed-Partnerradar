@@ -6,6 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { slaPartnerFactorOp, verwijderPartnerFactor } from "@/lib/actions";
 import { BRON_BETROUWBAARHEID, type Bron, type Factor, type FactorWaarde, type PartnerFactor, type Rol } from "@/lib/domain/types";
 import { datum, waardeTekst } from "@/lib/format";
+import { effectieveStatus } from "@/lib/domain/herkomst";
 import { Badge, Melding } from "@/components/ui";
 import { FactorWaardeVeld, standaardWaarde } from "./FactorWaardeVeld";
 
@@ -20,6 +21,15 @@ type Props = {
   handmatig: PartnerFactor[];
   magBewerken: boolean;
 };
+
+/** Eis 1: status per waarde. 'verouderd' wordt berekend uit peildatum + vervaltermijn van de factor. */
+function WaardeStatus({ pf, factor }: { pf: PartnerFactor; factor?: Factor }) {
+  const st = effectieveStatus(pf, factor);
+  if (!st) return <span className="muted" title="Berekende waarde; geen validatiestatus">berekend</span>;
+  const kleur = st === "gevalideerd" ? "groen" : st === "verouderd" ? "rood" : "geel";
+  const titel = st === "gevalideerd" ? `Gevalideerd door ${pf.gevalideerdDoor ?? "?"} op ${pf.gevalideerdOp ? datum(pf.gevalideerdOp) : "?"}` : st === "verouderd" ? "Ouder dan de vervaltermijn van dit veld, of door een mens vervallen verklaard" : "Nog niet door een mens gevalideerd";
+  return <Badge kleur={kleur} titel={titel}>{st}</Badge>;
+}
 
 function bewijsLink(pf: PartnerFactor) {
   if (!pf.bewijs) return <span className="muted">–</span>;
@@ -105,6 +115,7 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                   <th>Optie</th>
                   <th>Waarde</th>
                   <th>Bron</th>
+                  <th>Status</th>
                   <th className="num">Betrouwb.</th>
                   <th>Peildatum</th>
                   <th>Bewijs</th>
@@ -119,7 +130,7 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                   const eigen = handmatigMap.get(k);
                   const open = openRij === k;
                   return (
-                    <RijMetFormulier key={k} open={open} kolommen={magBewerken ? 9 : 8} formulier={
+                    <RijMetFormulier key={k} open={open} kolommen={magBewerken ? 10 : 9} formulier={
                       f && open ? (
                         <OverschrijfFormulier
                           partnerId={partnerId}
@@ -147,6 +158,7 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                       <td>
                         {pf.bron} {pf.afgeleid ? <Badge kleur="mint">afgeleid</Badge> : null} {pf.overschrijving ? <Badge kleur="geel">overschreven</Badge> : null}
                       </td>
+                      <td><WaardeStatus pf={pf} factor={f} /></td>
                       <td className="num">{Math.round(pf.betrouwbaarheid * 100)}%</td>
                       <td>{datum(pf.peildatum)}</td>
                       <td>{bewijsLink(pf)}</td>

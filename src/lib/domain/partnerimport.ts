@@ -181,7 +181,7 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
   partners.forEach((p) => {
     const bestaand = db.partners.find((x) => (p.kvk && x.kvk === p.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(p.naam));
     const geo = p.plaats ? locaties.get(p.plaats) ?? null : null;
-    const factoren: PartnerFactor[] = p.factoren.map((f) => ({ ...f, peildatum: nu.slice(0, 10) }));
+    const factoren: PartnerFactor[] = p.factoren.map((f) => ({ ...f, peildatum: nu.slice(0, 10), status: f.status ?? (f.bron === "web" ? "voorgesteld" : "gevalideerd") }));
     if (bestaand) {
       // Alleen aanvullen, nooit overschrijven wat al vastligt.
       bestaand.website = bestaand.website || p.website;

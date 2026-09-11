@@ -177,6 +177,7 @@ export const FACTOREN: Factor[] = [
   // D. Duurzaamheid
   {
     id: "mpg",
+    vervalMaanden: 24,
     code: "D1",
     naam: "Gerealiseerde MPG-score",
     omschrijving: "Gemiddelde aantoonbare MPG in opgeleverde projecten (lager is beter).",
@@ -189,6 +190,7 @@ export const FACTOREN: Factor[] = [
   },
   {
     id: "beng",
+    vervalMaanden: 24,
     code: "D2",
     naam: "BENG-prestatie",
     omschrijving: "Gemeten BENG-2 primair fossiel energiegebruik in opgeleverde projecten (lager is beter).",
@@ -201,6 +203,7 @@ export const FACTOREN: Factor[] = [
   },
   {
     id: "biobased",
+    vervalMaanden: 24,
     code: "D3",
     naam: "Aandeel biobased materiaal",
     omschrijving: "Percentage biobased materiaal in recente projecten.",
@@ -225,6 +228,7 @@ export const FACTOREN: Factor[] = [
   },
   {
     id: "co2_ladder",
+    vervalMaanden: 12,
     code: "D5",
     naam: "CO2-prestatieladder",
     omschrijving: "Niveau 1–5 op basis van geldig certificaat. Als harde eis of gewogen inzetbaar.",
@@ -262,6 +266,7 @@ export const FACTOREN: Factor[] = [
   },
   {
     id: "beschikbaarheid",
+    vervalMaanden: 6,
     code: "E2",
     naam: "Beschikbaarheid in de projectperiode",
     omschrijving: "Ja/nee per periode (hard).",
@@ -388,6 +393,7 @@ export const FACTOREN: Factor[] = [
   },
   {
     id: "financiele_gezondheid",
+    vervalMaanden: 12,
     code: "G3",
     naam: "Financiële gezondheid",
     omschrijving: "Risicoklasse op basis van kerncijfers en deponeringen (hard bij 'hoog').",

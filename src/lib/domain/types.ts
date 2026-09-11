@@ -63,6 +63,8 @@ export type Factor = {
   samengevoegdIn?: string;
   /** Afgeleid uit projecthistorie/evaluaties (US-19/20); niet handmatig te vullen behalve als overschrijving. */
   afgeleid?: boolean;
+  /** Vervaltermijn: een waarde ouder dan dit aantal maanden geldt automatisch als 'verouderd'. Leeg = verjaart niet. */
+  vervalMaanden?: number;
   versie: number;
 };
 
@@ -85,6 +87,9 @@ export type Bewijs = {
 
 export type FactorWaarde = number | string | boolean | string[] | { min: number; max: number };
 
+/** Dwarsdoorsnijdende eis 1: status per veldwaarde. Alleen een mens zet een waarde op 'gevalideerd'. */
+export type FactorWaardeStatus = "voorgesteld" | "gevalideerd" | "verouderd";
+
 export type PartnerFactor = {
   factorId: string;
   /** Bij niveau-schalen met opties: de optie waarop dit niveau betrekking heeft. */
@@ -94,6 +99,10 @@ export type PartnerFactor = {
   betrouwbaarheid: number;
   bewijs?: Bewijs;
   peildatum: string;
+  /** Status van deze waarde. Ontbreekt bij afgeleide (berekende) waarden. 'verouderd' wordt ook automatisch berekend uit peildatum + Factor.vervalMaanden. */
+  status?: FactorWaardeStatus;
+  gevalideerdDoor?: string;
+  gevalideerdOp?: string;
   /** true = automatisch afgeleid uit historie; false/undefined = handmatig vastgelegd. */
   afgeleid?: boolean;
   /** Handmatige overschrijving van een afgeleide waarde. */
@@ -448,6 +457,10 @@ export type EnrichmentVoorstel = {
   bronUrl?: string;
   betrouwbaarheid: number;
   soort: "aantoonbaar" | "geclaimd";
+  /** Verschiltype in het rondeoverzicht: nieuw gevonden, gewijzigd t.o.v. huidige waarde, of niet langer bevestigd op de bron. */
+  aard?: "nieuw" | "gewijzigd" | "niet_bevestigd";
+  /** De huidige waarde is door een mens gevalideerd; dit voorstel is een afwijkend signaal en overschrijft nooit stilzwijgend. */
+  conflictMetGevalideerd?: boolean;
   citaat: string;
   status: "open" | "geaccepteerd" | "afgewezen";
   gevondenOp: string;

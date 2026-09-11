@@ -2,7 +2,7 @@
 import { laadAanvulling } from "./aanvulling";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 2;
+export const HUIDIGE_VERSIE = 3;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -76,6 +76,16 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
     uitkomst.hernoemd = mapping.size;
     const alle = [...db.partners, ...db.projecten, ...db.engagements, ...db.evaluaties, ...db.matchRuns, ...db.teams, ...db.kandidaten, ...db.verrijkingsvoorstellen, ...db.audit].map((x) => x.id);
     uitkomst.aanvulling = laadAanvulling(db, locaties, maakSeedIdGenerator(alle), nu);
+  }
+  if (van < 3) {
+    // Eis 1: bestaande waarden krijgen een status. Web-waarden zonder menselijke acceptatie -> 'voorgesteld';
+    // handmatig/geimporteerd vastgelegde waarden -> 'gevalideerd'; afgeleide (berekende) waarden krijgen er geen.
+    db.partners.forEach((p) => {
+      p.factoren.forEach((f) => {
+        if (f.afgeleid || f.status) return;
+        f.status = f.bron === "web" ? "voorgesteld" : "gevalideerd";
+      });
+    });
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

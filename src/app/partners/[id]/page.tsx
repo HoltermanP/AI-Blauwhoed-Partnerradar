@@ -16,6 +16,7 @@ import FactorenBeheer from "@/components/partners/FactorenBeheer";
 import { FinancieelFormulier, KwalificatieChecklist } from "@/components/partners/KwalificatieBeheer";
 import StatusBeheer from "@/components/partners/StatusBeheer";
 import PartnerVerrijken from "@/components/partners/PartnerVerrijken";
+import HerkomstActies from "@/components/partners/HerkomstActies";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
@@ -124,6 +125,8 @@ export default async function PartnerDossier({ params, searchParams }: { params:
                     </td>
                     <td>
                       <Badge kleur={v.soort === "aantoonbaar" ? "groen" : "geel"}>{v.soort}</Badge>
+                      {v.aard === "niet_bevestigd" ? <Badge kleur="rood" titel="De eerder gevonden waarde is niet meer op de bron terug te vinden; accepteren markeert haar als verouderd">niet bevestigd</Badge> : v.aard === "nieuw" ? <Badge kleur="blauw">nieuw</Badge> : null}
+                      {v.conflictMetGevalideerd ? <Badge kleur="rood" titel="Wijkt af van een door een mens gevalideerde waarde; wordt nooit stilzwijgend overschreven">wijkt af van gevalideerd</Badge> : null}
                     </td>
                     <td className="num">{Math.round(v.betrouwbaarheid * 100)}%</td>
                     <td className="citaatCel">
@@ -191,6 +194,11 @@ export default async function PartnerDossier({ params, searchParams }: { params:
             </Kaart>
           </div>
         </div>
+      ) : null}
+      {tab === "brondata" ? (
+        <Kaart titel="Herkomst en AVG (eis 1)">
+          <HerkomstActies partnerId={p.id} partnerNaam={p.naam} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
+        </Kaart>
       ) : null}
       {tab === "brondata" ? (
         <Kaart titel="Alle brondata (oorspronkelijke kolommen per geïmporteerde rij)">

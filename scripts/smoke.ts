@@ -14,6 +14,7 @@ import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "../src/lib/doma
 import houtbouwers from "../src/data/houtbouwers-seed.json";
 import { kiesSubpaginas, leesReferenties, pastBijNaam } from "../src/lib/domain/webverrijking";
 import { maakSeedIdGenerator, migreerDatabase } from "../src/lib/domain/migratie";
+import { effectieveStatus, herkomstExport, wisHerkomst } from "../src/lib/domain/herkomst";
 
 let fouten = 0;
 function check(naam: string, ok: boolean, detail?: unknown) {
@@ -99,6 +100,35 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   check("Aanvulling: geen dubbele partners op naam", new Set(leeg.partners.map((p) => p.naam.toLowerCase())).size === leeg.partners.length);
 }
 
+// Eis 1: herkomst en status per veldwaarde — bron, validatie, afwijkende herverrijking, veroudering, AVG
+{
+  const p = db.partners.find((x) => x.id === "p-woudbouw")!;
+  const factorDef = { ...db.factoren.find((f) => f.id === "mpg")!, vervalMaanden: 24 };
+  // 1. Waarde uit een bron (web) is 'voorgesteld', nooit stilzwijgend leidend.
+  const web: (typeof p.factoren)[number] = { factorId: "mpg", waarde: 0.52, bron: "web", betrouwbaarheid: 0.55, peildatum: "2026-08-01", status: "voorgesteld" };
+  check("Eis 1: bronwaarde is voorgesteld", effectieveStatus(web, factorDef, new Date("2026-08-30")) === "voorgesteld");
+  // 2. Menselijke validatie.
+  const gevalideerd = { ...web, status: "gevalideerd" as const, gevalideerdDoor: "Inkoper", gevalideerdOp: "2026-08-15" };
+  check("Eis 1: mens valideert", effectieveStatus(gevalideerd, factorDef, new Date("2026-08-30")) === "gevalideerd" && gevalideerd.gevalideerdDoor === "Inkoper");
+  // 3. Herverrijking vindt iets anders: voorstel wordt conflictsignaal, gevalideerde waarde blijft staan.
+  p.factoren = p.factoren.filter((f) => f.factorId !== "mpg");
+  p.factoren.push(gevalideerd);
+  const her = extraheerVoorstellen(p, "MPG-berekening (NMD) van 0,61 gerealiseerd in opgeleverd project.", "https://example.org/nieuw");
+  const mpgVoorstel = her.find((v) => v.factorId === "mpg")!;
+  const conflict = JSON.stringify(p.factoren.find((f) => f.factorId === "mpg")!.waarde) !== JSON.stringify(mpgVoorstel.voorgesteld);
+  check("Eis 1: herverrijking overschrijft gevalideerd niet — signaal ernaast", conflict && p.factoren.find((f) => f.factorId === "mpg")!.waarde === 0.52 && mpgVoorstel.voorgesteld === 0.61);
+  // 4. Automatische veroudering na de vervaltermijn.
+  check("Eis 1: automatisch verouderd na termijn", effectieveStatus(gevalideerd, factorDef, new Date("2028-09-15")) === "verouderd");
+  // 5. AVG: export en verwijdering van herkomst.
+  const exp = herkomstExport(p, db.factoren, new Date("2026-08-30"));
+  check("Eis 1: herkomst exporteerbaar", exp.waarden.some((w) => w.bron === "web" && w.status === "gevalideerd") && exp.waarden.every((w) => ["hoog", "midden", "laag"].includes(w.betrouwbaarheid)));
+  const kopie = JSON.parse(JSON.stringify(p)) as typeof p;
+  kopie.bronnen.push({ url: "https://example.org", opgehaaldOp: "2026-08-01", soort: "verrijking" });
+  kopie.factoren[0].bewijs = { soort: "url", ref: "https://example.org", label: "web" };
+  const n = wisHerkomst(kopie);
+  check("Eis 1: herkomst verwijderbaar (AVG)", n > 0 && kopie.bronnen.length === 0 && kopie.factoren.every((f) => !f.bewijs && !f.toelichting) && kopie.factoren.length === p.factoren.length);
+}
+
 // Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs
 {
   const oud = maakLegeDatabase();
@@ -110,7 +140,7 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   const giesbers = oud.partners.find((p) => p.naam === "Giesbers")!;
   oud.engagements.push({ id: "eng-x", partnerId: giesbers.id, projectId: "proj-x", rol: "aannemer", periode: { van: "2024-01-01" }, contractwaarde: 1, bron: "handmatig" });
   const u = migreerDatabase(oud, new Map())!;
-  check("Migratie: versie en hernoemde IDs", oud.versie === 2 && u.hernoemd === 103 && giesbers.id === "p-giesbers", { versie: oud.versie, hernoemd: u.hernoemd, id: giesbers.id });
+  check("Migratie: versie en hernoemde IDs", oud.versie === 3 && u.hernoemd === 103 && giesbers.id === "p-giesbers", { versie: oud.versie, hernoemd: u.hernoemd, id: giesbers.id });
   check("Migratie: verwijzingen meegeschreven", oud.engagements[0].partnerId === "p-giesbers");
   check("Migratie: aanvulling geladen met stabiele IDs", oud.projecten.some((p) => p.id === "proj-casa-vita") && oud.partners.some((p) => p.id === "p-kow"), oud.projecten.map((p) => p.id).slice(0, 3));
   check("Migratie: tweede keer geen effect", migreerDatabase(oud, new Map()) === null);
