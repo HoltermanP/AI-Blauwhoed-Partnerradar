@@ -81,6 +81,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
               Overzicht
             </Knop>
             {magBewerken ? <Knop href={`/partners/${p.id}/bewerken`}>Bewerken</Knop> : null}
+            <Knop href={`/api/export/partner/${p.id}`} variant="secundair">Dossier (PDF)</Knop>
             <PartnerVerrijken partnerId={p.id} magBewerken={magBewerken} externeBronnen={db.instellingen.externeBronnenToegestaan} heeftWebsite={Boolean(p.website)} />
           </>
         }
@@ -199,7 +200,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
       ) : null}
       {tab === "documenten" ? (
         <Kaart titel="Documenten">
-          <DocumentenBeheer partnerId={p.id} documenten={p.documenten ?? []} magBewerken={magBewerken} />
+          <DocumentenBeheer partnerId={p.id} documenten={p.documenten ?? []} magBewerken={magBewerken} blobActief={Boolean(process.env.BLOB_READ_WRITE_TOKEN)} />
         </Kaart>
       ) : null}
       {tab === "brondata" ? (

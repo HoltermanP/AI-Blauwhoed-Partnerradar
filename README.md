@@ -20,7 +20,7 @@ npm run typecheck
 - **Verrijking**: bij aanmaken, op verzoek (knop op elk dossier) en als hervatbare ronde (knop of cron). Rondes hebben een verschillenoverzicht (nieuw / gewijzigd / niet langer bevestigd / ongewijzigd overgeslagen via inhoudshash); extra openbare bronnen zijn configuratie, geen code.
 - **Zoeken — drie ingangen**: AI-chat (/chat, verwijst altijd naar onderliggende partnerrecords), klassiek filteren met kolomkeuze (/partners), semantisch zoeken (/zoeken).
 - **Verbanden** (/verbanden): afgeleid uit gedeelde projecthistorie en openbare vermeldingen, altijd met bron, gepresenteerd als signaal.
-- **Overig**: archiveren i.p.v. verwijderen (status gearchiveerd, buiten zoeken/matching/verbanden), documenten per partner (URL/tekst), CSV-export van partners (incl. herkomststatus per waarde) en projecthistorie, datakwaliteit per veld en partnertype (Beheer), veldkoppeling en fuzzy dubbelencontrole bij import, opgeslagen zoekprofielen voor discovery.
+- **Overig**: archiveren i.p.v. verwijderen (status gearchiveerd, buiten zoeken/matching/verbanden), documenten per partner (URL/tekst), CSV- én PDF-export van partners en projecthistorie plus een PDF-dossier per partner (incl. herkomststatus per waarde), bestandsuploads bij partnerdocumenten via Vercel Blob (zet `BLOB_READ_WRITE_TOKEN`; zonder token blijven URL/tekst-documenten werken), datakwaliteit per veld en partnertype (Beheer), veldkoppeling en fuzzy dubbelencontrole bij import, opgeslagen zoekprofielen voor discovery.
 
 ## Productiegebruik (echte data)
 

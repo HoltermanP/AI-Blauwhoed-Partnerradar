@@ -1,6 +1,7 @@
 "use server";
 // Alle mutaties van het systeem. Elke actie toetst rechten (US-45) en schrijft een auditregel (US-46).
 import { revalidatePath } from "next/cache";
+import { del } from "@vercel/blob";
 import { after } from "next/server";
 import { cookies } from "next/headers";
 import { GEBRUIKERS, vereisRecht } from "./auth";
@@ -1019,7 +1020,7 @@ export async function slaVerrijkingsBronOp(bron: { id?: string; naam: string; ur
 }
 
 // ---------- Documenten per partner (onderdeel 1) ----------
-export async function slaPartnerDocumentOp(partnerId: string, doc: { id?: string; naam: string; soort: PartnerDocument["soort"]; url?: string; tekst?: string; toelichting?: string }) {
+export async function slaPartnerDocumentOp(partnerId: string, doc: { id?: string; naam: string; soort: PartnerDocument["soort"]; url?: string; tekst?: string; toelichting?: string; bestandUrl?: string; bestandType?: string; bestandGrootte?: number }) {
   return veilig(async () => {
     const g = await vereisRecht("bewerken");
     if (!doc.naam.trim()) throw new Error("Geef het document een naam.");
@@ -1029,7 +1030,7 @@ export async function slaPartnerDocumentOp(partnerId: string, doc: { id?: string
       if (!p) throw new Error("Partner niet gevonden.");
       p.documenten = p.documenten ?? [];
       const idx = p.documenten.findIndex((d) => d.id === doc.id);
-      const record: PartnerDocument = { id: doc.id ?? nieuwId("doc"), naam: doc.naam.trim(), soort: doc.soort, url: doc.url || undefined, tekst: doc.tekst?.slice(0, 40000) || undefined, toelichting: doc.toelichting || undefined, toegevoegdDoor: g.naam, op: new Date().toISOString().slice(0, 10) };
+      const record: PartnerDocument = { id: doc.id ?? nieuwId("doc"), naam: doc.naam.trim(), soort: doc.soort, url: doc.url || undefined, tekst: doc.tekst?.slice(0, 40000) || undefined, bestandUrl: doc.bestandUrl || undefined, bestandType: doc.bestandType || undefined, bestandGrootte: doc.bestandGrootte || undefined, toelichting: doc.toelichting || undefined, toegevoegdDoor: g.naam, op: new Date().toISOString().slice(0, 10) };
       if (idx >= 0) p.documenten[idx] = record;
       else p.documenten.push(record);
       p.bijgewerktOp = new Date().toISOString();
@@ -1041,12 +1042,22 @@ export async function slaPartnerDocumentOp(partnerId: string, doc: { id?: string
 export async function verwijderPartnerDocument(partnerId: string, docId: string) {
   return veilig(async () => {
     const g = await vereisRecht("bewerken");
+    const db = await getDb();
+    const bestand = db.partners.find((x) => x.id === partnerId)?.documenten?.find((d) => d.id === docId)?.bestandUrl;
     await muteer(g, { entiteit: "partner_document", entiteitId: partnerId, actie: "document verwijderd", details: docId }, (db) => {
       const p = db.partners.find((x) => x.id === partnerId);
       if (!p) throw new Error("Partner niet gevonden.");
       p.documenten = (p.documenten ?? []).filter((d) => d.id !== docId);
       p.bijgewerktOp = new Date().toISOString();
     });
+    // Bijbehorend Blob-bestand opruimen (na de mutatie; falen mag de verwijdering niet blokkeren).
+    if (bestand && process.env.BLOB_READ_WRITE_TOKEN) {
+      try {
+        await del(bestand);
+      } catch (e) {
+        console.warn("Blob verwijderen mislukt:", e instanceof Error ? e.message : e);
+      }
+    }
     revalidatePath(`/partners/${partnerId}`);
   });
 }

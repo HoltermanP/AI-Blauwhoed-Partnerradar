@@ -195,6 +195,10 @@ export type PartnerDocument = {
   soort: "brochure" | "certificaat" | "contract" | "referentie" | "overig";
   url?: string;
   tekst?: string;
+  /** Geüpload bestand in Vercel Blob. */
+  bestandUrl?: string;
+  bestandType?: string;
+  bestandGrootte?: number;
   toelichting?: string;
   toegevoegdDoor: string;
   op: string;

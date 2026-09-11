@@ -102,10 +102,11 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
             <>
               <PartnerImport magBewerken={magBewerken} />
               <Knop href="/api/export/partners" variant="secundair">Export (CSV)</Knop>
+              <Knop href="/api/export/partners?formaat=pdf" variant="secundair">Export (PDF)</Knop>
               <Knop href="/partners/nieuw">Nieuwe partner</Knop>
             </>
           ) : (
-            <Knop href="/api/export/partners" variant="secundair">Export (CSV)</Knop>
+            <><Knop href="/api/export/partners" variant="secundair">Export (CSV)</Knop><Knop href="/api/export/partners?formaat=pdf" variant="secundair">Export (PDF)</Knop></>
           )
         }
       />
