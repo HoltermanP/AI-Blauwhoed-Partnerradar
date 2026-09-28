@@ -38,7 +38,7 @@ function uit(doc: jsPDF): Buffer {
 
 /** Partneroverzicht als PDF (liggend A4). */
 export function partnersPdf(db: Database, metGearchiveerd = false): Buffer {
-  const partners = db.partners.filter((p) => metGearchiveerd || p.status !== "gearchiveerd").sort((a, b) => a.naam.localeCompare(b.naam));
+  const partners = db.partners.filter((p) => (metGearchiveerd || p.status !== "gearchiveerd") && p.status !== "ter_controle").sort((a, b) => a.naam.localeCompare(b.naam));
   const doc = nieuwDoc(true);
   kop(doc, "Partneroverzicht", `${partners.length} partners · statussen en kerngegevens`);
   autoTable(doc, {

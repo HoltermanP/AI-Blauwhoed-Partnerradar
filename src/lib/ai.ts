@@ -177,6 +177,51 @@ export async function aiProjectExtractie(tekst: string): Promise<AIProjectExtrac
   );
 }
 
+export type AIPartnerRegistratie = {
+  naam?: string;
+  kvk?: string;
+  rechtsvorm?: string;
+  vestigingsplaats?: string;
+  adres?: string;
+  rollen: string[];
+  website?: string;
+  omschrijving?: string;
+  referenties: string[];
+  medewerkers?: number;
+  herkomst: Array<{ veld: string; citaat: string; betrouwbaarheid: number }>;
+  watIsOnzeker: string[];
+};
+
+/** Partnerregistratie door AI: basisgegevens uit openbare tekst, met herkomst per veld. Een beheerder controleert vóór vrijgave. */
+export async function aiPartnerRegistratie(hint: { naam?: string; website?: string }, tekst: string): Promise<AIPartnerRegistratie | null> {
+  return jsonAntwoord<AIPartnerRegistratie>(
+    "Je registreert een bouwpartner voor woningontwikkelaar Blauwhoed op basis van openbare tekst (website of aangeleverd document). Vul alleen velden die aantoonbaar uit de tekst volgen, met per veld een kort letterlijk citaat (herkomst) en een betrouwbaarheid 0–1; laat de rest weg. Verzin niets: geen KVK-nummer tenzij het er letterlijk staat (8 cijfers). rollen ⊆ architect|aannemer|installateur|adviseur|leverancier|ontwikkelpartner. omschrijving is feitelijk, maximaal 500 tekens, zonder marketingtaal. referenties zijn concrete projectnamen (met plaats of aantal woningen als dat er staat), maximaal 8. Noem in watIsOnzeker wat een beheerder moet controleren. Schrijf in het Nederlands. Geef nooit namen of gegevens van personen.",
+    `${hint.naam ? `Opgegeven naam: ${hint.naam}\n` : ""}${hint.website ? `Opgegeven website: ${hint.website}\n` : ""}\nTekst:\n${tekst.slice(0, 30000)}`,
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["rollen", "referenties", "herkomst", "watIsOnzeker"],
+      properties: {
+        naam: { type: "string" },
+        kvk: { type: "string" },
+        rechtsvorm: { type: "string" },
+        vestigingsplaats: { type: "string" },
+        adres: { type: "string" },
+        rollen: { type: "array", items: { type: "string" } },
+        website: { type: "string" },
+        omschrijving: { type: "string" },
+        referenties: { type: "array", items: { type: "string" } },
+        medewerkers: { type: "integer" },
+        herkomst: {
+          type: "array",
+          items: { type: "object", additionalProperties: false, required: ["veld", "citaat", "betrouwbaarheid"], properties: { veld: { type: "string" }, citaat: { type: "string" }, betrouwbaarheid: { type: "number" } } }
+        },
+        watIsOnzeker: { type: "array", items: { type: "string" } }
+      }
+    }
+  );
+}
+
 export type AIChatAntwoord = { antwoord: string; partnerIds: string[] };
 
 /**

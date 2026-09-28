@@ -904,12 +904,12 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     // Hervatbare ronde-administratie (alleen bij een ronde over het bestand).
     let ronde = partnerId ? undefined : db.verrijkingsrondes.find((r) => !r.klaarOp);
     if (!partnerId && !ronde) {
-      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
+      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "ter_controle").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
       await muteer(g, { entiteit: "verrijking", entiteitId: ronde.id, actie: "verrijkingsronde gestart", details: `${ronde.totaal} partners` }, (d) => d.verrijkingsrondes.unshift(ronde!));
     }
     const kandidaten = partnerId
       ? db.partners.filter((p) => p.id === partnerId)
-      : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && !ronde!.partnerIdsVerwerkt.includes(p.id));
+      : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "ter_controle" && !ronde!.partnerIdsVerwerkt.includes(p.id));
     const doelen = partnerId ? kandidaten : kandidaten.slice(0, maxPerRonde);
     if (partnerId && !doelen.length) throw new Error("Partner niet gevonden.");
     const extraBronnen = await haalExtraBronnen(db);

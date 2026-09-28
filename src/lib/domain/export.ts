@@ -17,7 +17,7 @@ export function naarCsv(rijen: Array<Record<string, unknown>>): string {
 /** Partnerexport: kerngegevens + per actieve factor de waarde en status (eis 1: herkomst reist mee). */
 export function partnersCsv(db: Database, metGearchiveerd = false) {
   const factoren = db.factoren.filter((f) => f.actief && !f.afgeleid);
-  const partners = db.partners.filter((p) => metGearchiveerd || p.status !== "gearchiveerd");
+  const partners = db.partners.filter((p) => (metGearchiveerd || p.status !== "gearchiveerd") && p.status !== "ter_controle");
   return naarCsv(
     partners.map((p) => {
       const basis: Record<string, unknown> = {
