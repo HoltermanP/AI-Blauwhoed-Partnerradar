@@ -27,6 +27,7 @@ import { aiBudget, budgetStatus, kostenEur, maandVerbruik, modelVoor, schatVerri
 import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
 import type { AIBewerking } from "../src/lib/domain/types";
 import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
+import { aanbiedersUitOverzicht, ontdubbel, regelOnderbouwing, regelZoekvragen } from "../src/lib/domain/aandragen";
 import { leesSbi } from "../src/lib/domain/webverrijking";
 import { leesZipBestand, maakZip } from "../src/lib/zip";
 import { docxTekst, leesTekstUitBestand } from "../src/lib/documenttekst";
@@ -417,6 +418,24 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
 }
 
 // ---------- Groep D: bronnen — KVK Basisprofiel, documenten, registers (US-60 t/m US-62) ----------
+// ---------- US-55: AI draagt ontbrekende partners aan vanuit een zoekprofiel ----------
+{
+  const profiel = { naam: "Houtbouw Noord", rollen: ["aannemer" as const, "architect" as const], trefwoorden: "houtbouw CLT biobased woningen", regio: "Groningen" };
+  const vragen = regelZoekvragen(profiel);
+  check("US-55 gerichte zoekvragen per rol met trefwoorden en regio", vragen.length === 4 && vragen.every((v) => v.vraag.includes("Groningen") && v.vraag.includes("houtbouw")) && vragen.some((v) => v.rol === "architect"));
+  const html = '<a href="/aanbieders/nimbel/id=12">Nimbel Woningbouw</a><a href="/aanbieders/barli/id=47">Barli</a><a href="/aanbieders/">Alle</a><a href="/nieuws/x">Nieuws</a><a href="https://elders.nl/x">Extern</a>';
+  const aanb = aanbiedersUitOverzicht(html, "https://conceptenboulevard.nl/aanbieders/");
+  check("US-55 aanbieders uit eigen uitgave (Conceptenboulevard-overzicht)", aanb.length === 2 && aanb[0].url === "https://conceptenboulevard.nl/aanbieders/nimbel/id=12", aanb);
+  const dbA2 = maakSeedDatabase();
+  const k = (naam: string, kvk?: string) => ({ naam, kvk, rollen: ["aannemer" as const], bron: "Open web", bronUrl: `https://${naam.replace(/\s/g, "")}.nl`, ruweData: { profiel: "Wij bouwen houtbouw woningen in CLT" }, zoekvraag: "houtbouw", vestigingsplaats: "Groningen" });
+  const od = ontdubbel([k("Woudbouw Groep"), k("Nieuwe Houtbouwer B.V."), k("Nieuwe Houtbouwer BV"), k("Anders", "34123456")], dbA2.partners);
+  check("US-55 ontdubbelen tegen het bestand (naam, KVK) en binnen de set", od.nieuw.length === 1 && od.nieuw[0].naam === "Nieuwe Houtbouwer B.V." && od.dubbel.length === 2, od);
+  const ob = regelOnderbouwing(od.nieuw[0], profiel);
+  check("US-55 onderbouwing: waarom past het, bron, wat is onzeker", ob.waaromPastHet.includes("Houtbouw Noord") && ob.watIsOnzeker.some((o) => o.includes("nog niet vastgesteld")));
+  const c = kandidaatNaarConcept({ ...od.nieuw[0], id: "a1", status: "geaccepteerd", opgehaaldOp: "2026-09-20T10:00:00Z", samenvatting: ob }, "Beheerder", new Date(), "ai-aandraag");
+  check("US-55 aangedragen partij wordt concept met bron-URL en ophaaldatum", c.status === "concept" && c.registratie?.herkomstSoort === "ai-aandraag" && c.registratie.onderbouwing?.bronUrl === od.nieuw[0].bronUrl && c.registratie.onderbouwing?.opgehaaldOp === "2026-09-20T10:00:00Z");
+}
+
 const groepD = (async () => {
   const prof = leesBasisprofiel({ kvkNummer: "12345678", statutaireNaam: "Bouwbedrijf Voorbeeld B.V.", materieleRegistratie: { datumAanvang: "19870401" }, sbiActiviteiten: [{ sbiCode: "4120", sbiOmschrijving: "Algemene burgerlijke en utiliteitsbouw", indHoofdactiviteit: "Ja" }, { sbiCode: "7111", sbiOmschrijving: "Architecten", indHoofdactiviteit: "Nee" }], _embedded: { eigenaar: { rechtsvorm: "BeslotenVennootschap" }, hoofdvestiging: { adressen: [{ type: "bezoekadres", straatnaam: "Kerkstraat", huisnummer: 1, postcode: "3811AB", plaats: "Amersfoort" }] } } });
   check("US-60 KVK Basisprofiel: statutaire naam, rechtsvorm, SBI, adres, oprichtingsdatum", prof.statutaireNaam === "Bouwbedrijf Voorbeeld B.V." && prof.rechtsvorm === "B.V." && prof.sbiActiviteiten.length === 2 && prof.sbiActiviteiten[0].hoofd === true && prof.adres === "Kerkstraat 1 3811AB" && prof.plaats === "Amersfoort" && prof.oprichtingsdatum === "1987-04-01", prof);

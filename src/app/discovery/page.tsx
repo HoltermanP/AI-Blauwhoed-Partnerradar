@@ -2,6 +2,7 @@
 import Link from "next/link";
 import DiscoveryStart from "@/components/discovery/DiscoveryStart";
 import KandidaatKaart from "@/components/discovery/KandidaatKaart";
+import AandraagPaneel from "@/components/discovery/AandraagPaneel";
 import { Badge, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { demoConnector } from "@/lib/domain/discovery";
@@ -10,6 +11,9 @@ import { signalenVoor } from "@/lib/domain/signalen";
 import type { DiscoveryStatus } from "@/lib/domain/types";
 import { datumTijd } from "@/lib/format";
 import { getDb } from "@/lib/store";
+
+// Discovery en aandragen raadplegen internetbronnen; server actions mogen tot 60 s duren (Vercel).
+export const maxDuration = 60;
 
 const STATUSSEN: Array<{ id: DiscoveryStatus; label: string }> = [
   { id: "nieuw", label: "Nieuw" },
@@ -74,6 +78,10 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
           </p>
         </Kaart>
       </div>
+
+      <Kaart titel="AI draagt partners aan (US-55)">
+        <AandraagPaneel profielen={(db.zoekprofielen ?? []).map((z) => ({ id: z.id, naam: z.naam, trefwoorden: z.trefwoorden }))} magAandragen={heeftRecht(gebruiker.rol, "beheer")} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} />
+      </Kaart>
 
       <Kaart titel="Wachtrij kandidaten">
         <nav className="tabs" aria-label="Status">

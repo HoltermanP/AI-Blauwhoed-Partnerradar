@@ -16,7 +16,7 @@ const TERMEN: Record<Rol, string[]> = {
 
 const UITSLUITEN = /(bouwgarant|keurmerk|nieuwbouw-in|funda|jaap\.nl|huislijn|vergelijk|offerte|werkspot|homedeal|bouwinfo|bouwkosten|brancheorganisatie|wikipedia|linkedin|facebook|instagram|youtube|indeed|werkzoeken|marktplaats|kvk\.nl|google\.|bing\.|duckduckgo|telefoonboek|openingstijden|bedrijvenpagina|drimble|cylex|trustpilot|glassdoor)/i;
 
-async function zoekUrls(query: string, max = 8): Promise<string[]> {
+export async function zoekUrls(query: string, max = 8): Promise<string[]> {
   try {
     const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=nl-nl`, {
       headers: { "user-agent": "Mozilla/5.0 (compatible; BlauwhoedPartnerRadar/1.0; alleen openbare bedrijfsinformatie)", accept: "text/html" },
@@ -89,3 +89,30 @@ export const webzoekConnector: BronConnector = {
     return resultaten;
   }
 };
+
+/** US-55: kandidaten voor een lijst gerichte zoekvragen (AI of regels), met de zoekvraag als herkomst. */
+export async function zoekMetVragen(vragen: Array<{ vraag: string; rol: Rol }>, maxPerVraag = 5, maxTotaal = 12): Promise<Array<Awaited<ReturnType<BronConnector["zoek"]>>[number] & { zoekvraag: string }>> {
+  const uit: Array<Awaited<ReturnType<BronConnector["zoek"]>>[number] & { zoekvraag: string }> = [];
+  const gezien = new Set<string>();
+  for (const { vraag, rol } of vragen) {
+    if (uit.length >= maxTotaal) break;
+    const urls = (await zoekUrls(vraag, maxPerVraag)).filter((u) => !gezien.has(u));
+    const gelezen = await Promise.all(
+      urls.map(async (url) => {
+        gezien.add(url);
+        try {
+          const r = await fetch(url, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BlauwhoedPartnerRadar/1.0 (aandragen; alleen openbare bedrijfsinformatie)" } });
+          if (!r.ok) return null;
+          const html = await r.text();
+          const tekst = (await haalWebsiteOp(url)) ?? "";
+          const b = leesBedrijfsgegevens(tekst, html, url);
+          return { naam: b.naam, kvk: b.kvk, vestigingsplaats: b.plaats, website: url, rollen: [rol], bron: "Open web (zoekmachine)", bronUrl: url, ruweData: { profiel: b.profiel, referenties: [], websiteTekst: tekst.slice(0, 8000) }, zoekvraag: vraag } as Awaited<ReturnType<BronConnector["zoek"]>>[number] & { zoekvraag: string };
+        } catch {
+          return null;
+        }
+      })
+    );
+    gelezen.forEach((k) => k && uit.length < maxTotaal && uit.push(k));
+  }
+  return uit;
+}
