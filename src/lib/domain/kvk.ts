@@ -62,3 +62,67 @@ export function kvkConnector(apiKey: string, basisUrl = "https://api.kvk.nl/api/
     }
   };
 }
+
+// ---------- US-60: KVK-handelsregister, Basisprofiel (https://developers.kvk.nl/documentation/basisprofiel-api) ----------
+// Met de API-sleutel van Blauwhoed (KVK_API_KEY) worden bij het verrijken van een partner met KVK-nummer de statutaire naam,
+// rechtsvorm, SBI-activiteiten, het vestigingsadres en de oprichtingsdatum opgehaald. Bron: 'KVK – gevalideerde registratie' (rang 2).
+
+export type KvkBasisprofiel = {
+  kvkNummer: string;
+  statutaireNaam?: string;
+  rechtsvorm?: string;
+  sbiActiviteiten: Array<{ code: string; omschrijving: string; hoofd?: boolean }>;
+  adres?: string;
+  plaats?: string;
+  oprichtingsdatum?: string;
+};
+
+type KvkAdres = { type?: string; volledigAdres?: string; straatnaam?: string; huisnummer?: number | string; huisletter?: string; huisnummerToevoeging?: string; postcode?: string; plaats?: string };
+type KvkBasisprofielJson = {
+  kvkNummer?: string;
+  naam?: string;
+  statutaireNaam?: string;
+  formeleRegistratiedatum?: string;
+  materieleRegistratie?: { datumAanvang?: string };
+  sbiActiviteiten?: Array<{ sbiCode?: string; sbiOmschrijving?: string; indHoofdactiviteit?: string }>;
+  _embedded?: { hoofdvestiging?: { adressen?: KvkAdres[] }; eigenaar?: { rechtsvorm?: string; uitgebreideRechtsvorm?: string } };
+};
+
+const RECHTSVORM: Record<string, string> = { BeslotenVennootschap: "B.V.", NaamlozeVennootschap: "N.V.", Eenmanszaak: "Eenmanszaak", VennootschapOnderFirma: "V.O.F.", CommanditaireVennootschap: "C.V.", Stichting: "Stichting", Vereniging: "Vereniging", Cooperatie: "Coöperatie" };
+
+function datumUitKvk(d?: string) {
+  return d && /^\d{8}$/.test(d) ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : undefined;
+}
+
+/** Pure vertaling van het KVK Basisprofiel-antwoord. */
+export function leesBasisprofiel(json: KvkBasisprofielJson): KvkBasisprofiel {
+  const adressen = json._embedded?.hoofdvestiging?.adressen ?? [];
+  const a = adressen.find((x) => x.type === "bezoekadres") ?? adressen[0];
+  const rv = json._embedded?.eigenaar?.rechtsvorm;
+  return {
+    kvkNummer: json.kvkNummer ?? "",
+    statutaireNaam: json.statutaireNaam ?? json.naam,
+    rechtsvorm: rv ? RECHTSVORM[rv] ?? json._embedded?.eigenaar?.uitgebreideRechtsvorm ?? rv : undefined,
+    sbiActiviteiten: (json.sbiActiviteiten ?? []).filter((s) => s.sbiCode).map((s) => ({ code: s.sbiCode!, omschrijving: s.sbiOmschrijving ?? "", hoofd: s.indHoofdactiviteit === "Ja" || undefined })),
+    adres: a ? [a.straatnaam, [a.huisnummer, a.huisletter, a.huisnummerToevoeging].filter(Boolean).join(""), a.postcode].filter(Boolean).join(" ").trim() || a.volledigAdres : undefined,
+    plaats: a?.plaats,
+    oprichtingsdatum: datumUitKvk(json.materieleRegistratie?.datumAanvang) ?? datumUitKvk(json.formeleRegistratiedatum)
+  };
+}
+
+export function kvkKoppelingActief() {
+  return Boolean(process.env.KVK_API_KEY);
+}
+
+export async function haalBasisprofiel(kvk: string, apiKey = process.env.KVK_API_KEY, basisUrl = "https://api.kvk.nl/api/v1/basisprofielen"): Promise<KvkBasisprofiel | null> {
+  if (!apiKey || !/^\d{8}$/.test(kvk)) return null;
+  try {
+    const res = await fetch(`${basisUrl}/${kvk}?geoData=false`, { headers: { apikey: apiKey, accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    return leesBasisprofiel((await res.json()) as KvkBasisprofielJson);
+  } catch {
+    return null;
+  }
+}
+
+export const sbiTekst = (s: KvkBasisprofiel["sbiActiviteiten"]) => s.map((x) => `${x.code} ${x.omschrijving}${x.hoofd ? " (hoofdactiviteit)" : ""}`).join("; ");

@@ -86,7 +86,10 @@ export default function CertificatenBeheer({ partnerId, certificaten, magBewerke
                     <td>
                       <Badge kleur={s.kleur}>{s.label}</Badge>
                     </td>
-                    <td>{c.geverifieerdOp ? datum(c.geverifieerdOp) : <span className="muted">niet geverifieerd</span>}</td>
+                    <td>
+                      {c.verificatie === "geverifieerd" || c.geverifieerdOp ? <Badge kleur="groen" titel={c.registerControle ? `Gevonden in ${c.registerControle.register}` : undefined}>geverifieerd {c.geverifieerdOp ? datum(c.geverifieerdOp) : ""}</Badge> : <Badge kleur="geel" titel={c.registerControle ? `Niet gevonden in ${c.registerControle.register} (${c.registerControle.op})` : "Nog niet in een register gecontroleerd"}>geclaimd</Badge>}
+                      {c.registerControle ? <div className="muted klein-tekst">{c.registerControle.register} · {datum(c.registerControle.op)}</div> : null}
+                    </td>
                     <td>
                       {c.bronUrl ? (
                         <a href={c.bronUrl} target="_blank" rel="noreferrer">

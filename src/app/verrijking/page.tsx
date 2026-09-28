@@ -11,6 +11,7 @@ import type { EnrichmentVoorstel } from "@/lib/domain/types";
 import { datumTijd, waardeTekst } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { budgetStatus, schatVerrijkingsronde } from "@/lib/domain/kosten";
+import { kvkKoppelingActief } from "@/lib/domain/kvk";
 import { FREQUENTIE_LABEL, OMVANG_LABEL, schemaVan, selecteerPartners, volgendeGeplandeRonde } from "@/lib/domain/schema";
 import SchemaBeheer from "@/components/verrijking/SchemaBeheer";
 import RegisterBeheer from "@/components/verrijking/RegisterBeheer";
@@ -62,7 +63,9 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
               ["Laatste ronde", datumTijd(i.laatsteVerrijking)],
               ["Externe bronnen", i.externeBronnenToegestaan ? "toegestaan (website wordt opgehaald)" : "uit (alleen profieltekst of geplakte tekst)"],
               ["Afgeschermde omgeving", i.afgeschermdeOmgeving ? "ja" : "nee"],
-              ["AI-provider", i.aiProvider]
+              ["AI-provider", i.aiProvider],
+              ["KVK-handelsregister (US-60)", kvkKoppelingActief() ? <Badge kleur="groen">koppeling actief</Badge> : <Badge kleur="grijs">niet actief (KVK_API_KEY ontbreekt)</Badge>],
+              ["Keurmerkregisters (US-62)", `${(i.registerbronnen ?? []).filter((r) => r.actief).length} actief`]
             ]}
           />
           <Melding soort="info">

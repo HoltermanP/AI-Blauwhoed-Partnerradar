@@ -3,10 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { upload } from "@vercel/blob/client";
-import { slaPartnerDocumentOp, verwijderPartnerDocument } from "@/lib/actions";
+import { leesDocumentTekst, slaPartnerDocumentOp, verwijderPartnerDocument } from "@/lib/actions";
 import type { PartnerDocument } from "@/lib/domain/types";
 import { datum } from "@/lib/format";
-import { Leeg, Melding } from "@/components/ui";
+import { Badge, Leeg, Melding } from "@/components/ui";
 
 const SOORTEN: Array<{ id: PartnerDocument["soort"]; label: string }> = [
   { id: "brochure", label: "Brochure / conceptdocument" },
@@ -53,6 +53,15 @@ export default function DocumentenBeheer({ partnerId, documenten, magBewerken, b
     });
   };
 
+  const leesOpnieuw = (d: PartnerDocument) => {
+    setFout(null);
+    start(async () => {
+      const r = await leesDocumentTekst(partnerId, d.id);
+      if (!r.ok) return setFout(r.fout);
+      router.refresh();
+    });
+  };
+
   const verwijder = (d: PartnerDocument) => {
     if (!confirm(`Document '${d.naam}' verwijderen?`)) return;
     start(async () => {
@@ -65,7 +74,7 @@ export default function DocumentenBeheer({ partnerId, documenten, magBewerken, b
   return (
     <div className="formulier">
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
-      <p className="muted klein-tekst">Documenten zijn een geüpload bestand (Vercel Blob), een verwijzing (URL) en/of geplakte openbare tekst; die tekst is direct bruikbaar voor verrijking.</p>
+      <p className="muted klein-tekst">Documenten zijn een geüpload bestand (Vercel Blob), een verwijzing (URL) en/of geplakte tekst. De tekst van geüploade PDF-, Word (.docx)- en tekstbestanden wordt gelezen en telt bij verrijking mee als bron &lsquo;aangeleverd document&rsquo; (rang 2), met een verwijzing naar het document.</p>
       {documenten.length ? (
         <div className="tabelWrap">
           <table className="tabel">
@@ -87,7 +96,19 @@ export default function DocumentenBeheer({ partnerId, documenten, magBewerken, b
                     {d.url ? <a href={d.url} target="_blank" rel="noreferrer" className="klein-tekst">{d.url}</a> : null}
                     {!d.bestandUrl && !d.url ? <span className="muted">–</span> : null}
                   </td>
-                  <td className="klein-tekst">{d.tekst ? `${d.tekst.slice(0, 80)}… (${d.tekst.length} tekens)` : <span className="muted">–</span>}</td>
+                  <td className="klein-tekst">
+                    {d.tekst ? `${d.tekst.slice(0, 80)}… (${d.tekst.length} tekens)` : null}
+                    {d.geextraheerdeTekst ? <div><Badge kleur="groen" titel={d.geextraheerdeTekst.slice(0, 300)}>gelezen</Badge> {d.geextraheerdeTekst.length.toLocaleString("nl-NL")} tekens uit het bestand ({datum(d.tekstGeextraheerdOp)}); bron &lsquo;aangeleverd document&rsquo;</div> : null}
+                    {d.extractieMelding ? <div><Badge kleur="geel">niet gelezen</Badge> {d.extractieMelding}</div> : null}
+                    {!d.tekst && !d.geextraheerdeTekst && !d.extractieMelding ? <span className="muted">{d.bestandUrl ? "wordt gelezen…" : "–"}</span> : null}
+                    {magBewerken && d.bestandUrl ? (
+                      <div>
+                        <button type="button" className="knop knop-tekst klein" disabled={bezig} onClick={() => leesOpnieuw(d)}>
+                          Tekst (opnieuw) lezen
+                        </button>
+                      </div>
+                    ) : null}
+                  </td>
                   <td className="klein-tekst">{datum(d.op)} · {d.toegevoegdDoor}</td>
                   {magBewerken ? (
                     <td><button type="button" className="knop knop-tekst klein" disabled={bezig} onClick={() => verwijder(d)}>Verwijderen</button></td>

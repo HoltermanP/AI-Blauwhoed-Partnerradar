@@ -26,6 +26,14 @@ import { geldigeRollen, normaliseerWebsite, raadRollen, regelConcept, vrijgaveBl
 import { aiBudget, budgetStatus, kostenEur, maandVerbruik, modelVoor, schatVerrijkingsronde, verbruikPerPeriode, verbruikSpecificatie } from "../src/lib/domain/kosten";
 import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
 import type { AIBewerking } from "../src/lib/domain/types";
+import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
+import { leesSbi } from "../src/lib/domain/webverrijking";
+import { leesZipBestand, maakZip } from "../src/lib/zip";
+import { docxTekst, leesTekstUitBestand } from "../src/lib/documenttekst";
+import { controleerRegisters, registerUrl, verwerkRegisterUitkomsten } from "../src/lib/domain/registers";
+import { certificaatStatus } from "../src/components/partners/certificaten";
+import { jsPDF } from "jspdf";
+import { BRON_LABEL } from "../src/lib/domain/types";
 import { betrouwbaarheidNiveau, bronRang, bronTekst, markeerGeenBron, registreerHandmatigeBasisvelden, zetBasisveldHerkomst } from "../src/lib/domain/herkomst";
 import { verwerkVoorstellen, veldenZonderBron } from "../src/lib/domain/voorstellen";
 import { goudstandaardVoorPartner, gezochteVelden } from "../src/lib/domain/goudstandaard";
@@ -408,5 +416,41 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   check("Migratie v10: rollen naar gebruiker (ook audit)", oud.gebruikers[0].rol === "gebruiker" && oud.audit.find((a) => a.id === "a-oud")?.gebruikersrol === "gebruiker");
 }
 
-console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");
-process.exit(fouten ? 1 : 0);
+// ---------- Groep D: bronnen — KVK Basisprofiel, documenten, registers (US-60 t/m US-62) ----------
+const groepD = (async () => {
+  const prof = leesBasisprofiel({ kvkNummer: "12345678", statutaireNaam: "Bouwbedrijf Voorbeeld B.V.", materieleRegistratie: { datumAanvang: "19870401" }, sbiActiviteiten: [{ sbiCode: "4120", sbiOmschrijving: "Algemene burgerlijke en utiliteitsbouw", indHoofdactiviteit: "Ja" }, { sbiCode: "7111", sbiOmschrijving: "Architecten", indHoofdactiviteit: "Nee" }], _embedded: { eigenaar: { rechtsvorm: "BeslotenVennootschap" }, hoofdvestiging: { adressen: [{ type: "bezoekadres", straatnaam: "Kerkstraat", huisnummer: 1, postcode: "3811AB", plaats: "Amersfoort" }] } } });
+  check("US-60 KVK Basisprofiel: statutaire naam, rechtsvorm, SBI, adres, oprichtingsdatum", prof.statutaireNaam === "Bouwbedrijf Voorbeeld B.V." && prof.rechtsvorm === "B.V." && prof.sbiActiviteiten.length === 2 && prof.sbiActiviteiten[0].hoofd === true && prof.adres === "Kerkstraat 1 3811AB" && prof.plaats === "Amersfoort" && prof.oprichtingsdatum === "1987-04-01", prof);
+  check("US-60 KVK-bron is rang 2 (gevalideerde registratie)", bronRang("kvk") === 2 && BRON_LABEL.kvk.startsWith("KVK"));
+  check("US-60 SBI-tekst terug te lezen", leesSbi(sbiTekst(prof.sbiActiviteiten)).length === 2 && leesSbi(sbiTekst(prof.sbiActiviteiten))[1].code === "7111");
+  // US-61: zip/docx en echte PDF-extractie
+  const zip = maakZip([{ naam: "a.txt", inhoud: "hallo" }, { naam: "word/document.xml", inhoud: "<w:document><w:body><w:p><w:r><w:t>Wij bouwen in CLT</w:t></w:r></w:p><w:p><w:r><w:t>MPG-berekening van 0,48</w:t></w:r></w:p></w:body></w:document>" }]);
+  check("US-61 zip lezen en schrijven", leesZipBestand(zip, "a.txt")?.toString() === "hallo");
+  check("US-61 Word (.docx) tekst", docxTekst(zip) === "Wij bouwen in CLT\nMPG-berekening van 0,48");
+  const pdf = new jsPDF();
+  pdf.text("Houtskeletbouw met MPG-berekening (NMD) van 0,52 gerealiseerd.", 10, 20);
+  const pdfTekstUit = await leesTekstUitBestand(Buffer.from(pdf.output("arraybuffer")), "application/pdf", "brochure.pdf");
+  check("US-61 PDF-tekst gelezen", Boolean(pdfTekstUit.tekst?.includes("0,52")), pdfTekstUit);
+  check("US-61 oud .doc geeft melding", Boolean((await leesTekstUitBestand(Buffer.from("x"), "application/msword", "x.doc")).melding));
+  const dbD = maakSeedDatabase();
+  const pw = dbD.partners.find((x) => x.id === "p-steenhuis")!;
+  const docV = extraheerVoorstellen(pw, pdfTekstUit.tekst ?? "", "document: brochure.pdf", new Date(), "document");
+  check("US-61 documenttekst = bron aangeleverd document (rang 2)", docV.length > 0 && docV.every((v) => v.bron === "document" && v.betrouwbaarheid > 0.5));
+  // US-62: registers
+  const reg = { id: "r1", naam: "VCA-register", url: "https://example.org/zoek?q={naam}", certificaat: "VCA" as const, actief: true };
+  check("US-62 zoekpatroon met {naam}", registerUrl(reg, { naam: "Bouw & Co", kvk: "" }) === "https://example.org/zoek?q=Bouw%20%26%20Co");
+  const pr = JSON.parse(JSON.stringify(pw)) as typeof pw;
+  pr.certificaten = [{ id: "c1", type: "VCA", nummer: "1", geldigTot: "2027-01-01" }, { id: "c2", type: "FSC", nummer: "2", geldigTot: "2027-01-01" }];
+  const uitk = await controleerRegisters(pr, [reg, { ...reg, id: "r2", naam: "FSC", certificaat: "FSC" }, { ...reg, id: "r3", naam: "CO2", certificaat: "CO2-prestatieladder" }], async (url) => (url.includes("FSC") ? "geen resultaten" : `Resultaten: ${pr.naam} te Utrecht`));
+  const ontbrekend = verwerkRegisterUitkomsten(pr, uitk.map((u) => (u.registerId === "r2" ? { ...u, gevonden: false } : u)));
+  const vca = pr.certificaten.find((c) => c.type === "VCA")!;
+  const fsc = pr.certificaten.find((c) => c.type === "FSC")!;
+  check("US-62 gevonden in register = geverifieerd met bron en datum", vca.verificatie === "geverifieerd" && Boolean(vca.geverifieerdOp) && Boolean(vca.bronUrl?.startsWith("https://example.org")));
+  check("US-62 niet gevonden = blijft geclaimd", fsc.verificatie === "geclaimd" && fsc.registerControle?.gevonden === false);
+  check("US-62 gevonden maar niet vastgelegd = voorstel", ontbrekend.length === 1 && ontbrekend[0].certificaat === "CO2-prestatieladder");
+  check("US-62 certificaat zonder geldigheid", certificaatStatus("").label === "geldigheid onbekend");
+})();
+
+groepD.then(() => {
+  console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");
+  process.exit(fouten ? 1 : 0);
+});

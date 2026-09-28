@@ -174,6 +174,9 @@ export type Certificaat = {
   geldigTot: string;
   geverifieerdOp?: string;
   bronUrl?: string;
+  /** US-62/US-30: gevonden in een openbaar register = geverifieerd; anders blijft het certificaat 'geclaimd'. */
+  verificatie?: "geclaimd" | "geverifieerd";
+  registerControle?: { register: string; url: string; op: string; gevonden: boolean };
 };
 
 export type Beschikbaarheid = {

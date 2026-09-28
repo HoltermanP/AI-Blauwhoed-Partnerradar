@@ -9,7 +9,9 @@ import { demoModus } from "@/authjs";
 import { afwijsPenalty, demoConnector, kandidaatNaarConcept, normaliseerNaam, samenvattingVoor, vindDubbel } from "./domain/discovery";
 import { extraheerVoorstellen, factorNogBevestigd, inhoudsHash, striptHtml } from "./domain/enrichment";
 import { extraheerProjectprofiel } from "./domain/extractie";
-import { kvkConnector } from "./domain/kvk";
+import { haalBasisprofiel, kvkConnector, kvkKoppelingActief, sbiTekst, type KvkBasisprofiel } from "./domain/kvk";
+import { controleerRegisters, verwerkRegisterUitkomsten, type RegisterUitkomst } from "./domain/registers";
+import { haalDocumentTekst } from "./documenttekst";
 import { leidEisenAf } from "./domain/projectfactoren";
 import { importeerEngagements } from "./domain/csv";
 import { geocodeer } from "./domain/geocode";
@@ -942,8 +944,38 @@ async function haalExtraBronnen(db: Database): Promise<ExtraBron[]> {
   return r.filter((b): b is ExtraBron => Boolean(b?.tekst));
 }
 
-type VerzamelUitkomst = { voorstellen: EnrichmentVoorstel[]; paginas: string[]; websiteGevonden: boolean; webHash?: string; overgeslagen: boolean; geenBron: string[]; doorzocht: string[] };
-type Geraadpleegd = { partnerId: string; paginas: string[]; webHash?: string; overgeslagen: boolean; geenBron?: string[]; doorzocht?: string[] };
+type DocTekst = { docId: string; tekst?: string; melding?: string };
+type VerzamelUitkomst = { voorstellen: EnrichmentVoorstel[]; paginas: string[]; websiteGevonden: boolean; webHash?: string; overgeslagen: boolean; geenBron: string[]; doorzocht: string[]; documentTeksten?: DocTekst[]; registers?: RegisterUitkomst[] };
+type Geraadpleegd = { partnerId: string; paginas: string[]; webHash?: string; overgeslagen: boolean; geenBron?: string[]; doorzocht?: string[]; documentTeksten?: DocTekst[]; registers?: RegisterUitkomst[] };
+
+/** Openbare pagina als platte tekst (voor registers); null als de bron niet bereikbaar is. */
+async function haalPlatteTekst(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000), headers: { "user-agent": "BlauwhoedPartnerRadar/1.0 (certificaatverificatie; alleen openbare registers)", accept: "text/html,application/json" } });
+    if (!res.ok) return null;
+    return striptHtml(await res.text()).slice(0, 200000);
+  } catch {
+    return null;
+  }
+}
+
+/** US-60: voorstellen uit het KVK Basisprofiel (bron 'KVK – gevalideerde registratie', rang 2). */
+function kvkVoorstellen(p: Partner, profiel: KvkBasisprofiel): EnrichmentVoorstel[] {
+  const nu = new Date().toISOString();
+  const bronUrl = `KVK-handelsregister, Basisprofiel ${profiel.kvkNummer}`;
+  const uit: EnrichmentVoorstel[] = [];
+  const voeg = (veld: string, huidig: string | undefined, nieuw: string | undefined) => {
+    if (!nieuw || (huidig ?? "").trim().toLowerCase() === nieuw.trim().toLowerCase()) return;
+    uit.push({ id: nieuwId("ev-kvk"), partnerId: p.id, veld, huidig: huidig || null, voorgesteld: nieuw, bron: "kvk", bronUrl, betrouwbaarheid: 0.9, soort: "aantoonbaar", citaat: `${veld} volgens het KVK-handelsregister (Basisprofiel ${profiel.kvkNummer}): ${nieuw}`, status: "open", gevondenOp: nu });
+  };
+  voeg(BASISVELDEN.statutaireNaam, p.statutaireNaam, profiel.statutaireNaam);
+  voeg(BASISVELDEN.rechtsvorm, p.rechtsvorm === "Onbekend" ? "" : p.rechtsvorm, profiel.rechtsvorm);
+  voeg(BASISVELDEN.sbi, sbiTekst(p.sbiActiviteiten ?? []), profiel.sbiActiviteiten.length ? sbiTekst(profiel.sbiActiviteiten) : undefined);
+  voeg(BASISVELDEN.adres, p.adres, profiel.adres);
+  voeg(BASISVELDEN.plaats, p.vestigingsplaats, profiel.plaats);
+  voeg(BASISVELDEN.oprichtingsdatum, p.oprichtingsdatum, profiel.oprichtingsdatum);
+  return uit;
+}
 
 /**
  * Verzamel voorstellen voor één partner: via internet (website zoeken + pagina's lezen) als externe bronnen aan staan,
@@ -984,6 +1016,27 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
   } else if (tekst) {
     voorstellen.push(...extraheerVoorstellen(p, bronTekst, bronUrl));
   }
+  const extraDoorzocht: string[] = [];
+  // US-60: KVK-handelsregister (Basisprofiel) voor partners met een KVK-nummer, als de koppeling actief is.
+  if (db.instellingen.externeBronnenToegestaan && kvkKoppelingActief() && /^\d{8}$/.test(p.kvk)) {
+    const profiel = await haalBasisprofiel(p.kvk);
+    extraDoorzocht.push("KVK-handelsregister (Basisprofiel)");
+    if (profiel) voorstellen.push(...kvkVoorstellen(p, profiel));
+  }
+  // US-61: nog niet gelezen geüploade documenten (PDF, Word, tekst) eerst lezen; de tekst wordt bij het document bewaard.
+  const documentTeksten: DocTekst[] = [];
+  for (const d of (p.documenten ?? []).filter((d) => d.bestandUrl && !d.geextraheerdeTekst && !d.extractieMelding)) {
+    const r = await haalDocumentTekst(d.bestandUrl!, d.bestandType, d.naam);
+    documentTeksten.push({ docId: d.id, ...r });
+    if (r.tekst) d.geextraheerdeTekst = r.tekst; // lokaal voor deze ronde; de mutatie legt het vast
+  }
+  // US-62: openbare keurmerk- en brancheregisters.
+  const registers = db.instellingen.externeBronnenToegestaan ? await controleerRegisters(p, db.instellingen.registerbronnen ?? [], haalPlatteTekst) : [];
+  registers.forEach((u) => {
+    extraDoorzocht.push(u.url);
+    if (u.gevonden && !p.certificaten.some((c) => c.type === u.certificaat))
+      voorstellen.push({ id: nieuwId("ev-reg"), partnerId: p.id, veld: `Certificaat: ${u.certificaat}`, huidig: null, voorgesteld: `${u.certificaat} (gevonden in ${u.register})`, bron: "register", bronUrl: u.url, betrouwbaarheid: 0.9, soort: "aantoonbaar", citaat: `${p.naam} komt voor in ${u.register} (${u.op}). Accepteren voegt het certificaat toe als geverifieerd; nummer en geldigheid nog aanvullen.`, status: "open", gevondenOp: new Date().toISOString() });
+  });
   // Extra geconfigureerde bronwebsites (Conceptenboulevard, Woningconceptenbrochure, …): zoek de partnernaam in de
   // overzichtstekst en volg waar mogelijk de detailpagina van de partner (bijv. /aanbieders/<naam>/).
   const naam = normaliseerNaam(p.naam);
@@ -1039,10 +1092,11 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
     ...(paginas.length ? paginas : db.instellingen.externeBronnenToegestaan ? ["zoekmachine (DuckDuckGo): geen passende website"] : []),
     ...extraBronnen.map((b) => b.url),
     ...(p.documenten ?? []).filter((d) => d.tekst || d.geextraheerdeTekst).map((d) => `document: ${d.naam}`),
-    ...(tekst ? ["aangeleverde tekst"] : [])
+    ...(tekst ? ["aangeleverde tekst"] : []),
+    ...extraDoorzocht
   ];
   const geenBron = doorzocht.length ? veldenZonderBron(p, voorstellen, gezochteVelden(p, db)) : [];
-  return { voorstellen, paginas, websiteGevonden, webHash, overgeslagen: false, geenBron, doorzocht };
+  return { voorstellen, paginas, websiteGevonden, webHash, overgeslagen: false, geenBron, doorzocht, documentTeksten, registers };
 }
 
 /** Schrijf nieuwe voorstellen (zonder dubbelen) naar de wachtrij, registreer raadpleging + inhoudshash, en werk de ronde bij. */
@@ -1063,9 +1117,17 @@ async function bewaarVoorstellen(g: Gebruiker, entiteitId: string, nieuweVoorste
       else geteld.gewijzigd++;
     });
     const vandaag = new Date().toISOString().slice(0, 10);
-    geraadpleegd.forEach(({ partnerId, paginas, webHash, geenBron, doorzocht }) => {
+    geraadpleegd.forEach(({ partnerId, paginas, webHash, geenBron, doorzocht, documentTeksten, registers }) => {
       const p = db.partners.find((x) => x.id === partnerId);
       if (!p) return;
+      (documentTeksten ?? []).forEach((t) => {
+        const d = p.documenten?.find((x) => x.id === t.docId);
+        if (!d) return;
+        d.geextraheerdeTekst = t.tekst;
+        d.extractieMelding = t.melding;
+        d.tekstGeextraheerdOp = vandaag;
+      });
+      if (registers?.length) verwerkRegisterUitkomsten(p, registers);
       p.bronnen = p.bronnen.filter((b) => b.soort !== "web-verrijking" || !paginas.includes(b.url));
       paginas.forEach((url) => p.bronnen.push({ url, opgehaaldOp: vandaag, soort: "web-verrijking" }));
       if (webHash) p.webHash = webHash;
@@ -1145,7 +1207,7 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
               }, "extractie");
               nieuweVoorstellen.push(...r.voorstellen);
               if (r.websiteGevonden) websitesGevonden++;
-              geraadpleegd.push({ partnerId: p.id, paginas: r.paginas, webHash: r.webHash, overgeslagen: r.overgeslagen, geenBron: r.geenBron, doorzocht: r.doorzocht });
+              geraadpleegd.push({ partnerId: p.id, paginas: r.paginas, webHash: r.webHash, overgeslagen: r.overgeslagen, geenBron: r.geenBron, doorzocht: r.doorzocht, documentTeksten: r.documentTeksten, registers: r.registers });
             } catch (e) {
               console.warn("Verrijking overgeslagen voor", partner.naam, e instanceof Error ? e.message : e);
             }
@@ -1196,6 +1258,13 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
         // Basisveld (website, KVK, plaats, omschrijving, KVK-gegevens, contactgegevens) of referentie.
         const waarde = String(v.voorgesteld);
         const veld = BASISVELD_VAN_LABEL[v.veld];
+        if (v.veld.startsWith("Certificaat: ")) {
+          // US-62: certificaat gevonden in een openbaar register; nummer en geldigheid vult een mens aan.
+          const type = v.veld.slice(13) as Certificaat["type"];
+          if (!p.certificaten.some((c) => c.type === type)) p.certificaten.push({ id: nieuwId("cert"), type, nummer: "aanvullen (uit register)", geldigTot: "", verificatie: "geverifieerd", geverifieerdOp: v.gevondenOp.slice(0, 10), bronUrl: v.bronUrl, registerControle: { register: v.bronUrl ?? "register", url: v.bronUrl ?? "", op: v.gevondenOp.slice(0, 10), gevonden: true } });
+          p.bijgewerktOp = nu;
+          return;
+        }
         if (v.veld === BASISVELDEN.referentie) {
           if (!p.referenties.includes(waarde)) p.referenties.push(waarde);
         } else if (!veld) throw new Error(`Onbekend veld '${v.veld}'.`);
@@ -1263,18 +1332,45 @@ export async function slaPartnerDocumentOp(partnerId: string, doc: { id?: string
     const g = await vereisRecht("bewerken");
     if (!doc.naam.trim()) throw new Error("Geef het document een naam.");
     if (doc.url && !/^https?:\/\//.test(doc.url)) throw new Error("Document-URL moet met http(s) beginnen.");
-    await muteer(g, { entiteit: "partner_document", entiteitId: partnerId, actie: doc.id ? "document bijgewerkt" : "document toegevoegd", details: doc.naam }, (db) => {
+    const docId = await muteer(g, { entiteit: "partner_document", entiteitId: partnerId, actie: doc.id ? "document bijgewerkt" : "document toegevoegd", details: doc.naam }, (db) => {
       const p = db.partners.find((x) => x.id === partnerId);
       if (!p) throw new Error("Partner niet gevonden.");
       p.documenten = p.documenten ?? [];
       const idx = p.documenten.findIndex((d) => d.id === doc.id);
+      const vorige = idx >= 0 ? p.documenten[idx] : undefined;
       const record: PartnerDocument = { id: doc.id ?? nieuwId("doc"), naam: doc.naam.trim(), soort: doc.soort, url: doc.url || undefined, tekst: doc.tekst?.slice(0, 40000) || undefined, bestandUrl: doc.bestandUrl || undefined, bestandType: doc.bestandType || undefined, bestandGrootte: doc.bestandGrootte || undefined, toelichting: doc.toelichting || undefined, toegevoegdDoor: g.naam, op: new Date().toISOString().slice(0, 10) };
+      // Een al gelezen bestand hoeft niet opnieuw gelezen te worden als het bestand gelijk bleef.
+      if (vorige?.bestandUrl && vorige.bestandUrl === record.bestandUrl) Object.assign(record, { geextraheerdeTekst: vorige.geextraheerdeTekst, tekstGeextraheerdOp: vorige.tekstGeextraheerdOp, extractieMelding: vorige.extractieMelding });
       if (idx >= 0) p.documenten[idx] = record;
       else p.documenten.push(record);
       p.bijgewerktOp = new Date().toISOString();
+      return record.bestandUrl && !record.geextraheerdeTekst ? record.id : null;
     });
     revalidatePath(`/partners/${partnerId}`);
+    // US-61: een geüpload bestand direct lezen (na de response), zodat de tekst bij de volgende verrijking als bron meetelt.
+    if (docId) after(() => leesDocumentIntern(g, partnerId, docId).catch(() => undefined));
   });
+}
+
+/** US-61: tekst uit een geüpload document (PDF, Word, tekst) lezen en bij het document bewaren. */
+export async function leesDocumentTekst(partnerId: string, docId: string) {
+  return veilig(async () => leesDocumentIntern(await vereisRecht("bewerken"), partnerId, docId));
+}
+
+async function leesDocumentIntern(g: Gebruiker, partnerId: string, docId: string) {
+    const db = await getDb();
+    const doc = db.partners.find((x) => x.id === partnerId)?.documenten?.find((d) => d.id === docId);
+    if (!doc?.bestandUrl) throw new Error("Dit document heeft geen geüpload bestand.");
+    const r = await haalDocumentTekst(doc.bestandUrl, doc.bestandType, doc.naam);
+    await muteer(g, { entiteit: "partner_document", entiteitId: partnerId, actie: r.tekst ? "documenttekst gelezen" : "documenttekst niet leesbaar", details: `${doc.naam}${r.tekst ? ` (${r.tekst.length} tekens)` : `: ${r.melding}`}` }, (db) => {
+      const d = db.partners.find((x) => x.id === partnerId)?.documenten?.find((x) => x.id === docId);
+      if (!d) return;
+      d.geextraheerdeTekst = r.tekst;
+      d.extractieMelding = r.melding;
+      d.tekstGeextraheerdOp = new Date().toISOString().slice(0, 10);
+    });
+    revalidatePath(`/partners/${partnerId}`);
+    return r.tekst ? r.tekst.length : 0;
 }
 
 export async function verwijderPartnerDocument(partnerId: string, docId: string) {
