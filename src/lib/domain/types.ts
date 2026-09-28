@@ -3,9 +3,10 @@
 
 /**
  * 'gearchiveerd' vervangt verwijderen: de partner blijft raadpleegbaar maar telt niet mee in zoeken, matching en verbanden.
- * 'ter_controle': door AI geregistreerd en nog niet vrijgegeven door een beheerder; telt nergens mee tot vrijgave.
+ * 'concept' (US-54): door AI voorgesteld (AI-registratie, discovery of AI-aandraag) en nog niet vrijgegeven door een beheerder;
+ *   telt nergens mee (zoeken, filteren, matchen, verbanden, chat, export) tot vrijgave.
  */
-export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd" | "gearchiveerd" | "ter_controle";
+export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd" | "gearchiveerd" | "concept";
 
 export type Rol = "architect" | "aannemer" | "installateur" | "adviseur" | "leverancier" | "ontwikkelpartner";
 
@@ -285,8 +286,12 @@ export type VeldHerkomst = {
 /** US-53: expliciete markering dat er voor een veld geen betrouwbare bron is gevonden (het veld blijft leeg). */
 export type GeenBronMarkering = { op: string; doorzocht: string[] };
 
-/** Registratie door AI: wie het vroeg, waaruit het is opgebouwd, herkomst per veld en het besluit van de beheerder. */
+/** Concept (US-54): wie het vroeg, waaruit het is opgebouwd, herkomst per veld en het besluit van de beheerder. */
 export type PartnerRegistratie = {
+  /** Hoe het concept is ontstaan: AI-registratie op verzoek, geaccepteerde discovery-kandidaat of AI-aandraag vanuit een zoekprofiel (US-55). */
+  herkomstSoort?: "ai-registratie" | "discovery" | "ai-aandraag";
+  /** US-55: onderbouwing van een AI-voorstel — waarom past deze partij, welke bron, wat is onzeker. */
+  onderbouwing?: { waaromPast: string; bron: string; bronUrl?: string; opgehaaldOp: string; onzeker: string[]; zoekprofielId?: string; zoekvraag?: string };
   aangevraagdDoor: string;
   op: string;
   provider: string;
@@ -658,14 +663,27 @@ export type AIBewerking = {
   kostenUsd: number;
 };
 
-export type Gebruikersrol = "lezer" | "bewerker" | "inkoper" | "beheerder";
+/** US-65: twee rollen conform de overeenkomst. Het aantal gebruikers is onbeperkt. */
+export type Gebruikersrol = "gebruiker" | "beheerder";
 
-export type Gebruiker = { id: string; naam: string; rol: Gebruikersrol };
+export type Gebruiker = {
+  id: string;
+  naam: string;
+  rol: Gebruikersrol;
+  /** US-64: e-mailadres van de ingelogde medewerker (Entra ID). */
+  email?: string;
+  actief?: boolean;
+  laatstIngelogdOp?: string;
+  aangemaaktOp?: string;
+};
 
 export type AuditEntry = {
   id: string;
   op: string;
   door: string;
+  /** US-64: id en e-mail van de ingelogde gebruiker. */
+  gebruikerId?: string;
+  email?: string;
   gebruikersrol: Gebruikersrol;
   entiteit: string;
   entiteitId: string;

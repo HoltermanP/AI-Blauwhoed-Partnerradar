@@ -4,7 +4,10 @@ import { matchProject, profielBronnen, profieltekst, semantischZoeken, valideerG
 import { stelTeamSamen } from "../src/lib/domain/team";
 import { signalenVoor } from "../src/lib/domain/signalen";
 import { leidFactorenAf } from "../src/lib/domain/derive";
-import { vindDubbel } from "../src/lib/domain/discovery";
+import { kandidaatNaarConcept, kandidaatNaarPartner, vindDubbel } from "../src/lib/domain/discovery";
+import { heeftRecht, normaliseerRol, vindOfRegistreer } from "../src/lib/domain/gebruikers";
+import { chatContext } from "../src/lib/domain/chat";
+import type { Gebruiker } from "../src/lib/domain/types";
 import { extraheerVoorstellen, factorNogBevestigd, inhoudsHash, splitsClaims } from "../src/lib/domain/enrichment";
 import { extraheerProjectprofiel } from "../src/lib/domain/extractie";
 import { importeerEngagements } from "../src/lib/domain/csv";
@@ -255,7 +258,7 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
 {
   const dbR = maakSeedDatabase();
   const doel = dbR.partners.find((p) => p.rollen.includes("aannemer"))!;
-  doel.status = "ter_controle";
+  doel.status = "concept";
   const r = matchProject({ db: dbR, project: dbR.projecten[0] });
   const inAdvies = r.some((rr) => [...rr.kandidaten, ...rr.prospects].some((k) => k.partnerId === doel.id));
   check("Registratie: partner ter controle telt niet mee in matching en zoeken", !inAdvies && !semantischZoeken(dbR, doel.omschrijving || doel.naam).some((t) => t.partner.id === doel.id));
@@ -310,7 +313,42 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   delete oud.partners[0].veldHerkomst;
   oud.instellingen.verrijkingsbronnen = [{ id: "x", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/", actief: true }];
   migreerDatabase(oud, new Map());
-  check("Migratie v9: herkomst aangevuld (voorgesteld) en bron eigen uitgave", oud.partners[0].veldHerkomst?.omschrijving?.status === "voorgesteld" && oud.instellingen.verrijkingsbronnen[0].categorie === "eigen_uitgave" && typeof oud.goudstandaard === "object");
+  const naMigratie = oud.partners.slice()[0];
+  check("Migratie v9: herkomst aangevuld (voorgesteld) en bron eigen uitgave", naMigratie.veldHerkomst?.omschrijving?.status === "voorgesteld" && oud.instellingen.verrijkingsbronnen[0].categorie === "eigen_uitgave" && typeof oud.goudstandaard === "object");
+}
+
+// ---------- Groep B: concept, vrijgave en twee rollen (US-54, US-64, US-65) ----------
+{
+  check("US-65 gebruiker mag bewerken, niet vrijgeven/wegen/verwijderen", heeftRecht("gebruiker", "bewerken") && heeftRecht("gebruiker", "discovery_goedkeuren") && !heeftRecht("gebruiker", "partners_vrijgeven") && !heeftRecht("gebruiker", "beheer") && !heeftRecht("gebruiker", "definitief_verwijderen") && !heeftRecht("gebruiker", "gebruikers_beheren"));
+  check("US-65 beheerder heeft alle beheerrechten", ["partners_vrijgeven", "beheer", "definitief_verwijderen", "gebruikers_beheren", "volledige_export"].every((r) => heeftRecht("beheerder", r as Parameters<typeof heeftRecht>[1])));
+  check("US-65 oude rollen worden gebruiker", normaliseerRol("inkoper") === "gebruiker" && normaliseerRol("lezer") === "gebruiker" && normaliseerRol("beheerder") === "beheerder");
+  process.env.EERSTE_BEHEERDER_EMAIL = "Baas@Blauwhoed.nl";
+  const lijst: Gebruiker[] = [];
+  const eerste = vindOfRegistreer(lijst, "baas@blauwhoed.nl", "Baas");
+  const tweede = vindOfRegistreer(lijst, "collega@blauwhoed.nl", "Collega");
+  check("US-64 eerste beheerder uit env, overige medewerkers gebruiker, onbeperkt", eerste.gebruiker.rol === "beheerder" && tweede.gebruiker.rol === "gebruiker" && lijst.length === 2 && !vindOfRegistreer(lijst, "COLLEGA@blauwhoed.nl", "x").nieuw);
+  const dbB = maakSeedDatabase();
+  const kand = { id: "k1", naam: "Nieuwbouw Test B.V.", rollen: ["aannemer" as const], bron: "Webzoek", bronUrl: "https://example.org", opgehaaldOp: "2026-09-01T10:00:00Z", ruweData: { profiel: "Bouwer" }, status: "geaccepteerd" as const, vestigingsplaats: "Utrecht", samenvatting: { watDoetHetBedrijf: "x", referentieprojecten: [], waaromPastHet: "Past bij houtbouw", watIsOnzeker: ["KVK onbekend"], gegenereerdOp: "", provider: "regels" } };
+  const concept = kandidaatNaarConcept(kand, "Gebruiker");
+  check("US-54 geaccepteerde discovery-kandidaat wordt concept met onderbouwing", concept.status === "concept" && concept.registratie?.herkomstSoort === "discovery" && concept.registratie.onderbouwing?.waaromPast === "Past bij houtbouw" && concept.veldHerkomst?.vestigingsplaats?.status === "voorgesteld");
+  dbB.partners.push({ ...concept, rollen: ["aannemer"], omschrijving: "houtbouw CLT woningen" });
+  const rC = matchProject({ db: dbB, project: dbB.projecten[0] });
+  check("US-54 concept uitgesloten van matchen, zoeken, verbanden, chat en export", !rC.some((rr) => [...rr.kandidaten, ...rr.prospects].some((k) => k.partnerId === concept.id)) && !semantischZoeken(dbB, "houtbouw CLT").some((t) => t.partner.id === concept.id) && !leidVerbandenAf(dbB).some((v) => v.a.id === concept.id || v.b.id === concept.id) && !chatContext(dbB, "houtbouw").partners.some((p) => p.id === concept.id) && !partnersCsv(dbB).includes("Nieuwbouw Test"));
+  // Migratie v10
+  const oud = maakLegeDatabase();
+  oud.versie = 9;
+  const tc = JSON.parse(JSON.stringify(concept)) as typeof concept;
+  (tc as { status: string }).status = "ter_controle";
+  tc.id = "p-tc";
+  const prospect = kandidaatNaarPartner({ ...kand, id: "k2", naam: "Prospect B.V." });
+  oud.partners = [tc, prospect];
+  oud.kandidaten = [{ ...kand, id: "k2", naam: "Prospect B.V.", gepromoveerdTot: prospect.id, beoordeeldDoor: "Inkoper" }];
+  oud.gebruikers = [{ id: "u1", naam: "X", rol: "inkoper" as unknown as "gebruiker" }];
+  oud.audit.push({ id: "a-oud", op: "", door: "Inkoper", gebruikersrol: "inkoper" as unknown as "gebruiker", entiteit: "partner", entiteitId: "x", actie: "y" });
+  const u10 = migreerDatabase(oud, new Map())!;
+  const [na1, na2] = oud.partners.slice();
+  check("Migratie v10: ter_controle en geaccepteerde discovery-prospect worden concept", na1.status === "concept" && na2.status === "concept" && na2.registratie?.herkomstSoort === "discovery" && u10.concepten === 2);
+  check("Migratie v10: rollen naar gebruiker (ook audit)", oud.gebruikers[0].rol === "gebruiker" && oud.audit.find((a) => a.id === "a-oud")?.gebruikersrol === "gebruiker");
 }
 
 console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");

@@ -126,7 +126,7 @@ export default function KandidaatKaart({ kandidaat, projectNaam, dubbelNaam, rec
 
       {k.status === "geaccepteerd" && k.gepromoveerdTot ? (
         <Melding soort="succes">
-          Geaccepteerd als prospect: <Link href={`/partners/${k.gepromoveerdTot}`}>naar partnerprofiel</Link> · door {k.beoordeeldDoor} op {datumTijd(k.beoordeeldOp)}
+          Geaccepteerd door {k.beoordeeldDoor} op {datumTijd(k.beoordeeldOp)}: <Link href={`/partners/${k.gepromoveerdTot}`}>concept</Link> in de <Link href="/vrijgave">vrijgavewachtrij</Link> (een beheerder geeft het vrij).
         </Melding>
       ) : null}
       {k.status === "afgewezen" ? (
@@ -137,13 +137,11 @@ export default function KandidaatKaart({ kandidaat, projectNaam, dubbelNaam, rec
 
       {open ? (
         <div className="formulierActies">
-          {rechten.promoveren ? (
-            <button type="button" className="knop klein" onClick={() => beslis("geaccepteerd")} disabled={bezig}>
-              Accepteren als prospect
+          {rechten.goedkeuren ? (
+            <button type="button" className="knop klein" onClick={() => beslis("geaccepteerd")} disabled={bezig} title="Wordt een concept; een beheerder geeft het vrij">
+              Accepteren (naar vrijgave)
             </button>
-          ) : (
-            <span className="muted">Accepteren vereist recht prospect_promoveren.</span>
-          )}
+          ) : null}
           {rechten.goedkeuren ? (
             <>
               <button type="button" className="knop knop-secundair klein" onClick={() => setAfwijzen((v) => !v)} disabled={bezig}>

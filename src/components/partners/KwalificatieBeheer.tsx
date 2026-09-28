@@ -69,7 +69,7 @@ export function KwalificatieChecklist({ partnerId, kwalificatie, magKwalificeren
           </tbody>
         </table>
       </div>
-      {!magKwalificeren ? <p className="muted klein-tekst">Kwalificeren vereist de rol inkoper of beheerder.</p> : null}
+      {!magKwalificeren ? <p className="muted klein-tekst">Kwalificeren vereist de rol gebruiker of beheerder.</p> : null}
     </div>
   );
 }
@@ -162,7 +162,7 @@ export function FinancieelFormulier({ partnerId, financieel, magKwalificeren }: 
         <button type="submit" className="knop klein" disabled={bezig || !magKwalificeren}>
           {bezig ? "Opslaan…" : "Kerncijfers opslaan"}
         </button>
-        {!magKwalificeren ? <span className="muted klein-tekst">Alleen inkoper/beheerder mag kerncijfers vastleggen.</span> : null}
+        {!magKwalificeren ? <span className="muted klein-tekst">Alleen een gebruiker of beheerder mag kerncijfers vastleggen.</span> : null}
       </div>
     </form>
   );

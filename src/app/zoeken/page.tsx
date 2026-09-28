@@ -9,7 +9,7 @@ import { ROL_LABEL, STATUS_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
 
 const VOORBEELDEN = ["circulaire houtbouw met demontabele gevel", "hoogstedelijke woontoren", "transformatie monument", "zorgwonen met sterke planningsdiscipline"];
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "ter_controle"];
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "concept"];
 const CERTIFICATEN: CertificaatType[] = ["ISO 9001", "ISO 14001", "VCA", "CO2-prestatieladder", "FSC", "PEFC", "BREEAM-expertise", "Woonkeur", "KOMO"];
 
 /** US-51: bij elk resultaat de herkomst van het profiel (bron, datum, betrouwbaarheid, status) en de verhouding gevalideerd/voorgesteld. */

@@ -1,5 +1,5 @@
 // Partnerregistratie door AI: een partner wordt opgebouwd uit openbare tekst (website en/of aangeleverd document) en
-// komt met status 'ter_controle' in het bestand. Pas na vrijgave door een beheerder telt hij mee in zoeken en matching.
+// komt met status 'concept' in het bestand. Pas na vrijgave door een beheerder telt hij mee in zoeken en matching.
 // Deze module bevat de regelgebaseerde terugval (zonder API-sleutel) en de samenvoeging van AI- en regeluitkomsten.
 import { BASISVELDEN } from "./webverrijking";
 import { leesBedrijfsgegevens } from "./webzoek";

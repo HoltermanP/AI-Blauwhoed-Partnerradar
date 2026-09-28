@@ -3,7 +3,7 @@ import { laadAanvulling } from "./aanvulling";
 import { vulOntbrekendeHerkomst } from "./herkomst";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 9;
+export const HUIDIGE_VERSIE = 10;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -56,7 +56,7 @@ export function hernoemIds(db: Database, mapping: Map<string, string>) {
   loop(db);
 }
 
-export type MigratieUitkomst = { van: number; naar: number; hernoemd: number; aanvulling?: ReturnType<typeof laadAanvulling>; herkomstAangevuld?: number };
+export type MigratieUitkomst = { van: number; naar: number; hernoemd: number; aanvulling?: ReturnType<typeof laadAanvulling>; herkomstAangevuld?: number; concepten?: number };
 
 /**
  * Versie 1 → 2: tijdstempel-IDs van partners (p-<tijd>) worden stabiele naam-IDs; daarna wordt de aanvullende dataset geladen.
@@ -126,6 +126,43 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
     }));
     // Bestaande basisvelden krijgen een afgeleide herkomst met status 'voorgesteld' (alleen een mens valideert).
     uitkomst.herkomstAangevuld = db.partners.reduce((n, p) => n + vulOntbrekendeHerkomst(p), 0);
+  }
+  if (van < 10) {
+    // US-65: twee rollen — lezer, bewerker en inkoper worden gebruiker (ook in de auditlog en bij gebruikers).
+    const rol = (r: string) => (r === "beheerder" ? "beheerder" : "gebruiker");
+    db.gebruikers = (db.gebruikers ?? []).map((g) => ({ ...g, rol: rol(g.rol) }));
+    db.audit.forEach((a) => {
+      if (a.gebruikersrol !== "beheerder" && a.gebruikersrol !== "gebruiker") a.gebruikersrol = rol(a.gebruikersrol);
+    });
+    // US-54: één status 'concept' voor AI-voorstellen. 'ter_controle' wordt concept; geaccepteerde discovery-kandidaten die
+    // nog als (onbeoordeelde) prospect in het bestand staan worden ook concept en komen in de vrijgavewachtrij.
+    let concepten = 0;
+    db.partners.forEach((p) => {
+      if ((p.status as string) === "ter_controle") {
+        p.status = "concept";
+        if (p.registratie) p.registratie.herkomstSoort = p.registratie.herkomstSoort ?? "ai-registratie";
+        concepten++;
+      }
+    });
+    db.kandidaten.forEach((k) => {
+      if (k.status !== "geaccepteerd" || !k.gepromoveerdTot) return;
+      const p = db.partners.find((x) => x.id === k.gepromoveerdTot);
+      if (!p || p.status !== "prospect" || p.registratie?.besluit) return;
+      p.status = "concept";
+      p.statusReden = `Discovery-kandidaat (geaccepteerd door ${k.beoordeeldDoor ?? "onbekend"}); wacht op vrijgave door een beheerder (migratie v10).`;
+      p.registratie = {
+        herkomstSoort: "discovery",
+        aangevraagdDoor: k.beoordeeldDoor ?? "onbekend",
+        op: k.beoordeeldOp ?? k.opgehaaldOp,
+        provider: k.samenvatting?.provider ?? "regels (geen externe AI)",
+        bronnen: [k.bronUrl],
+        herkomst: [],
+        waarschuwingen: k.samenvatting?.watIsOnzeker ?? [],
+        onderbouwing: { waaromPast: k.samenvatting?.waaromPastHet ?? "", bron: k.bron, bronUrl: k.bronUrl, opgehaaldOp: k.opgehaaldOp, onzeker: k.samenvatting?.watIsOnzeker ?? [] }
+      };
+      concepten++;
+    });
+    uitkomst.concepten = concepten;
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

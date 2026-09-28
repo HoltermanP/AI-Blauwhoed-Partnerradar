@@ -8,7 +8,7 @@ export const STATUS_KLEUR: Record<PartnerStatus, string> = {
   afgewezen: "#9a9a9a",
   geblokkeerd: "#d11f1f",
   gearchiveerd: "#c4c4c4",
-  ter_controle: "#2fa39a"
+  concept: "#2fa39a"
 };
 
 export type KaartKoppeling = { partner: Partner; afstandKm: number; binnenWerkgebied: boolean };

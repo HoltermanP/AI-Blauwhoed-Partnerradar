@@ -1,6 +1,6 @@
 // Beheeroverzicht: instellingen (US-48), rollen/rechten (US-45), links naar factoren (US-04), gewichten (US-44), audit (US-46).
 import Link from "next/link";
-import { heeftRecht, GEBRUIKERS } from "@/lib/auth";
+import { heeftRecht, GEBRUIKERSROL_LABEL } from "@/lib/auth";
 import { huidigeGebruiker } from "@/lib/auth";
 import type { Gebruikersrol } from "@/lib/domain/types";
 import { getDb } from "@/lib/store";
@@ -21,12 +21,15 @@ const RECHTEN: Array<{ id: Parameters<typeof heeftRecht>[1]; label: string; uitl
   { id: "bewerken", label: "Bewerken", uitleg: "Partner- en projectgegevens, factorwaarden en certificaten wijzigen." },
   { id: "evalueren", label: "Evalueren", uitleg: "Partners na oplevering beoordelen (US-21)." },
   { id: "discovery_goedkeuren", label: "Discovery goedkeuren", uitleg: "Discovery-kandidaten accepteren, parkeren of afwijzen (US-25)." },
-  { id: "prospect_promoveren", label: "Prospect promoveren", uitleg: "Prospect kwalificeren tot bekende partner (US-29)." },
+  { id: "prospect_promoveren", label: "Status preferred/geblokkeerd", uitleg: "Partner op preferred of geblokkeerd zetten (na kwalificatie)." },
   { id: "kwalificeren", label: "Kwalificeren", uitleg: "Kwalificatiechecklist en financiële toets afvinken." },
-  { id: "beheer", label: "Beheer", uitleg: "Factoren, gewichtsprofielen, instellingen en demo-reset." },
-  { id: "partners_vrijgeven", label: "Partners vrijgeven", uitleg: "Door AI geregistreerde partners controleren en vrijgeven of afwijzen." }
+  { id: "beheer", label: "Beheer", uitleg: "Weging (gewichtsprofielen), goudstandaard, verrijkingsschema, bronnen, budget en modellen, factoren en instellingen." },
+  { id: "partners_vrijgeven", label: "AI-voorstellen vrijgeven", uitleg: "Concepten (AI-registratie, discovery, AI-aandraag) vrijgeven of afwijzen (US-54)." },
+  { id: "gebruikers_beheren", label: "Gebruikers beheren", uitleg: "Rollen toekennen en accounts blokkeren (US-64)." },
+  { id: "definitief_verwijderen", label: "Definitief verwijderen", uitleg: "Gearchiveerde partner op verzoek wissen (AVG, US-69)." },
+  { id: "volledige_export", label: "Volledige data-export", uitleg: "Het complete bestand exporteren als CSV en JSON (US-68)." }
 ];
-const ROLLEN_GEBRUIKER: Gebruikersrol[] = ["lezer", "bewerker", "inkoper", "beheerder"];
+const ROLLEN_GEBRUIKER: Gebruikersrol[] = ["gebruiker", "beheerder"];
 
 export default async function BeheerPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -34,7 +37,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBeheren = heeftRecht(gebruiker.rol, "beheer");
   const actieveFactoren = db.factoren.filter((f) => f.actief).length;
-  const terControle = db.partners.filter((p) => p.status === "ter_controle");
+  const terControle = db.partners.filter((p) => p.status === "concept");
   const verbruik = maandVerbruik(db.aiBewerkingen ?? []);
   const budget = budgetStatus(db);
   const laatsteBewerkingen = (db.aiBewerkingen ?? []).slice(0, 10);
@@ -48,20 +51,9 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
       {!magBeheren ? <Melding soort="waarschuwing">U bent ingelogd als {gebruiker.naam} ({gebruiker.rol}). Beheerfuncties zijn alleen-lezen; wissel rechtsboven naar Beheerder om te wijzigen.</Melding> : null}
 
       {terControle.length ? (
-        <Kaart titel={`Controle AI-registraties (${terControle.length})`}>
-          <p className="muted klein-tekst">Door AI geregistreerde partners tellen nergens mee tot ze zijn vrijgegeven. Open een partner om de herkomst te controleren en te besluiten.</p>
-          <ul className="lijst">
-            {terControle.map((p) => (
-              <li key={p.id}>
-                <Link href={`/partners/${p.id}`}>{p.naam}</Link>{" "}
-                <span className="muted klein-tekst">
-                  aangevraagd door {p.registratie?.aangevraagdDoor ?? "onbekend"} · {datumTijd(p.registratie?.op ?? p.aangemaaktOp)}
-                  {p.registratie?.mogelijkeDubbelVan ? " · mogelijke dubbel" : ""}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </Kaart>
+        <Melding soort="info">
+          {terControle.length} concept(en) wachten op vrijgave. <Link href="/vrijgave">Naar de vrijgavewachtrij</Link>
+        </Melding>
       ) : null}
 
       <div className="raster raster-3 beheerTegels">
@@ -76,6 +68,10 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
         <Kaart titel="Goudstandaard">
           <p className="muted">Per partnertype de verplichte en gewenste velden en de beoordelingscriteria (US-49). Goudstandaardwaarden gaan altijd voor op AI.</p>
           <Link href="/beheer/goudstandaard" className="knop knop-secundair klein">Goudstandaard beheren</Link>
+        </Kaart>
+        <Kaart titel="Gebruikers">
+          <p className="muted">{db.gebruikers.length} account(s). Rollen gebruiker en beheerder toekennen, blokkeren en vooraf aanmelden (US-64/65).</p>
+          <Link href="/beheer/gebruikers" className="knop knop-secundair klein">Gebruikers beheren</Link>
         </Kaart>
         <Kaart titel="Auditlog">
           <p className="muted">{db.audit.length} regels. Elke wijziging aan partnergegevens en scoringsregels (US-46).</p>
@@ -107,7 +103,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
                   <tr>
                     <th>Recht</th>
                     {ROLLEN_GEBRUIKER.map((r) => (
-                      <th key={r}>{r}{r === gebruiker.rol ? <Badge kleur="blauw">u</Badge> : null}</th>
+                      <th key={r}>{GEBRUIKERSROL_LABEL[r]}{r === gebruiker.rol ? <Badge kleur="blauw">u</Badge> : null}</th>
                     ))}
                   </tr>
                 </thead>
@@ -126,7 +122,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
                 </tbody>
               </table>
             </div>
-            <p className="muted klein-tekst">Demo-accounts: {GEBRUIKERS.map((g) => `${g.naam} (${g.rol})`).join(", ")}. Authenticatie via cookie; koppeling aan SSO (Entra ID) volgt.</p>
+            <p className="muted klein-tekst">Twee rollen conform de overeenkomst (US-65); het aantal gebruikers is onbeperkt. Rollen toekennen: <Link href="/beheer/gebruikers">gebruikersbeheer</Link>.</p>
           </Kaart>
         </div>
 

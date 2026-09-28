@@ -22,9 +22,15 @@ const TOEGESTANE_TYPES = [
 
 export async function POST(request: Request) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return NextResponse.json({ error: "Vercel Blob is niet geconfigureerd (BLOB_READ_WRITE_TOKEN ontbreekt)." }, { status: 501 });
-  const g = await huidigeGebruiker();
-  if (!heeftRecht(g.rol, "bewerken")) return NextResponse.json({ error: "Recht 'bewerken' vereist voor uploads." }, { status: 403 });
   const body = (await request.json()) as HandleUploadBody;
+  // Alleen het uitgeven van een upload-token vraagt een ingelogde gebruiker met recht bewerken; de webhook van Vercel
+  // ('upload voltooid') is ondertekend en wordt door handleUpload zelf gecontroleerd (US-64: route staat buiten de proxy).
+  let door = "systeem";
+  if (body.type === "blob.generate-client-token") {
+    const g = await huidigeGebruiker();
+    if (!heeftRecht(g.rol, "bewerken")) return NextResponse.json({ error: "Recht 'bewerken' vereist voor uploads." }, { status: 403 });
+    door = g.naam;
+  }
   try {
     const antwoord = await handleUpload({
       body,
@@ -33,7 +39,7 @@ export async function POST(request: Request) {
         allowedContentTypes: TOEGESTANE_TYPES,
         maximumSizeInBytes: 25 * 1024 * 1024,
         addRandomSuffix: true,
-        tokenPayload: JSON.stringify({ door: g.naam, pathname, clientPayload })
+        tokenPayload: JSON.stringify({ door, pathname, clientPayload })
       }),
       // Registratie van het document gebeurt door de client via de server action (werkt ook lokaal,
       // waar deze webhook Vercel niet kan bereiken).

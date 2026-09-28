@@ -115,6 +115,11 @@ async function maakStartDatabase(): Promise<Database> {
   return db;
 }
 
+/** Plan wegschrijven vanuit andere modules (bijv. laatste inlog). */
+export function planOpslaanExtern() {
+  if (g.__partnerDb) planOpslaan(g.__partnerDb);
+}
+
 let teller = 0;
 export function nieuwId(prefix: string) {
   teller += 1;
@@ -130,10 +135,11 @@ export async function registreerAIBewerking(b: import("./domain/types").AIBewerk
 }
 
 /** Voer een mutatie uit met auditregel. */
-export async function muteer<T>(gebruiker: Gebruiker, audit: Omit<AuditEntry, "id" | "op" | "door" | "gebruikersrol">, fn: (db: Database) => T): Promise<T> {
+export async function muteer<T>(gebruiker: Gebruiker, audit: Omit<AuditEntry, "id" | "op" | "door" | "gebruikersrol" | "gebruikerId" | "email">, fn: (db: Database) => T): Promise<T> {
   const db = await getDb();
   const resultaat = fn(db);
-  db.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: gebruiker.naam, gebruikersrol: gebruiker.rol, ...audit });
+  // US-64: elke auditregel legt de ingelogde gebruiker vast (naam, id en e-mail).
+  db.audit.unshift({ id: nieuwId("audit"), op: new Date().toISOString(), door: gebruiker.naam, gebruikerId: gebruiker.id, email: gebruiker.email, gebruikersrol: gebruiker.rol, ...audit });
   if (db.audit.length > 2000) db.audit.length = 2000;
   planOpslaan(db);
   return resultaat;

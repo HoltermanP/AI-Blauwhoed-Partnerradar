@@ -3,7 +3,10 @@ import Link from "next/link";
 import "./globals.css";
 import NavLinks from "@/components/NavLinks";
 import RolWisselaar from "@/components/RolWisselaar";
-import { GEBRUIKERS, huidigeGebruiker } from "@/lib/auth";
+import { DEMO_GEBRUIKERS, GEBRUIKERSROL_LABEL, huidigeGebruiker } from "@/lib/auth";
+import { demoModus } from "@/authjs";
+import { uitloggen } from "@/lib/acties/sessie";
+import { headers } from "next/headers";
 
 export const metadata: Metadata = {
   title: "Blauwhoed Partnerdatabase",
@@ -13,7 +16,10 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const gebruiker = await huidigeGebruiker();
+  // De inlogpagina draait zonder sessie; alle andere pagina's worden door src/proxy.ts afgeschermd.
+  const opInlogpagina = (await headers()).get("x-pr-pad")?.startsWith("/inloggen");
+  const gebruiker = opInlogpagina ? null : await huidigeGebruiker();
+  const demo = demoModus();
   return (
     <html lang="nl">
       <head>
@@ -30,8 +36,18 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <img src="/brand/logo.png" alt="Blauwhoed" width={188} height={20} />
             <em>Partnerdatabase</em>
           </Link>
-          <NavLinks />
-          <RolWisselaar gebruikers={GEBRUIKERS} huidig={gebruiker} />
+          {gebruiker ? <NavLinks beheerder={gebruiker.rol === "beheerder"} /> : null}
+          {gebruiker && demo ? <RolWisselaar gebruikers={DEMO_GEBRUIKERS} huidig={gebruiker} /> : null}
+          {gebruiker && !demo ? (
+            <form action={uitloggen} className="gebruikerMenu">
+              <span title={gebruiker.email}>
+                {gebruiker.naam} · {GEBRUIKERSROL_LABEL[gebruiker.rol]}
+              </span>
+              <button type="submit" className="knop knop-tekst klein">
+                Uitloggen
+              </button>
+            </form>
+          ) : null}
         </header>
         <main className="pagina">{children}</main>
         <section className="footerBand" aria-label="Over Blauwhoed">

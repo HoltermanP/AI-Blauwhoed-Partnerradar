@@ -1,5 +1,5 @@
 "use client";
-// Partnerregistratie door AI: naam, website en/of tekst → partner met status 'ter controle', vrij te geven door een beheerder.
+// Partnerregistratie door AI: naam, website en/of tekst → partner met status 'concept', vrij te geven door een beheerder.
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -33,7 +33,7 @@ export default function AIRegistratie({ aiActief, externeBronnen }: { aiActief: 
   return (
     <form className="formulier" onSubmit={verzend}>
       <p className="muted klein-tekst">
-        Geef een bedrijfsnaam, website of een stuk tekst (brochure, e-mail, projectblad). {aiActief ? "Claude" : "De regelgebaseerde extractie (geen AI-sleutel ingesteld)"} vult de basisgegevens met herkomst per veld. De partner krijgt de status <b>ter controle</b> en telt pas mee in zoeken en matching nadat een beheerder hem heeft vrijgegeven.
+        Geef een bedrijfsnaam, website of een stuk tekst (brochure, e-mail, projectblad). {aiActief ? "Claude" : "De regelgebaseerde extractie (geen AI-sleutel ingesteld)"} vult de basisgegevens met herkomst per veld. De partner wordt een <b>concept</b> (voorstel, geen vastgesteld gegeven) en telt pas mee in zoeken en matching nadat een beheerder hem heeft vrijgegeven in de vrijgavewachtrij.
       </p>
       {!externeBronnen ? <Melding soort="info">Externe bronnen staan uit: de website wordt niet gelezen, alleen de geplakte tekst.</Melding> : null}
       {fout ? (

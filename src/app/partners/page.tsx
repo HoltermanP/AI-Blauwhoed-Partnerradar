@@ -16,7 +16,7 @@ import { goudstandaardVolledigheid } from "@/lib/domain/goudstandaard";
 import { heeftWaardeStatus } from "@/lib/domain/datakwaliteit";
 
 
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "ter_controle"];
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "concept"];
 
 export default async function PartnersPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -68,7 +68,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       }
       if (rol && !p.rollen.includes(rol)) return false;
       if (status && p.status !== status) return false;
-      if (!status && (p.status === "gearchiveerd" || p.status === "ter_controle")) return false; // alleen via het statusfilter
+      if (!status && (p.status === "gearchiveerd" || p.status === "concept")) return false; // alleen via het statusfilter
       if (cert && !p.certificaten.some((c) => c.type === cert && new Date(c.geldigTot) >= nu)) return false;
       if (centrum && afstand !== null && straal && afstand > straal) return false;
       if (kenmerken.length && !voldoet) return false;
@@ -117,10 +117,10 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
           )
         }
       />
-      {db.partners.some((p) => p.status === "ter_controle") && status !== "ter_controle" ? (
+      {db.partners.some((p) => p.status === "concept") && status !== "concept" ? (
         <Melding soort="info">
-          {db.partners.filter((p) => p.status === "ter_controle").length} door AI geregistreerde partner(s) wachten op controle door een beheerder.{" "}
-          <Link href="/partners?status=ter_controle">Bekijk ze</Link>
+          {db.partners.filter((p) => p.status === "concept").length} concept(en) (AI-voorstellen) wachten op vrijgave door een beheerder en tellen nog niet mee.{" "}
+          <Link href="/vrijgave">Naar de vrijgavewachtrij</Link>
         </Melding>
       ) : null}
       {project && afgeleid ? (

@@ -21,7 +21,7 @@ export const STATUS_LABEL: Record<PartnerStatus, string> = {
   preferred: "Preferred",
   geblokkeerd: "Geblokkeerd",
   gearchiveerd: "Gearchiveerd",
-  ter_controle: "Ter controle"
+  concept: "Concept (AI-voorstel)"
 };
 
 export function waardeTekst(w: FactorWaarde | null | undefined): string {

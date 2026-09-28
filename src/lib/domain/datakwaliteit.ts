@@ -18,7 +18,7 @@ export type VeldKwaliteit = {
 
 /** Kwaliteit per veld, optioneel beperkt tot één rol (partnertype). */
 export function veldKwaliteit(db: Database, rol?: Rol, nu = new Date()): VeldKwaliteit[] {
-  const partners = db.partners.filter((p) => p.status !== "gearchiveerd" && p.status !== "ter_controle" && (!rol || p.rollen.includes(rol)));
+  const partners = db.partners.filter((p) => p.status !== "gearchiveerd" && p.status !== "concept" && (!rol || p.rollen.includes(rol)));
   return db.factoren
     .filter((f) => f.actief && !f.afgeleid)
     .map((f) => {
@@ -45,7 +45,7 @@ export function veldKwaliteit(db: Database, rol?: Rol, nu = new Date()): VeldKwa
 
 /** Basisvelden (naam/kvk/plaats/website/omschrijving) — volledigheid over het bestand. */
 export function basisVeldKwaliteit(db: Database, rol?: Rol) {
-  const partners = db.partners.filter((p) => p.status !== "gearchiveerd" && p.status !== "ter_controle" && (!rol || p.rollen.includes(rol)));
+  const partners = db.partners.filter((p) => p.status !== "gearchiveerd" && p.status !== "concept" && (!rol || p.rollen.includes(rol)));
   const pct = (n: number) => (partners.length ? Math.round((n / partners.length) * 100) : 0);
   const extra = (veld: BasisVeld) => ({
     gevalideerd: pct(partners.filter((p) => basisveldWaarde(p, veld) && p.veldHerkomst?.[veld]?.status === "gevalideerd").length),

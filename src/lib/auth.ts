@@ -1,35 +1,20 @@
-// US-45: rollen en rechten. Demo-authenticatie via cookie; koppel later aan SSO (Entra ID).
-import { cookies } from "next/headers";
-import type { Gebruiker, Gebruikersrol } from "./domain/types";
+// US-45 / US-65: twee rollen conform de overeenkomst — gebruiker en beheerder. De fijnmazige rechten blijven intern bestaan.
+// US-64: wie er is ingelogd komt uit Auth.js (Microsoft Entra ID); zie src/lib/sessie.ts. De demo-rolwisselaar werkt alleen
+// in ontwikkelmodus (of expliciet met AUTH_DEMO_MODUS=1).
+import type { Gebruiker } from "./domain/types";
+import { huidigeSessieGebruiker } from "./sessie";
 
-export const GEBRUIKERS: Gebruiker[] = [
-  { id: "u-lezer", naam: "Lezer (projectleider)", rol: "lezer" },
-  { id: "u-om", naam: "Ontwikkelingsmanager", rol: "bewerker" },
-  { id: "u-inkoper", naam: "Inkoper", rol: "inkoper" },
-  { id: "u-beheer", naam: "Beheerder", rol: "beheerder" }
-];
+export { DEMO_GEBRUIKERS, OUDE_DEMO_IDS } from "./sessie";
 
-export type Recht = "lezen" | "bewerken" | "discovery_goedkeuren" | "prospect_promoveren" | "beheer" | "evalueren" | "kwalificeren" | "partners_vrijgeven";
-
-const RECHTEN: Record<Gebruikersrol, Recht[]> = {
-  lezer: ["lezen", "evalueren"],
-  bewerker: ["lezen", "bewerken", "evalueren", "discovery_goedkeuren"],
-  inkoper: ["lezen", "bewerken", "evalueren", "discovery_goedkeuren", "prospect_promoveren", "kwalificeren"],
-  beheerder: ["lezen", "bewerken", "evalueren", "discovery_goedkeuren", "prospect_promoveren", "kwalificeren", "beheer", "partners_vrijgeven"]
-};
-
-export function heeftRecht(rol: Gebruikersrol, recht: Recht) {
-  return RECHTEN[rol].includes(recht);
-}
+export { ALLE_RECHTEN, GEBRUIKERSROL_LABEL, heeftRecht, normaliseerRol, type Recht } from "./domain/gebruikers";
+import { GEBRUIKERSROL_LABEL, heeftRecht, type Recht } from "./domain/gebruikers";
 
 export async function huidigeGebruiker(): Promise<Gebruiker> {
-  const jar = await cookies();
-  const id = jar.get("pr_gebruiker")?.value;
-  return GEBRUIKERS.find((g) => g.id === id) ?? GEBRUIKERS[1];
+  return huidigeSessieGebruiker();
 }
 
 export async function vereisRecht(recht: Recht): Promise<Gebruiker> {
   const g = await huidigeGebruiker();
-  if (!heeftRecht(g.rol, recht)) throw new Error(`Geen recht '${recht}' voor rol ${g.rol}.`);
+  if (!heeftRecht(g.rol, recht)) throw new Error(`Geen recht '${recht}' voor rol ${GEBRUIKERSROL_LABEL[g.rol] ?? g.rol}.`);
   return g;
 }

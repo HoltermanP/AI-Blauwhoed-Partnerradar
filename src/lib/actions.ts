@@ -4,8 +4,9 @@ import { revalidatePath } from "next/cache";
 import { del } from "@vercel/blob";
 import { after } from "next/server";
 import { cookies } from "next/headers";
-import { GEBRUIKERS, heeftRecht, vereisRecht } from "./auth";
-import { afwijsPenalty, demoConnector, kandidaatNaarPartner, normaliseerNaam, samenvattingVoor, vindDubbel } from "./domain/discovery";
+import { DEMO_GEBRUIKERS, heeftRecht, vereisRecht } from "./auth";
+import { demoModus } from "@/authjs";
+import { afwijsPenalty, demoConnector, kandidaatNaarConcept, normaliseerNaam, samenvattingVoor, vindDubbel } from "./domain/discovery";
 import { extraheerVoorstellen, factorNogBevestigd, inhoudsHash, striptHtml } from "./domain/enrichment";
 import { extraheerProjectprofiel } from "./domain/extractie";
 import { kvkConnector } from "./domain/kvk";
@@ -69,8 +70,10 @@ async function veilig<T>(fn: () => Promise<T>): Promise<ActieResultaat<T>> {
 }
 
 // ---------- Gebruiker / rollen ----------
+/** Demo-rolwisselaar: alleen zonder echte authenticatie in ontwikkelmodus (US-64). */
 export async function wisselGebruiker(id: string) {
-  if (!GEBRUIKERS.some((g) => g.id === id)) return;
+  if (!demoModus()) return;
+  if (!DEMO_GEBRUIKERS.some((g) => g.id === id)) return;
   const jar = await cookies();
   jar.set("pr_gebruiker", id, { path: "/", httpOnly: true, sameSite: "lax" });
   revalidatePath("/", "layout");
@@ -178,7 +181,7 @@ export async function zetPartnerStatus(id: string, status: PartnerStatus, reden:
     await muteer(g, { entiteit: "partner", entiteitId: id, actie: `status ${status}`, details: reden }, (db) => {
       const p = db.partners.find((x) => x.id === id);
       if (!p) throw new Error("Partner niet gevonden.");
-      if (p.status === "ter_controle" || status === "ter_controle") throw new Error("Een door AI geregistreerde partner wordt vrijgegeven of afgewezen door een beheerder (controle registratie).");
+      if (p.status === "concept" || status === "concept") throw new Error("Een concept (AI-voorstel) wordt alleen door een beheerder vrijgegeven of afgewezen, via de vrijgavewachtrij.");
       if (status === "preferred") {
         const ontbreekt = KWALIFICATIE_ITEMS.filter((k) => !p.kwalificatie.find((q) => q.item === k.id && q.afgevinkt));
         if (ontbreekt.length) throw new Error(`Preferred vereist volledige kwalificatie. Nog open: ${ontbreekt.map((k) => k.label).join("; ")}.`);
@@ -646,7 +649,7 @@ export async function slaEvaluatieOp(ev: Omit<Evaluatie, "id" | "door" | "datum"
 export type RegistratieInvoer = { naam?: string; website?: string; tekst?: string };
 
 /**
- * Laat AI een partner registreren uit een naam, website en/of aangeleverde tekst. De partner krijgt status 'ter_controle'
+ * Laat AI een partner registreren uit een naam, website en/of aangeleverde tekst. De partner krijgt status 'concept' (US-54)
  * met herkomst per veld en telt nergens mee tot een beheerder hem vrijgeeft (beoordeelRegistratie).
  */
 export async function registreerPartnerViaAI(invoer: RegistratieInvoer) {
@@ -663,7 +666,7 @@ export async function registreerPartnerViaAI(invoer: RegistratieInvoer) {
 
     const id = nieuwId("p");
     const nu = new Date().toISOString();
-    const leeg: Partner = { id, naam: naamHint ?? "", kvk: "", rechtsvorm: "Onbekend", vestigingsplaats: "", locatie: { lat: 52.1, lng: 5.3 }, werkgebiedKm: 75, status: "ter_controle", rollen: [], website: websiteHint, omschrijving: "", referenties: [], beschikbaarheid: [], factoren: [], certificaten: [], contactpersonen: [], kwalificatie: [], bronnen: [], tags: ["ai-registratie"], aangemaaktOp: nu, bijgewerktOp: nu };
+    const leeg: Partner = { id, naam: naamHint ?? "", kvk: "", rechtsvorm: "Onbekend", vestigingsplaats: "", locatie: { lat: 52.1, lng: 5.3 }, werkgebiedKm: 75, status: "concept", rollen: [], website: websiteHint, omschrijving: "", referenties: [], beschikbaarheid: [], factoren: [], certificaten: [], contactpersonen: [], kwalificatie: [], bronnen: [], tags: ["ai-registratie"], aangemaaktOp: nu, bijgewerktOp: nu };
     const web = extern && (naamHint || websiteHint) ? await verrijkVanuitInternet(leeg, new Date(), 25000) : null;
     const bronTekst = [tekst, web?.tekst].filter(Boolean).join("\n\n");
     if (!bronTekst) throw new Error(`Geen openbare informatie gevonden${naamHint ? ` voor '${naamHint}'` : ""}. Geef de website op of plak een tekst over de partner.`);
@@ -714,6 +717,7 @@ export async function registreerPartnerViaAI(invoer: RegistratieInvoer) {
       statusReden: `Door AI geregistreerd op verzoek van ${g.naam}; wacht op controle door een beheerder.`,
       bronnen: (web?.paginas ?? []).map((url) => ({ url, opgehaaldOp: nu, soort: "web (AI-registratie)" })),
       registratie: {
+        herkomstSoort: "ai-registratie",
         aangevraagdDoor: g.naam,
         op: nu,
         provider: ai ? "Claude" : "regels (geen externe AI)",
@@ -730,7 +734,7 @@ export async function registreerPartnerViaAI(invoer: RegistratieInvoer) {
       const vh = veld ? partner.veldHerkomst?.[veld] : undefined;
       if (vh) vh.betrouwbaarheid = h.betrouwbaarheid;
     });
-    await muteer(g, { entiteit: "partner", entiteitId: id, actie: "aangemaakt via AI (ter controle)", details: `${partner.naam}; bronnen: ${partner.registratie!.bronnen.join(", ") || "–"}` }, (db) => {
+    await muteer(g, { entiteit: "partner", entiteitId: id, actie: "aangemaakt via AI (concept)", details: `${partner.naam}; bronnen: ${partner.registratie!.bronnen.join(", ") || "–"}` }, (db) => {
       db.partners.push(partner);
     });
     revalidatePath("/partners");
@@ -738,15 +742,15 @@ export async function registreerPartnerViaAI(invoer: RegistratieInvoer) {
   });
 }
 
-/** Beheerder geeft een door AI geregistreerde partner vrij (als bekend of prospect) of wijst hem af. */
+/** US-54: alleen de beheerder geeft een concept (AI-registratie, discovery, AI-aandraag) vrij als bekend of prospect, of wijst het af. */
 export async function beoordeelRegistratie(id: string, besluit: "vrijgegeven" | "afgewezen", nieuweStatus: "bekend" | "prospect", toelichting: string) {
   const r = await veilig(async () => {
     const g = await vereisRecht("partners_vrijgeven");
     if (besluit === "afgewezen" && !toelichting.trim()) throw new Error("Afwijzen vraagt om een toelichting.");
-    await muteer(g, { entiteit: "partner", entiteitId: id, actie: besluit === "vrijgegeven" ? `registratie vrijgegeven (${nieuweStatus})` : "registratie afgewezen", details: toelichting || undefined }, (db) => {
+    await muteer(g, { entiteit: "partner", entiteitId: id, actie: besluit === "vrijgegeven" ? `concept vrijgegeven (${nieuweStatus})` : "concept afgewezen", details: toelichting || undefined }, (db) => {
       const p = db.partners.find((x) => x.id === id);
       if (!p) throw new Error("Partner niet gevonden.");
-      if (p.status !== "ter_controle") throw new Error("Deze partner wacht niet (meer) op controle.");
+      if (p.status !== "concept") throw new Error("Deze partner is geen concept (meer) en wacht niet op vrijgave.");
       if (besluit === "vrijgegeven") {
         const blokkades = vrijgaveBlokkades(p);
         if (blokkades.length) throw new Error(`Nog niet vrij te geven: ${blokkades.join(" ")} Pas de gegevens aan via Bewerken.`);
@@ -754,12 +758,15 @@ export async function beoordeelRegistratie(id: string, besluit: "vrijgegeven" | 
       }
       const nu = new Date().toISOString();
       p.status = besluit === "vrijgegeven" ? nieuweStatus : "afgewezen";
-      p.statusReden = besluit === "vrijgegeven" ? `AI-registratie vrijgegeven door ${g.naam}${toelichting ? `: ${toelichting}` : ""}` : `AI-registratie afgewezen door ${g.naam}: ${toelichting}`;
+      p.statusReden = besluit === "vrijgegeven" ? `AI-voorstel vrijgegeven door ${g.naam}${toelichting ? `: ${toelichting}` : ""}` : `AI-voorstel afgewezen door ${g.naam}: ${toelichting}`;
+      // Een afgewezen concept blijft bewaard (niet gewist), maar telt nergens mee: gearchiveerd met reden.
+      if (besluit === "afgewezen") p.status = "gearchiveerd";
       p.registratie = { ...(p.registratie ?? { aangevraagdDoor: "onbekend", op: p.aangemaaktOp, provider: "onbekend", bronnen: [], herkomst: [], waarschuwingen: [] }), besluit, beoordeeldDoor: g.naam, beoordeeldOp: nu, toelichting: toelichting || undefined };
       p.bijgewerktOp = nu;
     });
   });
   revalidatePath("/partners");
+  revalidatePath("/vrijgave");
   revalidatePath(`/partners/${id}`);
   // Na vrijgave: factorwaarden laten voorstellen (na de response; de beheerder wacht niet op internetbronnen).
   if (r.ok && besluit === "vrijgegeven") after(() => startVerrijking(id).catch(() => undefined));
@@ -818,7 +825,8 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
 
 export async function beoordeelKandidaat(id: string, beslissing: "geaccepteerd" | "afgewezen" | "geparkeerd", reden?: string) {
   return veilig(async () => {
-    const g = await vereisRecht(beslissing === "geaccepteerd" ? "prospect_promoveren" : "discovery_goedkeuren");
+    // US-54: accepteren maakt geen zichtbare partner meer, maar een concept dat een beheerder vrijgeeft.
+    const g = await vereisRecht("discovery_goedkeuren");
     if (beslissing === "afgewezen" && !reden?.trim()) throw new Error("Afwijzen vraagt om een reden; die traint de filtering.");
     await muteer(g, { entiteit: "discovery", entiteitId: id, actie: beslissing, details: reden }, (db) => {
       const k = db.kandidaten.find((x) => x.id === id);
@@ -830,7 +838,7 @@ export async function beoordeelKandidaat(id: string, beslissing: "geaccepteerd" 
       if (beslissing === "afgewezen") db.afwijsredenen.push({ reden: reden!, op: k.beoordeeldOp, kandidaatNaam: k.naam });
       if (beslissing === "geaccepteerd") {
         if (k.mogelijkeDubbelVan) throw new Error("Mogelijke dubbel: koppel eerst aan de bestaande partner of markeer als geen dubbel.");
-        const p = kandidaatNaarPartner(k);
+        const p = kandidaatNaarConcept(k, g.naam);
         db.partners.push(p);
         k.gepromoveerdTot = p.id;
       }
@@ -1096,12 +1104,12 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     // Hervatbare ronde-administratie (alleen bij een ronde over het bestand).
     let ronde = partnerId ? undefined : db.verrijkingsrondes.find((r) => !r.klaarOp);
     if (!partnerId && !ronde) {
-      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "ter_controle").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
+      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
       await muteer(g, { entiteit: "verrijking", entiteitId: ronde.id, actie: "verrijkingsronde gestart", details: `${ronde.totaal} partners` }, (d) => d.verrijkingsrondes.unshift(ronde!));
     }
     const kandidaten = partnerId
       ? db.partners.filter((p) => p.id === partnerId)
-      : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "ter_controle" && !ronde!.partnerIdsVerwerkt.includes(p.id));
+      : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept" && !ronde!.partnerIdsVerwerkt.includes(p.id));
     const doelen = partnerId ? kandidaten : kandidaten.slice(0, maxPerRonde);
     if (partnerId && !doelen.length) throw new Error("Partner niet gevonden.");
     const extraBronnen = await haalExtraBronnen(db);

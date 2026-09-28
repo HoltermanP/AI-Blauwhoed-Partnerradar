@@ -125,6 +125,29 @@ export function samenvattingVoor(kandidaat: DiscoveryCandidate, project?: Projec
   };
 }
 
+/**
+ * US-54: een geaccepteerde kandidaat wordt een concept (niet direct een zichtbare prospect). Pas na vrijgave door een
+ * beheerder telt hij mee. De samenvatting wordt de onderbouwing van het voorstel.
+ */
+export function kandidaatNaarConcept(k: DiscoveryCandidate, door: string, nu = new Date(), herkomstSoort: "discovery" | "ai-aandraag" = "discovery"): Partner {
+  const p = kandidaatNaarPartner(k, nu);
+  p.status = "concept";
+  p.statusReden = `${herkomstSoort === "discovery" ? "Discovery-kandidaat geaccepteerd" : "Door AI aangedragen"} (${k.bron}); wacht op vrijgave door een beheerder.`;
+  p.tags = [herkomstSoort === "discovery" ? "discovery" : "ai-aandraag"];
+  p.registratie = {
+    herkomstSoort,
+    aangevraagdDoor: door,
+    op: nu.toISOString(),
+    provider: k.samenvatting?.provider ?? "regels (geen externe AI)",
+    bronnen: [k.bronUrl],
+    herkomst: [],
+    waarschuwingen: k.samenvatting?.watIsOnzeker ?? [],
+    mogelijkeDubbelVan: k.mogelijkeDubbelVan,
+    onderbouwing: { waaromPast: k.samenvatting?.waaromPastHet ?? "", bron: k.bron, bronUrl: k.bronUrl, opgehaaldOp: k.opgehaaldOp, onzeker: k.samenvatting?.watIsOnzeker ?? [] }
+  };
+  return p;
+}
+
 /** Promotie van kandidaat naar partner met status prospect (US-25). */
 export function kandidaatNaarPartner(k: DiscoveryCandidate, nu = new Date()): Partner {
   const iso = nu.toISOString();
