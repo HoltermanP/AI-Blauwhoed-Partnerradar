@@ -9,9 +9,42 @@ Vereist Node.js 20.9 of nieuwer.
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-npm run smoke      # rooktest van de domeinlogica (matching, team, afleiding, discovery, verrijking)
+npm run smoke      # rooktest van de domeinlogica (matching, team, afleiding, discovery, verrijking, v3.1)
 npm run typecheck
+npm run lint       # eslint (next lint bestaat niet meer in Next 16)
+node scripts/schermcontrole.mjs http://localhost:3000 /tmp/shots u-beheer / /partners   # schermcontrole desktop/tablet/telefoon (Chrome)
 ```
+
+> Tip bij lokaal testen: `.env.local` kan naar de echte Neon-database wijzen. Wie lokaal wil experimenteren zonder die data te migreren of te wijzigen, start met `DATABASE_URL= ANTHROPIC_API_KEY= npm run dev` (in-memory, zonder AI-kosten).
+
+## Aanvulling overeenkomst v3.1 (Epic 12, US-49 t/m US-70)
+
+Zie [docs/userstories.md](docs/userstories.md) voor de status per story. Kort:
+
+- **De mens beslist**: elk AI-voorstel (AI-registratie, geaccepteerde discovery-kandidaat, AI-aandraag vanuit een zoekprofiel) is een **concept** en telt nergens mee tot een **beheerder** het vrijgeeft in `/vrijgave`.
+- **Goudstandaard en bronrang** (`/beheer/goudstandaard`): per partnertype verplichte/gewenste velden; bronnen in rang 1 (goudstandaard, eigen uitgaven zoals Conceptenboulevard), 2 (documenten, opgave, projecthistorie, KVK, registers) en 3 (internet, "indicatief – niet gevalideerd"). AI overschrijft rang 1 nooit; gevalideerde waarden nooit stilzwijgend.
+- **Herkomst per basisveld** (bron, datum, hoog/midden/laag, status) en de markering **"geen betrouwbare bron"**.
+- **AI-verbruik in bewerkingen** (`/beheer/verbruik`): één verrijkte partner = één bewerking; budget 750 bewerkingen en € 30, rekenprijzen in euro, signalen 80%/125%/kwartaal 110%, specificatie in CSV/Excel, model per functie.
+- **Verrijkingsschema** (Verrijking): frequentie, dag/tijd en omvang; dagelijkse cron via `vercel.json`.
+- **Bronnen**: KVK Basisprofiel, tekst uit geüploade PDF/Word-documenten, openbare keurmerkregisters.
+- **Projectnummer en tevredenheidsscore** per project; **Excel-exports**; **volledige data-export** (JSON en CSV-zip); **definitief verwijderen** (AVG) van gearchiveerde partners.
+- **Inloggen met Microsoft Entra ID** en twee rollen: gebruiker en beheerder.
+
+## Inloggen (US-64)
+
+Auth.js (next-auth v5) met Microsoft Entra ID. Zet in Vercel (en lokaal indien gewenst):
+
+| Variabele | Betekenis |
+| --- | --- |
+| `AUTH_SECRET` | willekeurige geheime sleutel (`npx auth secret`) |
+| `AUTH_MICROSOFT_ENTRA_ID_ID` | Application (client) ID van de app-registratie in de Blauwhoed-tenant |
+| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | client secret van die app-registratie |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | `https://login.microsoftonline.com/<tenant-id>/v2.0/` |
+| `AUTH_TOEGESTANE_DOMEINEN` | toegestane e-maildomeinen, kommagescheiden (standaard `blauwhoed.nl`) |
+| `EERSTE_BEHEERDER_EMAIL` | e-mailadres dat altijd beheerder is |
+| `AUTH_DEMO_MODUS` | alleen voor demo's: `1` opent de app zonder inloggen met de rolwisselaar (nooit in productie) |
+
+Redirect-URI in Entra ID: `https://<domein>/api/auth/callback/microsoft-entra-id`. Zonder deze configuratie is de app in productie **dicht** (alleen de inlogpagina); in ontwikkelmodus werkt de rolwisselaar (gebruiker/beheerder). Accounts ontstaan bij de eerste inlog; de beheerder kent rollen toe onder Beheer → Gebruikers.
 
 ## Nieuw in deze fase (acht onderdelen + twee dwarsdoorsnijdende eisen)
 
@@ -57,22 +90,28 @@ src/lib/domain/
   embedding.ts    lokale deterministische embedding (geen data naar modelleveranciers, US-48)
   geo.ts          afstand en geocoding zonder externe dienst
   seed.ts         demodata
-src/lib/actions.ts  alle server actions; rechten (US-45) en auditlog (US-46)
-src/lib/auth.ts     rollen en rechten (demo via cookie; koppel aan SSO)
+src/lib/actions.ts  server actions (partners, projecten, historie, discovery, verrijking); rechten en auditlog
+src/lib/acties/     server actions per domein (v3.1): goudstandaard, gebruikers, beheer (budget, modellen, schema,
+                    registers), aandragen, analyse (match-onderbouwing, verbanden), sessie
+src/lib/auth.ts     rollen en rechten; src/lib/sessie.ts ingelogde gebruiker; src/authjs.ts Auth.js + Entra ID;
+                    src/proxy.ts afscherming van alle routes
+src/lib/domain/     (v3.1) herkomst, goudstandaard, voorstellen, kosten, schema, aandragen, registers, kvk, tevredenheid,
+                    verwijderen, volledigeExport, onderbouwing, zichtbaarheid, gebruikers
+src/lib/xlsx.ts     Excel-export; src/lib/zip.ts zip lezen/schrijven; src/lib/documenttekst.ts tekst uit PDF/Word
 src/lib/store.ts    in-memory database + optionele Neon-snapshot
 src/app/            schermen: dashboard, partners, projecten (match, team, evaluaties), zoeken, kaart,
                     historie, discovery, verrijking, beheer (factoren, gewichten, audit, instellingen)
 src/app/radar/      legacy prototype (Excel-import houtbouwers)
 ```
 
-## Rollen (demo)
+## Rollen (US-65)
 
-Wissel rechtsboven van gebruiker: lezer, ontwikkelingsmanager (bewerker), inkoper, beheerder. Prospects promoveren en preferred/geblokkeerd zetten is een inkooprol; factoren en gewichten beheren is een beheerrol.
+Twee rollen: **gebruiker** (lezen, bewerken, evalueren, discovery beoordelen, kwalificeren, preferred/geblokkeerd) en **beheerder** (daarnaast: AI-voorstellen vrijgeven, weging, verrijkingsschema, goudstandaard, bronnen/budget/modellen, factoren, definitief verwijderen, volledige export, gebruikersbeheer). Het aantal gebruikers is onbeperkt. In ontwikkelmodus wissel je rechtsboven tussen de twee demo-rollen.
 
 ## AI en externe bronnen
 
-Zonder `ANTHROPIC_API_KEY` draaien extractie, samenvatting en semantiek lokaal met regels en een deterministische embedding. Met sleutel gebruikt `src/lib/ai.ts` Claude (`claude-opus-5`, structured outputs) voor kandidaat-samenvattingen, factor-extractie uit websites en projectextractie uit documenten; er gaan uitsluitend openbare bedrijfs- en projectteksten mee, nooit contactpersonen. Externe bronnen (websites, registers) staan standaard aan en zijn uit te zetten in Beheer.
+Zonder `ANTHROPIC_API_KEY` draaien extractie, samenvatting en semantiek lokaal met regels en een deterministische embedding. Met sleutel gebruikt `src/lib/ai.ts` Claude met per functie een instelbaar model (standaard Haiku 4.5 voor extractie en aandragen, Sonnet 5 voor chat, match en verband; structured outputs) voor kandidaat-samenvattingen, factor-extractie uit websites en projectextractie uit documenten; er gaan uitsluitend openbare bedrijfs- en projectteksten mee, nooit contactpersonen. Externe bronnen (websites, registers) staan standaard aan en zijn uit te zetten in Beheer.
 
-## Periodieke verrijking
+## Periodieke verrijking (US-56)
 
-`POST /api/verrijking/run` met header `x-cron-secret: $CRON_SECRET` draait een verrijkingsronde; alleen wijzigingen komen ter controle in de wachtrij (US-31).
+`vercel.json` laat Vercel Cron dagelijks om 05:00 UTC `GET /api/verrijking/run` aanroepen (met `Authorization: Bearer $CRON_SECRET`; handmatig kan ook `POST` met header `x-cron-secret`). Het endpoint start een ronde zodra het in het verrijkingsschema geplande moment is verstreken, hervat een lopende geplande ronde en geeft de volgende geplande ronde terug. Een ronde die het AI-maandbudget zou overschrijden start niet; de beheerder krijgt een signaal. In productie is `CRON_SECRET` verplicht. Alleen wijzigingen komen ter controle in de wachtrij (US-31).
