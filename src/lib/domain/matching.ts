@@ -24,7 +24,31 @@ function periodeOverlapt(a: { van: string; tot: string }, b: { van: string; tot:
 }
 
 export function profieltekst(partner: Partner) {
-  return [partner.omschrijving, ...partner.referenties, ...partner.tags, ...partner.factoren.filter((f) => typeof f.waarde === "string" && f.factorId === "signatuur").map((f) => String(f.waarde))].join(". ");
+  return [
+    partner.omschrijving,
+    ...partner.referenties,
+    ...partner.tags,
+    ...partner.factoren.filter((f) => typeof f.waarde === "string" && f.factorId === "signatuur").map((f) => String(f.waarde)),
+    // Conceptgegevens uit geimporteerde bronnen (o.a. Woningconceptenbrochure en Conceptenboulevard): elke ruwe rij
+    // (woningconcept) telt semantisch mee in matching en zoeken.
+    ...(partner.brongegevens ?? []).slice(0, 6).flatMap((b) => [b.titel ?? "", ...Object.entries(b.velden).map(([k, v]) => `${k} ${v}`)]),
+    // Teksten van vastgelegde documenten (brochures, projectbladen).
+    ...(partner.documenten ?? []).map((d) => `${d.naam}. ${d.tekst ?? ""}`.slice(0, 4000))
+  ]
+    .filter(Boolean)
+    .join(". ")
+    .slice(0, 40000);
+}
+
+/** Bronnen die het semantische profiel voeden buiten het eigen dossier (voor de uitleg per kandidaat). */
+export function profielBronnen(partner: Partner): string[] {
+  return Array.from(
+    new Set([
+      ...(partner.brongegevens ?? []).map((b) => b.bron),
+      ...(partner.documenten ?? []).filter((d) => d.tekst).map((d) => `document: ${d.naam}`),
+      ...partner.bronnen.filter((x) => x.soort === "bronvermelding").map((x) => x.url)
+    ])
+  ).slice(0, 6);
 }
 
 function asNumber(v: FactorWaarde | undefined): number | null {
@@ -106,6 +130,7 @@ export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: Mat
   const u = (soort: Uitsluiting["soort"], reden: string, factorId?: string): Uitsluiting => ({ partnerId: partner.id, partnerNaam: partner.naam, reden, soort, factorId });
 
   if (partner.status === "gearchiveerd") return u("status", "Gearchiveerd: telt niet mee in matching.", "uitsluiting");
+  if (partner.status === "ter_controle") return u("status", "Door AI geregistreerd en nog niet vrijgegeven door een beheerder.", "uitsluiting");
   if (partner.status === "geblokkeerd" && (!partner.geblokkeerdTot || new Date(partner.geblokkeerdTot) >= nu))
     return u("status", `Geblokkeerd${partner.statusReden ? `: ${partner.statusReden}` : ""}${partner.geblokkeerdTot ? ` (tot ${partner.geblokkeerdTot})` : ""}.`, "uitsluiting");
   if (partner.status === "afgewezen") return u("status", `Afgewezen${partner.statusReden ? `: ${partner.statusReden}` : ""}.`, "uitsluiting");
@@ -243,6 +268,8 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
     const sem = semantischeGelijkenis(vraagTekst, profieltekst(partner));
     const semGewicht = Math.min(40, Math.max(0, eis.semantischGewicht)) / 100;
     const score = Math.round(gewogen.score * (1 - semGewicht) + sem.score * 100 * semGewicht);
+    const semBronnen = profielBronnen(partner);
+    if ((eis.semantischGewicht > 0 || eis.vrijeOmschrijving) && sem.score > 0 && semBronnen.length) sem.treffers.push(`profiel gevoed door: ${semBronnen.join(", ")}`);
     const waarschuwingen: string[] = [];
     if (gewogen.dekkingsgraad < DEKKING_WAARSCHUWING) waarschuwingen.push(`Dekkingsgraad ${gewogen.dekkingsgraad}%: score rust op weinig bekende data.`);
     const bijnaVerlopen = partner.certificaten.filter((c) => {
@@ -286,7 +313,7 @@ export function matchProject(ctx: MatchContext, eisen = ctx.project.eisen): RolR
 /** US-15: vrije semantische zoekopdracht over alle partners. */
 export function semantischZoeken(db: Database, vraag: string, limiet = 20) {
   return db.partners
-    .filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd")
+    .filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "ter_controle")
     .map((p) => {
       const s = semantischeGelijkenis(vraag, profieltekst(p));
       return { partner: p, score: Math.round(s.score * 100), treffers: s.treffers };

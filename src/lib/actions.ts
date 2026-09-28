@@ -808,6 +808,10 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
     const context = b.tekst.slice(Math.max(0, idx - 600), idx + naam.length + 600);
     voorstellen.push(...extraheerVoorstellen(p, context, b.url));
   });
+  // Eigen documenten van Blauwhoed (bijv. woningconceptenbrochure als geplakte tekst): ook extractiebron.
+  (p.documenten ?? [])
+    .filter((d) => d.tekst)
+    .forEach((d) => voorstellen.push(...extraheerVoorstellen(p, d.tekst!, d.url ?? `document: ${d.naam}`)));
   if (aiBeschikbaar() && bronTekst) {
     const ai = await aiFactorExtractie(p.naam, bronTekst, db.factoren);
     (ai ?? []).forEach((a) => {

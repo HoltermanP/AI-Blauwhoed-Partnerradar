@@ -9,13 +9,13 @@ export const GEBRUIKERS: Gebruiker[] = [
   { id: "u-beheer", naam: "Beheerder", rol: "beheerder" }
 ];
 
-export type Recht = "lezen" | "bewerken" | "discovery_goedkeuren" | "prospect_promoveren" | "beheer" | "evalueren" | "kwalificeren";
+export type Recht = "lezen" | "bewerken" | "discovery_goedkeuren" | "prospect_promoveren" | "beheer" | "evalueren" | "kwalificeren" | "partners_vrijgeven";
 
 const RECHTEN: Record<Gebruikersrol, Recht[]> = {
   lezer: ["lezen", "evalueren"],
   bewerker: ["lezen", "bewerken", "evalueren", "discovery_goedkeuren"],
   inkoper: ["lezen", "bewerken", "evalueren", "discovery_goedkeuren", "prospect_promoveren", "kwalificeren"],
-  beheerder: ["lezen", "bewerken", "evalueren", "discovery_goedkeuren", "prospect_promoveren", "kwalificeren", "beheer"]
+  beheerder: ["lezen", "bewerken", "evalueren", "discovery_goedkeuren", "prospect_promoveren", "kwalificeren", "beheer", "partners_vrijgeven"]
 };
 
 export function heeftRecht(rol: Gebruikersrol, recht: Recht) {

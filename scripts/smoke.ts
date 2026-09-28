@@ -1,6 +1,6 @@
 // Rooktest van de domeinlogica zonder browser: npm run smoke
 import { maakSeedDatabase } from "../src/lib/domain/seed";
-import { matchProject, semantischZoeken, valideerGewichten } from "../src/lib/domain/matching";
+import { matchProject, profielBronnen, profieltekst, semantischZoeken, valideerGewichten } from "../src/lib/domain/matching";
 import { stelTeamSamen } from "../src/lib/domain/team";
 import { signalenVoor } from "../src/lib/domain/signalen";
 import { leidFactorenAf } from "../src/lib/domain/derive";
@@ -183,6 +183,19 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   db.partners.push(gearchiveerd);
   check("B8: gearchiveerd buiten verbanden en semantisch zoeken", !leidVerbandenAf(db).some((v) => v.a.id === gearchiveerd.id || v.b.id === gearchiveerd.id) && !semantischZoeken(db, "houtbouw", 200).some((t) => t.partner.id === gearchiveerd.id));
   db.partners = db.partners.filter((p) => p.id !== gearchiveerd.id);
+}
+
+// Bronnen in de matching: brochure-/Conceptenboulevard-gegevens en documenten voeden het semantische profiel
+{
+  const p = JSON.parse(JSON.stringify(db.partners.find((x) => x.id === "p-woudbouw")!)) as (typeof db.partners)[number];
+  const zonder = profieltekst(p);
+  p.brongegevens = [{ bron: "Woningconceptenbrochure - maart 2026", op: "2026-03-01", titel: "Concept X", velden: { "Mogelijke (woning)types": "Grondgebonden", "Biobased - % massa": "0.42", Kapconstructie: "Zadeldak instelbaar" } }];
+  p.documenten = [{ id: "d1", naam: "Conceptenboulevard-profiel", soort: "brochure", tekst: "Fabrieksmatige houtbouw met demontabele gevelelementen en zadeldak.", toegevoegdDoor: "test", op: "2026-09-01" }];
+  const met = profieltekst(p);
+  check("Match-bronnen: brondata en documenten in semantisch profiel", met.length > zonder.length && met.includes("Zadeldak") && met.includes("demontabele gevelelementen"));
+  check("Match-bronnen: bronvermelding voor de uitleg", profielBronnen(p).includes("Woningconceptenbrochure - maart 2026") && profielBronnen(p).some((b) => b.startsWith("document: Conceptenboulevard")));
+  const treffers = semantischZoeken({ ...db, partners: [p] } as typeof db, "zadeldak demontabele gevel houtbouw", 5);
+  check("Match-bronnen: zoekvraag matcht op brochuregegevens", treffers.length === 1 && treffers[0].score > 0);
 }
 
 // Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs

@@ -27,7 +27,7 @@ export default function BronnenBeheer({ bronnen, magBeheren }: { bronnen: Verrij
   return (
     <div className="formulier">
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
-      <p className="muted klein-tekst">Naast de eigen website en de zoekmachine leest een ronde deze openbare pagina&apos;s; per partner wordt de tekst rond de bedrijfsnaam geëxtraheerd. Bronnen zijn toevoegbaar zonder codewijziging.</p>
+      <p className="muted klein-tekst">Naast de eigen website en de zoekmachine leest een ronde deze openbare pagina&apos;s; per partner wordt de tekst rond de bedrijfsnaam geëxtraheerd. Bronnen zijn toevoegbaar zonder codewijziging. De <b>woningconceptenbrochure</b> weegt mee via de Excel-import (conceptgegevens per partner) of als document met geplakte tekst op het partnerdossier; conceptgegevens en documentteksten tellen ook mee in de semantische matchscore en het zoeken.</p>
       {bronnen.length ? (
         <ul className="lijst">
           {bronnen.map((b) => (

@@ -1,8 +1,11 @@
 // Kern-domeinmodel van de Slimme Partnerdatabase.
 // Zie backlog hoofdstuk 2 (datamodel) en 3 (factorenmodel).
 
-/** 'gearchiveerd' vervangt verwijderen: de partner blijft raadpleegbaar maar telt niet mee in zoeken, matching en verbanden. */
-export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd" | "gearchiveerd";
+/**
+ * 'gearchiveerd' vervangt verwijderen: de partner blijft raadpleegbaar maar telt niet mee in zoeken, matching en verbanden.
+ * 'ter_controle': door AI geregistreerd en nog niet vrijgegeven door een beheerder; telt nergens mee tot vrijgave.
+ */
+export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd" | "gearchiveerd" | "ter_controle";
 
 export type Rol = "architect" | "aannemer" | "installateur" | "adviseur" | "leverancier" | "ontwikkelpartner";
 
@@ -206,6 +209,23 @@ export type PartnerDocument = {
 
 export type Geo = { lat: number; lng: number };
 
+/** Registratie door AI: wie het vroeg, waaruit het is opgebouwd, herkomst per veld en het besluit van de beheerder. */
+export type PartnerRegistratie = {
+  aangevraagdDoor: string;
+  op: string;
+  provider: string;
+  /** Waaruit de registratie is opgebouwd: website(s) en/of aangeleverde tekst. */
+  bronnen: string[];
+  herkomst: Herkomst[];
+  waarschuwingen: string[];
+  /** "partnerId|reden" van een mogelijk bestaande partner. */
+  mogelijkeDubbelVan?: string;
+  besluit?: "vrijgegeven" | "afgewezen";
+  beoordeeldDoor?: string;
+  beoordeeldOp?: string;
+  toelichting?: string;
+};
+
 export type Partner = {
   id: string;
   naam: string;
@@ -241,6 +261,8 @@ export type Partner = {
   /** Ruwe brondata per geïmporteerde rij (bijv. per woningconcept uit het Excel-overzicht): alle oorspronkelijke kolommen. */
   brongegevens?: Array<{ bron: string; op: string; titel?: string; velden: Record<string, string> }>;
   tags: string[];
+  /** Alleen bij partners die door AI zijn geregistreerd. */
+  registratie?: PartnerRegistratie;
   aangemaaktOp: string;
   bijgewerktOp: string;
 };
@@ -523,7 +545,7 @@ export type AIAanroep = {
 /** Eis 2: één gebruikershandeling = één bewerking, ook als die uit meerdere modelaanroepen bestaat. */
 export type AIBewerking = {
   id: string;
-  soort: "verrijking" | "verrijkingsronde" | "discovery" | "projectextractie" | "chat" | "samenvatting" | "overig";
+  soort: "verrijking" | "verrijkingsronde" | "discovery" | "projectextractie" | "partnerregistratie" | "chat" | "samenvatting" | "overig";
   omschrijving?: string;
   /** Gebruikersnaam, of "systeem" voor geplande rondes. */
   door: string;

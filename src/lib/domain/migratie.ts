@@ -2,7 +2,7 @@
 import { laadAanvulling } from "./aanvulling";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 6;
+export const HUIDIGE_VERSIE = 7;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -100,6 +100,14 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
   if (van < 6) {
     // B4: opgeslagen zoekprofielen voor discovery.
     db.zoekprofielen = db.zoekprofielen ?? [];
+  }
+  if (van < 7) {
+    // Conceptenboulevard als actieve verrijkingsbron (naast de woningconceptenbrochure via import/documenten);
+    // beide voeden ook het semantische matchprofiel.
+    db.instellingen.verrijkingsbronnen = db.instellingen.verrijkingsbronnen ?? [];
+    const cb = db.instellingen.verrijkingsbronnen.find((b) => /conceptenboulevard/i.test(b.naam) || /conceptenboulevard\.nl/i.test(b.url));
+    if (cb) cb.actief = true;
+    else db.instellingen.verrijkingsbronnen.push({ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true });
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

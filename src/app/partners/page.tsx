@@ -14,7 +14,7 @@ import { parseKenmerken, type KenmerkEis } from "@/components/partners/kenmerken
 import { leidEisenAf } from "@/lib/domain/projectfactoren";
 
 
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "ter_controle"];
 
 export default async function PartnersPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -65,7 +65,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       }
       if (rol && !p.rollen.includes(rol)) return false;
       if (status && p.status !== status) return false;
-      if (!status && p.status === "gearchiveerd") return false; // gearchiveerd alleen via het statusfilter
+      if (!status && (p.status === "gearchiveerd" || p.status === "ter_controle")) return false; // alleen via het statusfilter
       if (cert && !p.certificaten.some((c) => c.type === cert && new Date(c.geldigTot) >= nu)) return false;
       if (centrum && afstand !== null && straal && afstand > straal) return false;
       if (kenmerken.length && !voldoet) return false;
