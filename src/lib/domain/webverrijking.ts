@@ -61,6 +61,34 @@ export async function zoekWebsite(naam: string, plaats?: string): Promise<string
   }
 }
 
+/**
+ * Vind op een overzichtspagina (bijv. Conceptenboulevard-aanbieders) de detaillink van een bedrijf:
+ * een anker waarvan de tekst of de URL-slug bij de bedrijfsnaam past.
+ */
+export function vindDetailLink(html: string, basisUrl: string, naam: string): string | null {
+  const origin = new URL(basisUrl).origin;
+  const slug = tokens(naam).join("-");
+  const los = tokens(naam);
+  if (!los.length) return null;
+  for (const m of html.matchAll(/<a[^>]+href="([^"#]+)"[^>]*>([\s\S]{0,160}?)<\/a>/gi)) {
+    const href = m[1];
+    if (/^(mailto:|tel:|javascript:)/i.test(href)) continue;
+    const abs = href.startsWith("http") ? href : href.startsWith("/") ? origin + href : null;
+    if (!abs || !abs.startsWith(origin)) continue;
+    const hrefSlug = href.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    const ankerTekst = m[2].replace(/<[^>]+>/g, " ").toLowerCase();
+    const past = hrefSlug.includes(slug) || los.every((t) => hrefSlug.includes(t)) || (los.length > 0 && los.every((t) => ankerTekst.includes(t)));
+    if (past && abs !== basisUrl) return abs;
+  }
+  return null;
+}
+
+/** Haal de tekst van een detailpagina op (voor bronnen die per partner een eigen pagina hebben). */
+export async function haalDetailTekst(url: string): Promise<string | null> {
+  const html = await haalHtml(url);
+  return html ? striptHtml(html).slice(0, 15000) : null;
+}
+
 /** Kies uit de homepage maximaal drie relevante subpagina's (over ons, projecten, duurzaamheid). */
 export function kiesSubpaginas(html: string, basis: string): string[] {
   const origin = new URL(basis).origin;

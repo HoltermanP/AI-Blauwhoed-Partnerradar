@@ -23,7 +23,8 @@ const RECHTEN: Array<{ id: Parameters<typeof heeftRecht>[1]; label: string; uitl
   { id: "discovery_goedkeuren", label: "Discovery goedkeuren", uitleg: "Discovery-kandidaten accepteren, parkeren of afwijzen (US-25)." },
   { id: "prospect_promoveren", label: "Prospect promoveren", uitleg: "Prospect kwalificeren tot bekende partner (US-29)." },
   { id: "kwalificeren", label: "Kwalificeren", uitleg: "Kwalificatiechecklist en financiële toets afvinken." },
-  { id: "beheer", label: "Beheer", uitleg: "Factoren, gewichtsprofielen, instellingen en demo-reset." }
+  { id: "beheer", label: "Beheer", uitleg: "Factoren, gewichtsprofielen, instellingen en demo-reset." },
+  { id: "partners_vrijgeven", label: "Partners vrijgeven", uitleg: "Door AI geregistreerde partners controleren en vrijgeven of afwijzen." }
 ];
 const ROLLEN_GEBRUIKER: Gebruikersrol[] = ["lezer", "bewerker", "inkoper", "beheerder"];
 
@@ -33,17 +34,35 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBeheren = heeftRecht(gebruiker.rol, "beheer");
   const actieveFactoren = db.factoren.filter((f) => f.actief).length;
+  const terControle = db.partners.filter((p) => p.status === "ter_controle");
   const verbruik = maandVerbruik(db.aiBewerkingen ?? []);
   const budget = budgetStatus(db);
   const laatsteBewerkingen = (db.aiBewerkingen ?? []).slice(0, 10);
   const kwaliteit = veldKwaliteit(db, dkRol);
   const basisKwaliteit = basisVeldKwaliteit(db, dkRol);
-  const SOORT_LABEL: Record<string, string> = { verrijking: "verrijking (1 partner)", verrijkingsronde: "verrijkingsronde", discovery: "discovery", projectextractie: "projectextractie", chat: "chat", samenvatting: "samenvatting", overig: "overig" };
+  const SOORT_LABEL: Record<string, string> = { verrijking: "verrijking (1 partner)", verrijkingsronde: "verrijkingsronde", discovery: "discovery", projectextractie: "projectextractie", partnerregistratie: "partnerregistratie", chat: "chat", samenvatting: "samenvatting", overig: "overig" };
 
   return (
     <>
       <PaginaKop eyebrow="Beheer" titel="Beheer" intro="Factorenmodel, gewichtsprofielen, rollen en rechten, auditlog en instellingen voor AI-verrijking." />
       {!magBeheren ? <Melding soort="waarschuwing">U bent ingelogd als {gebruiker.naam} ({gebruiker.rol}). Beheerfuncties zijn alleen-lezen; wissel rechtsboven naar Beheerder om te wijzigen.</Melding> : null}
+
+      {terControle.length ? (
+        <Kaart titel={`Controle AI-registraties (${terControle.length})`}>
+          <p className="muted klein-tekst">Door AI geregistreerde partners tellen nergens mee tot ze zijn vrijgegeven. Open een partner om de herkomst te controleren en te besluiten.</p>
+          <ul className="lijst">
+            {terControle.map((p) => (
+              <li key={p.id}>
+                <Link href={`/partners/${p.id}`}>{p.naam}</Link>{" "}
+                <span className="muted klein-tekst">
+                  aangevraagd door {p.registratie?.aangevraagdDoor ?? "onbekend"} · {datumTijd(p.registratie?.op ?? p.aangemaaktOp)}
+                  {p.registratie?.mogelijkeDubbelVan ? " · mogelijke dubbel" : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Kaart>
+      ) : null}
 
       <div className="raster raster-3">
         <Kaart titel="Factoren">

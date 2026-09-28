@@ -2,7 +2,7 @@
 import { laadAanvulling } from "./aanvulling";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 7;
+export const HUIDIGE_VERSIE = 8;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -108,6 +108,13 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
     const cb = db.instellingen.verrijkingsbronnen.find((b) => /conceptenboulevard/i.test(b.naam) || /conceptenboulevard\.nl/i.test(b.url));
     if (cb) cb.actief = true;
     else db.instellingen.verrijkingsbronnen.push({ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true });
+  }
+  if (van < 8) {
+    // Woningconceptenbrochure (webpagina) als actieve verrijkingsbron naast Conceptenboulevard.
+    db.instellingen.verrijkingsbronnen = db.instellingen.verrijkingsbronnen ?? [];
+    if (!db.instellingen.verrijkingsbronnen.some((b) => /woningconcepten|conceptenbrochure/i.test(b.naam) || /conceptenbrochure/i.test(b.url))) {
+      db.instellingen.verrijkingsbronnen.push({ id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true });
+    }
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

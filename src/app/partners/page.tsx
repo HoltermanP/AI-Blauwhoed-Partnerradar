@@ -110,6 +110,12 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
           )
         }
       />
+      {db.partners.some((p) => p.status === "ter_controle") && status !== "ter_controle" ? (
+        <Melding soort="info">
+          {db.partners.filter((p) => p.status === "ter_controle").length} door AI geregistreerde partner(s) wachten op controle door een beheerder.{" "}
+          <Link href="/partners?status=ter_controle">Bekijk ze</Link>
+        </Melding>
+      ) : null}
       {project && afgeleid ? (
         <Melding soort="info">
           Kenmerken afgeleid uit project <Link href={`/projecten/${project.id}`}><b>{project.naam}</b></Link>: {afgeleid.kenmerken.map((k) => k.label).join(", ")}. Pas ze hieronder aan of{" "}

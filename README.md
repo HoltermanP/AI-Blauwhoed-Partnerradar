@@ -21,6 +21,7 @@ npm run typecheck
 - **Zoeken — drie ingangen**: AI-chat (/chat, verwijst altijd naar onderliggende partnerrecords), klassiek filteren met kolomkeuze (/partners), semantisch zoeken (/zoeken).
 - **Verbanden** (/verbanden): afgeleid uit gedeelde projecthistorie en openbare vermeldingen, altijd met bron, gepresenteerd als signaal.
 - **Overig**: archiveren i.p.v. verwijderen (status gearchiveerd, buiten zoeken/matching/verbanden), documenten per partner (URL/tekst), CSV- én PDF-export van partners en projecthistorie plus een PDF-dossier per partner (incl. herkomststatus per waarde), bestandsuploads bij partnerdocumenten via Vercel Blob (zet `BLOB_READ_WRITE_TOKEN`; zonder token blijven URL/tekst-documenten werken), datakwaliteit per veld en partnertype (Beheer), veldkoppeling en fuzzy dubbelencontrole bij import, opgeslagen zoekprofielen voor discovery.
+- **Partnerregistratie door AI**: op *Nieuwe partner* kan een bewerker een partner laten registreren uit naam, website en/of geplakte tekst. Claude (of zonder sleutel de regelgebaseerde extractie) vult de basisgegevens met herkomst per veld; de partner krijgt status `ter_controle` en telt niet mee in zoeken, matching, verbanden, chat en exports. Alleen de beheerder (recht `partners_vrijgeven`) geeft hem vrij als bekend of prospect, of wijst hem af; daarna volgt automatisch een verrijking van de factorwaarden.
 
 ## Productiegebruik (echte data)
 

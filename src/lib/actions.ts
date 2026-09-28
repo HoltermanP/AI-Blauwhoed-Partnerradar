@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { cookies } from "next/headers";
 import { GEBRUIKERS, vereisRecht } from "./auth";
 import { afwijsPenalty, demoConnector, kandidaatNaarPartner, normaliseerNaam, samenvattingVoor, vindDubbel } from "./domain/discovery";
-import { extraheerVoorstellen, factorNogBevestigd, haalWebsiteOp, inhoudsHash } from "./domain/enrichment";
+import { extraheerVoorstellen, factorNogBevestigd, inhoudsHash, striptHtml } from "./domain/enrichment";
 import { extraheerProjectprofiel } from "./domain/extractie";
 import { kvkConnector } from "./domain/kvk";
 import { leidEisenAf } from "./domain/projectfactoren";
@@ -14,11 +14,12 @@ import { importeerEngagements } from "./domain/csv";
 import { geocodeer } from "./domain/geocode";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type ImportUitkomst } from "./domain/partnerimport";
 import { webzoekConnector } from "./domain/webzoek";
-import { BASISVELDEN, verrijkVanuitInternet } from "./domain/webverrijking";
+import { BASISVELDEN, haalDetailTekst, verrijkVanuitInternet, vindDetailLink } from "./domain/webverrijking";
 import { effectieveStatus, herkomstExport, wisHerkomst } from "./domain/herkomst";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiChat, aiFactorExtractie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, zetAanroepDoel } from "./ai";
+import { aiBeschikbaar, aiChat, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, zetAanroepDoel } from "./ai";
+import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
 import { chatContext } from "./domain/chat";
 import { budgetStatus, schatVerrijkingsronde } from "./domain/kosten";
 import type { BronConnector } from "./domain/discovery";
@@ -151,6 +152,7 @@ export async function zetPartnerStatus(id: string, status: PartnerStatus, reden:
     await muteer(g, { entiteit: "partner", entiteitId: id, actie: `status ${status}`, details: reden }, (db) => {
       const p = db.partners.find((x) => x.id === id);
       if (!p) throw new Error("Partner niet gevonden.");
+      if (p.status === "ter_controle" || status === "ter_controle") throw new Error("Een door AI geregistreerde partner wordt vrijgegeven of afgewezen door een beheerder (controle registratie).");
       if (status === "preferred") {
         const ontbreekt = KWALIFICATIE_ITEMS.filter((k) => !p.kwalificatie.find((q) => q.item === k.id && q.afgevinkt));
         if (ontbreekt.length) throw new Error(`Preferred vereist volledige kwalificatie. Nog open: ${ontbreekt.map((k) => k.label).join("; ")}.`);
@@ -609,6 +611,123 @@ export async function slaEvaluatieOp(ev: Omit<Evaluatie, "id" | "door" | "datum"
   });
 }
 
+// ---------- Partnerregistratie door AI ----------
+export type RegistratieInvoer = { naam?: string; website?: string; tekst?: string };
+
+/**
+ * Laat AI een partner registreren uit een naam, website en/of aangeleverde tekst. De partner krijgt status 'ter_controle'
+ * met herkomst per veld en telt nergens mee tot een beheerder hem vrijgeeft (beoordeelRegistratie).
+ */
+export async function registreerPartnerViaAI(invoer: RegistratieInvoer) {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    const naamHint = invoer.naam?.trim() || undefined;
+    const websiteHint = normaliseerWebsite(invoer.website);
+    if (invoer.website?.trim() && !websiteHint) throw new Error("De website is geen geldige URL.");
+    const tekst = invoer.tekst?.trim() ?? "";
+    if (!naamHint && !websiteHint && tekst.length < 40) throw new Error("Geef een bedrijfsnaam, een website of een stuk tekst (minimaal 40 tekens) over de partner.");
+    const db = await getDb();
+    const extern = db.instellingen.externeBronnenToegestaan;
+    if (!extern && !tekst) throw new Error("Externe bronnen staan uit (Beheer), dus de website kan niet worden gelezen. Plak een tekst over de partner.");
+
+    const id = nieuwId("p");
+    const nu = new Date().toISOString();
+    const leeg: Partner = { id, naam: naamHint ?? "", kvk: "", rechtsvorm: "Onbekend", vestigingsplaats: "", locatie: { lat: 52.1, lng: 5.3 }, werkgebiedKm: 75, status: "ter_controle", rollen: [], website: websiteHint, omschrijving: "", referenties: [], beschikbaarheid: [], factoren: [], certificaten: [], contactpersonen: [], kwalificatie: [], bronnen: [], tags: ["ai-registratie"], aangemaaktOp: nu, bijgewerktOp: nu };
+    const web = extern && (naamHint || websiteHint) ? await verrijkVanuitInternet(leeg, new Date(), 25000) : null;
+    const bronTekst = [tekst, web?.tekst].filter(Boolean).join("\n\n");
+    if (!bronTekst) throw new Error(`Geen openbare informatie gevonden${naamHint ? ` voor '${naamHint}'` : ""}. Geef de website op of plak een tekst over de partner.`);
+
+    const regels = regelConcept({ naam: naamHint, website: websiteHint }, tekst, web?.voorstellen ?? []);
+    const ai = await alsAIBewerking("partnerregistratie", g.naam, `registratie ${naamHint ?? websiteHint ?? "uit tekst"}`, () => {
+      zetAanroepDoel("partnerregistratie");
+      return aiPartnerRegistratie({ naam: naamHint, website: web?.website ?? websiteHint }, bronTekst);
+    });
+    const concept: RegistratieConcept = ai
+      ? {
+          velden: {
+            naam: naamHint ?? ai.naam ?? regels.velden.naam,
+            kvk: (ai.kvk ?? "").replace(/\D/g, "") || regels.velden.kvk,
+            rechtsvorm: ai.rechtsvorm ?? regels.velden.rechtsvorm,
+            vestigingsplaats: ai.vestigingsplaats ?? regels.velden.vestigingsplaats,
+            adres: ai.adres,
+            rollen: geldigeRollen(ai.rollen).length ? geldigeRollen(ai.rollen) : regels.velden.rollen,
+            website: websiteHint ?? normaliseerWebsite(ai.website) ?? regels.velden.website,
+            omschrijving: (ai.omschrijving ?? regels.velden.omschrijving).slice(0, 600),
+            referenties: ai.referenties.length ? ai.referenties.slice(0, 8) : regels.velden.referenties,
+            medewerkers: ai.medewerkers
+          },
+          herkomst: ai.herkomst,
+          waarschuwingen: ai.watIsOnzeker
+        }
+      : regels;
+    const v = concept.velden;
+    if (!v.naam) throw new Error("Er kon geen bedrijfsnaam worden vastgesteld. Geef de naam op.");
+    if (v.kvk && !/^\d{8}$/.test(v.kvk)) {
+      concept.waarschuwingen.push(`Gevonden KVK-nummer '${v.kvk}' is geen 8 cijfers en is weggelaten.`);
+      v.kvk = "";
+    }
+    const dubbel = vindDubbel({ naam: v.naam, kvk: v.kvk || undefined, adres: v.adres, vestigingsplaats: v.vestigingsplaats }, db.partners);
+    if (dubbel && v.kvk && dubbel.partner.kvk === v.kvk) throw new Error(`KVK ${v.kvk} bestaat al: ${dubbel.partner.naam} (${dubbel.partner.id}).`);
+    if (dubbel) concept.waarschuwingen.push(`Mogelijke dubbel: ${dubbel.reden}.`);
+    const gevonden = v.vestigingsplaats ? ((v.adres ? await geocodeer(`${v.adres}, ${v.vestigingsplaats}`) : null) ?? (await geocodeer(v.vestigingsplaats))) : null;
+    if (v.vestigingsplaats && !gevonden) {
+      concept.waarschuwingen.push(`Vestigingsplaats '${v.vestigingsplaats}' kon niet worden gevonden; vul hem in via Bewerken.`);
+      v.vestigingsplaats = "";
+    }
+    if (!v.rollen.length) concept.waarschuwingen.push("Geen rol vastgesteld; kies er een vóór vrijgave.");
+
+    const partner: Partner = {
+      ...leeg,
+      ...v,
+      locatie: gevonden?.locatie ?? leeg.locatie,
+      statusReden: `Door AI geregistreerd op verzoek van ${g.naam}; wacht op controle door een beheerder.`,
+      bronnen: (web?.paginas ?? []).map((url) => ({ url, opgehaaldOp: nu, soort: "web (AI-registratie)" })),
+      registratie: {
+        aangevraagdDoor: g.naam,
+        op: nu,
+        provider: ai ? "Claude" : "regels (geen externe AI)",
+        bronnen: [...(web?.paginas ?? []), ...(tekst ? ["aangeleverde tekst"] : [])],
+        herkomst: concept.herkomst,
+        waarschuwingen: concept.waarschuwingen,
+        mogelijkeDubbelVan: dubbel ? `${dubbel.partner.id}|${dubbel.reden}` : undefined
+      }
+    };
+    await muteer(g, { entiteit: "partner", entiteitId: id, actie: "aangemaakt via AI (ter controle)", details: `${partner.naam}; bronnen: ${partner.registratie!.bronnen.join(", ") || "–"}` }, (db) => {
+      db.partners.push(partner);
+    });
+    revalidatePath("/partners");
+    return id;
+  });
+}
+
+/** Beheerder geeft een door AI geregistreerde partner vrij (als bekend of prospect) of wijst hem af. */
+export async function beoordeelRegistratie(id: string, besluit: "vrijgegeven" | "afgewezen", nieuweStatus: "bekend" | "prospect", toelichting: string) {
+  const r = await veilig(async () => {
+    const g = await vereisRecht("partners_vrijgeven");
+    if (besluit === "afgewezen" && !toelichting.trim()) throw new Error("Afwijzen vraagt om een toelichting.");
+    await muteer(g, { entiteit: "partner", entiteitId: id, actie: besluit === "vrijgegeven" ? `registratie vrijgegeven (${nieuweStatus})` : "registratie afgewezen", details: toelichting || undefined }, (db) => {
+      const p = db.partners.find((x) => x.id === id);
+      if (!p) throw new Error("Partner niet gevonden.");
+      if (p.status !== "ter_controle") throw new Error("Deze partner wacht niet (meer) op controle.");
+      if (besluit === "vrijgegeven") {
+        const blokkades = vrijgaveBlokkades(p);
+        if (blokkades.length) throw new Error(`Nog niet vrij te geven: ${blokkades.join(" ")} Pas de gegevens aan via Bewerken.`);
+        if (p.registratie?.mogelijkeDubbelVan && !toelichting.trim()) throw new Error("Er is een mogelijke dubbel gesignaleerd; licht toe waarom dit een aparte partner is.");
+      }
+      const nu = new Date().toISOString();
+      p.status = besluit === "vrijgegeven" ? nieuweStatus : "afgewezen";
+      p.statusReden = besluit === "vrijgegeven" ? `AI-registratie vrijgegeven door ${g.naam}${toelichting ? `: ${toelichting}` : ""}` : `AI-registratie afgewezen door ${g.naam}: ${toelichting}`;
+      p.registratie = { ...(p.registratie ?? { aangevraagdDoor: "onbekend", op: p.aangemaaktOp, provider: "onbekend", bronnen: [], herkomst: [], waarschuwingen: [] }), besluit, beoordeeldDoor: g.naam, beoordeeldOp: nu, toelichting: toelichting || undefined };
+      p.bijgewerktOp = nu;
+    });
+  });
+  revalidatePath("/partners");
+  revalidatePath(`/partners/${id}`);
+  // Na vrijgave: factorwaarden laten voorstellen (na de response; de beheerder wacht niet op internetbronnen).
+  if (r.ok && besluit === "vrijgegeven") after(() => startVerrijking(id).catch(() => undefined));
+  return r;
+}
+
 // ---------- Discovery (Epic 5) ----------
 export type DiscoveryUitkomst = { gevonden: number; nieuw: number; alInWachtrij: number; mogelijkeDubbelen: number; bronnen: string[]; regio?: string };
 
@@ -753,14 +872,25 @@ export async function verwijderZoekprofiel(id: string) {
 }
 
 // ---------- Verrijking (Epic 6) ----------
-type ExtraBron = { naam: string; url: string; tekst: string };
+type ExtraBron = { naam: string; url: string; tekst: string; html: string };
 
-/** Haal de teksten van de geconfigureerde extra bronnen (bijv. Conceptenboulevard) één keer per ronde op. */
+/** Haal de geconfigureerde extra bronwebsites (Conceptenboulevard, Woningconceptenbrochure, …) één keer per ronde op: tekst plus HTML (voor detaillinks per partner). */
 async function haalExtraBronnen(db: Database): Promise<ExtraBron[]> {
   if (!db.instellingen.externeBronnenToegestaan) return [];
   const actief = (db.instellingen.verrijkingsbronnen ?? []).filter((b) => b.actief);
-  const r = await Promise.all(actief.map(async (b) => ({ naam: b.naam, url: b.url, tekst: (await haalWebsiteOp(b.url)) ?? "" })));
-  return r.filter((b) => b.tekst);
+  const r = await Promise.all(
+    actief.map(async (b) => {
+      try {
+        const res = await fetch(b.url, { signal: AbortSignal.timeout(8000), headers: { "user-agent": "BlauwhoedPartnerRadar/1.0 (verrijking; alleen openbare bedrijfsinformatie)", accept: "text/html" } });
+        if (!res.ok) return null;
+        const html = await res.text();
+        return { naam: b.naam, url: b.url, html, tekst: striptHtml(html).slice(0, 60000) };
+      } catch {
+        return null;
+      }
+    })
+  );
+  return r.filter((b): b is ExtraBron => Boolean(b?.tekst));
 }
 
 type VerzamelUitkomst = { voorstellen: EnrichmentVoorstel[]; paginas: string[]; websiteGevonden: boolean; webHash?: string; overgeslagen: boolean };
@@ -800,14 +930,26 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
   } else if (tekst) {
     voorstellen.push(...extraheerVoorstellen(p, bronTekst, bronUrl));
   }
-  // Extra geconfigureerde bronnen: zoek de partnernaam en extraheer uit de omliggende tekst.
+  // Extra geconfigureerde bronwebsites (Conceptenboulevard, Woningconceptenbrochure, …): zoek de partnernaam in de
+  // overzichtstekst en volg waar mogelijk de detailpagina van de partner (bijv. /aanbieders/<naam>/).
   const naam = normaliseerNaam(p.naam);
-  extraBronnen.forEach((b) => {
+  for (const b of extraBronnen) {
     const idx = normaliseerNaam(b.tekst).indexOf(naam);
-    if (idx < 0) return;
-    const context = b.tekst.slice(Math.max(0, idx - 600), idx + naam.length + 600);
-    voorstellen.push(...extraheerVoorstellen(p, context, b.url));
-  });
+    if (idx >= 0) {
+      const context = b.tekst.slice(Math.max(0, idx - 600), idx + naam.length + 600);
+      voorstellen.push(...extraheerVoorstellen(p, context, b.url));
+    }
+    const detailUrl = vindDetailLink(b.html, b.url, p.naam);
+    if (detailUrl) {
+      const detail = await haalDetailTekst(detailUrl);
+      if (detail && normaliseerNaam(detail).includes(naam)) {
+        voorstellen.push(...extraheerVoorstellen(p, detail, detailUrl));
+        if (detail.length > 60 && (!p.omschrijving || p.omschrijving.length < 60)) {
+          voorstellen.push({ id: nieuwId("ev-bron"), partnerId: p.id, veld: BASISVELDEN.omschrijving, huidig: p.omschrijving || null, voorgesteld: detail.slice(0, 400), bron: "web", bronUrl: detailUrl, betrouwbaarheid: 0.5, soort: "geclaimd", citaat: detail.slice(0, 200), status: "open", gevondenOp: new Date().toISOString() });
+        }
+      }
+    }
+  }
   // Eigen documenten van Blauwhoed (bijv. woningconceptenbrochure als geplakte tekst): ook extractiebron.
   (p.documenten ?? [])
     .filter((d) => d.tekst)

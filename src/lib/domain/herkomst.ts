@@ -44,6 +44,7 @@ export function herkomstExport(partner: Partner, factoren: Factor[], nu = new Da
       };
     }),
     bronnen: partner.bronnen,
+    registratie: partner.registratie ? { door: "AI", provider: partner.registratie.provider, aangevraagdDoor: partner.registratie.aangevraagdDoor, op: partner.registratie.op, bronnen: partner.registratie.bronnen, herkomst: partner.registratie.herkomst, besluit: partner.registratie.besluit ?? "ter controle", beoordeeldDoor: partner.registratie.beoordeeldDoor ?? null, beoordeeldOp: partner.registratie.beoordeeldOp ?? null } : null,
     brongegevens: (partner.brongegevens ?? []).map((b) => ({ bron: b.bron, op: b.op, titel: b.titel ?? null, velden: b.velden }))
   };
 }
@@ -53,6 +54,11 @@ export function wisHerkomst(partner: Partner) {
   let gewist = partner.bronnen.length + (partner.brongegevens?.length ?? 0);
   partner.bronnen = [];
   partner.brongegevens = [];
+  if (partner.registratie) {
+    gewist += partner.registratie.bronnen.length + partner.registratie.herkomst.length;
+    partner.registratie.bronnen = [];
+    partner.registratie.herkomst = [];
+  }
   partner.factoren.forEach((pf) => {
     if (pf.bewijs || pf.toelichting) gewist++;
     delete pf.bewijs;

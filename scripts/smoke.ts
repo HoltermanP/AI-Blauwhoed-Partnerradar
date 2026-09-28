@@ -12,13 +12,14 @@ import { maakLegeDatabase } from "../src/lib/domain/seed";
 import { AANVULLING, laadAanvulling } from "../src/lib/domain/aanvulling";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen } from "../src/lib/domain/partnerimport";
 import houtbouwers from "../src/data/houtbouwers-seed.json";
-import { kiesSubpaginas, leesReferenties, pastBijNaam } from "../src/lib/domain/webverrijking";
+import { kiesSubpaginas, leesReferenties, pastBijNaam, vindDetailLink } from "../src/lib/domain/webverrijking";
 import { maakSeedIdGenerator, migreerDatabase } from "../src/lib/domain/migratie";
 import { effectieveStatus, herkomstExport, wisHerkomst } from "../src/lib/domain/herkomst";
 import { leidVerbandenAf } from "../src/lib/domain/verbanden";
 import { naamGelijkenis } from "../src/lib/domain/fuzzy";
 import { naarCsv, partnersCsv } from "../src/lib/domain/export";
 import { veldKwaliteit } from "../src/lib/domain/datakwaliteit";
+import { geldigeRollen, normaliseerWebsite, raadRollen, regelConcept, vrijgaveBlokkades } from "../src/lib/domain/registratie";
 import { budgetStatus, kostenUsd, maandVerbruik, schatVerrijkingsronde } from "../src/lib/domain/kosten";
 
 let fouten = 0;
@@ -198,6 +199,13 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   check("Match-bronnen: zoekvraag matcht op brochuregegevens", treffers.length === 1 && treffers[0].score > 0);
 }
 
+// Bronwebsites: detaillink van een partner op een overzichtspagina (Conceptenboulevard-stijl)
+{
+  const html = '<a href="/aanbieders/bam-wonen/id=5">BAM Wonen</a><a href="/aanbieders/barli/id=47">Barli</a><a href="/nieuws/x">Nieuws</a><a href="mailto:x@y.nl">mail</a>';
+  check("Bronwebsites: detaillink gevonden op naam", vindDetailLink(html, "https://conceptenboulevard.nl/aanbieders/", "Barli") === "https://conceptenboulevard.nl/aanbieders/barli/id=47");
+  check("Bronwebsites: geen valse detaillink", vindDetailLink(html, "https://conceptenboulevard.nl/aanbieders/", "Nimbel") === null);
+}
+
 // Migratie versie 1 → 2 (stabiele IDs + aanvulling) van een opgeslagen database met tijdstempel-IDs
 {
   const oud = maakLegeDatabase();
@@ -231,6 +239,21 @@ check("US-11 extractie met herkomst", ex.velden.woningen === 72 && ex.velden.pla
 // CSV-import
 const csv = importeerEngagements("kvk;project;rol;van;contractwaarde\n34123456;Houtwijk Vathorst;aannemer;2024-01-01;1000\n99999999;Onbekend;aannemer;2024-01-01;1", db);
 check("US-18 CSV match op KVK + wachtrij", csv.engagements.length === 1 && csv.wachtrij.length === 1, csv.wachtrij[0]?.reden);
+
+// Partnerregistratie door AI (regelterugval, vrijgavecontrole, uitsluiting tot vrijgave)
+const rc = regelConcept({ naam: "Bouwbedrijf Voorbeeld B.V." }, "Bouwbedrijf Voorbeeld is aannemer van nieuwbouwwoningen. Kerkstraat 1, 3811 AB Amersfoort. KvK-nummer: 12345678.", []);
+check("Registratie: regels lezen KVK, plaats en rol", rc.velden.kvk === "12345678" && rc.velden.vestigingsplaats === "Amersfoort" && rc.velden.rollen.includes("aannemer") && rc.velden.rechtsvorm === "B.V." && rc.herkomst.length >= 3, rc.velden);
+check("Registratie: rollen raden en valideren", raadRollen("architectenbureau en constructeur").join() === "architect,adviseur" && geldigeRollen(["Aannemer", "timmerman", "aannemer"]).join() === "aannemer");
+check("Registratie: website genormaliseerd", normaliseerWebsite("www.x.nl/over") === "https://www.x.nl" && normaliseerWebsite("") === undefined);
+check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({ naam: "X", rollen: [], vestigingsplaats: "", kvk: "123" }).length === 3 && vrijgaveBlokkades({ naam: "X", rollen: ["aannemer"], vestigingsplaats: "Utrecht", kvk: "" }).length === 0);
+{
+  const dbR = maakSeedDatabase();
+  const doel = dbR.partners.find((p) => p.rollen.includes("aannemer"))!;
+  doel.status = "ter_controle";
+  const r = matchProject({ db: dbR, project: dbR.projecten[0] });
+  const inAdvies = r.some((rr) => [...rr.kandidaten, ...rr.prospects].some((k) => k.partnerId === doel.id));
+  check("Registratie: partner ter controle telt niet mee in matching en zoeken", !inAdvies && !semantischZoeken(dbR, doel.omschrijving || doel.naam).some((t) => t.partner.id === doel.id));
+}
 
 console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");
 process.exit(fouten ? 1 : 0);

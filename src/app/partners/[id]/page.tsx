@@ -19,6 +19,8 @@ import PartnerVerrijken from "@/components/partners/PartnerVerrijken";
 import HerkomstActies from "@/components/partners/HerkomstActies";
 import DocumentenBeheer from "@/components/partners/DocumentenBeheer";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
+import RegistratieBeoordeling from "@/components/partners/RegistratieBeoordeling";
+import { vrijgaveBlokkades } from "@/lib/domain/registratie";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
 export const maxDuration = 60;
@@ -46,6 +48,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
   const magPromoveren = heeftRecht(gebruiker.rol, "prospect_promoveren");
   const magKwalificeren = heeftRecht(gebruiker.rol, "kwalificeren");
+  const magVrijgeven = heeftRecht(gebruiker.rol, "partners_vrijgeven");
   const nu = new Date();
   const afgeleid = leidFactorenAf(p, db, nu);
   const stats = afgeleid.statistieken;
@@ -90,6 +93,12 @@ export default async function PartnerDossier({ params, searchParams }: { params:
         <Melding soort="fout">
           Geblokkeerd{p.geblokkeerdTot ? ` tot ${datum(p.geblokkeerdTot)}` : ""}: {p.statusReden ?? "geen reden vastgelegd"}. Deze partner wordt in matching uitgesloten.
         </Melding>
+      ) : null}
+      {p.registratie && p.status === "ter_controle" ? <RegistratieControle p={p} magVrijgeven={magVrijgeven} /> : null}
+      {p.registratie?.besluit ? (
+        <p className="muted klein-tekst">
+          Geregistreerd door AI ({p.registratie.provider}) op verzoek van {p.registratie.aangevraagdDoor}, {datum(p.registratie.op)}; {p.registratie.besluit} door {p.registratie.beoordeeldDoor} op {datum(p.registratie.beoordeeldOp)}.
+        </p>
       ) : null}
       {signalen.length ? (
         <Kaart titel={`Signalen (${signalen.length})`} className="signaalLijst">
@@ -246,6 +255,68 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   );
 }
 
+/** Controleblok voor een AI-registratie: herkomst per veld, waarschuwingen, mogelijke dubbel en het besluit van de beheerder. */
+function RegistratieControle({ p, magVrijgeven }: { p: Partner; magVrijgeven: boolean }) {
+  const r = p.registratie!;
+  const blokkades = vrijgaveBlokkades(p);
+  const [dubbelId, dubbelReden] = r.mogelijkeDubbelVan?.split("|") ?? [];
+  return (
+    <Kaart titel="Controle AI-registratie">
+      <p className="klein-tekst">
+        Geregistreerd door {r.provider} op verzoek van <b>{r.aangevraagdDoor}</b> ({datumTijd(r.op)}). Deze partner telt niet mee in zoeken, matching, verbanden en exports tot een beheerder hem vrijgeeft. Controleer de velden hieronder en pas ze zo nodig aan via Bewerken.
+      </p>
+      {dubbelId ? (
+        <Melding soort="waarschuwing">
+          Mogelijke dubbel: {dubbelReden}. <Link href={`/partners/${dubbelId}`}>Open bestaande partner</Link>
+        </Melding>
+      ) : null}
+      {r.waarschuwingen.length ? (
+        <>
+          <h4>Te controleren</h4>
+          <ul className="lijst klein-tekst">
+            {r.waarschuwingen.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      <h4>Herkomst per veld</h4>
+      {r.herkomst.length ? (
+        <div className="tabelWrap">
+          <table className="tabel">
+            <thead>
+              <tr>
+                <th>Veld</th>
+                <th>Citaat uit de bron</th>
+                <th className="num">Betrouwb.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {r.herkomst.map((h, i) => (
+                <tr key={i}>
+                  <td>{h.veld}</td>
+                  <td className="citaatCel">{h.citaat}</td>
+                  <td className="num">
+                    <Badge kleur={h.betrouwbaarheid >= 0.7 ? "groen" : h.betrouwbaarheid >= 0.45 ? "geel" : "rood"}>{Math.round(h.betrouwbaarheid * 100)}%</Badge>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="muted klein-tekst">Geen herkomst per veld vastgelegd.</p>
+      )}
+      <p className="muted klein-tekst">Bronnen: {r.bronnen.length ? r.bronnen.join(", ") : "–"}</p>
+      {magVrijgeven ? (
+        <RegistratieBeoordeling partnerId={p.id} blokkades={blokkades} dubbel={Boolean(dubbelId)} />
+      ) : (
+        <p className="muted klein-tekst">Vrijgeven of afwijzen is voorbehouden aan de beheerder.</p>
+      )}
+    </Kaart>
+  );
+}
+
 function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db: Database; stats: ReturnType<typeof leidFactorenAf>["statistieken"]; magBewerken: boolean; magPromoveren: boolean }) {
   const belasting = huidigeBelasting(p, db);
   return (
@@ -321,7 +392,11 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db:
             {p.statusReden ? <span className="muted klein-tekst"> · {p.statusReden}</span> : null}
             {p.geblokkeerdTot ? <span className="muted klein-tekst"> · tot {datum(p.geblokkeerdTot)}</span> : null}
           </p>
-          <StatusBeheer partnerId={p.id} huidig={p.status} reden={p.statusReden} geblokkeerdTot={p.geblokkeerdTot} magBewerken={magBewerken} magPromoveren={magPromoveren} />
+          {p.status === "ter_controle" ? (
+            <p className="muted klein-tekst">Deze partner is door AI geregistreerd. Een beheerder geeft hem vrij of wijst hem af (zie Controle AI-registratie bovenaan).</p>
+          ) : (
+            <StatusBeheer partnerId={p.id} huidig={p.status} reden={p.statusReden} geblokkeerdTot={p.geblokkeerdTot} magBewerken={magBewerken} magPromoveren={magPromoveren} />
+          )}
         </Kaart>
         <Kaart titel="Uit de historie">
           <Definities
