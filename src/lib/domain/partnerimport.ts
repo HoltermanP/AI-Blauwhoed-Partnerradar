@@ -2,7 +2,8 @@
 // bruikbare kenmerken worden als factorwaarde met bron 'opgave' vastgelegd, de rest als tags/omschrijving.
 import { normaliseerNaam } from "./discovery";
 import { naamGelijkenis } from "./fuzzy";
-import type { Bron, Database, Geo, PartnerFactor, Rol } from "./types";
+import { vulOntbrekendeHerkomst } from "./herkomst";
+import type { Bron, Database, Geo, Partner, PartnerFactor, Rol } from "./types";
 
 export type ImportRij = Record<string, string | number | boolean | null | undefined>;
 
@@ -176,7 +177,7 @@ export function voegRijenSamen(partners: GeimporteerdePartner[]): GeimporteerdeP
 export type ImportUitkomst = { gelezen: number; nieuw: number; bijgewerkt: number; overgeslagen: Array<{ naam: string; reden: string }>; zonderLocatie: number };
 
 /** Voegt geïmporteerde partners toe aan de database (synchroon; geocoding is vooraf gedaan). Bestaande partners worden alleen aangevuld. */
-export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], locaties: Map<string, Geo | null>, bronnaam: string, nieuwId: (prefix: string, hint?: string) => string): ImportUitkomst {
+export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], locaties: Map<string, Geo | null>, bronnaam: string, nieuwId: (prefix: string, hint?: string) => string, bron: Bron = "opgave"): ImportUitkomst {
   const uitkomst: ImportUitkomst = { gelezen: partners.length, nieuw: 0, bijgewerkt: 0, overgeslagen: [], zonderLocatie: 0 };
   const nu = new Date().toISOString();
   partners.forEach((p) => {
@@ -196,6 +197,7 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
       factoren.forEach((f) => {
         if (!bestaand.factoren.some((x) => x.factorId === f.factorId && (x.optieId ?? "") === (f.optieId ?? ""))) bestaand.factoren.push(f);
       });
+      vulOntbrekendeHerkomst(bestaand, { bron, status: "voorgesteld", bronDetail: `import: ${bronnaam}` });
       bestaand.bronnen.push({ url: bronnaam, opgehaaldOp: nu.slice(0, 10), soort: "import" });
       bestaand.brongegevens = [...(bestaand.brongegevens ?? []), ...p.ruweRijen.map((r) => ({ bron: bronnaam, op: nu.slice(0, 10), titel: r.titel, velden: r.velden }))];
       bestaand.bijgewerktOp = nu;
@@ -203,7 +205,7 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
       return;
     }
     if (!geo) uitkomst.zonderLocatie++;
-    db.partners.push({
+    const nieuw: Partner = {
       id: nieuwId("p", p.naam),
       naam: p.naam,
       kvk: p.kvk ?? "",
@@ -228,7 +230,10 @@ export function voegPartnersToe(db: Database, partners: GeimporteerdePartner[], 
       tags: [...p.tags, ...(geo ? [] : ["locatie onbekend"])],
       aangemaaktOp: nu,
       bijgewerktOp: nu
-    });
+    };
+    // US-52: basisvelden uit een import krijgen de gekozen bron; status 'voorgesteld' tot een mens ze bevestigt.
+    vulOntbrekendeHerkomst(nieuw, { bron, status: "voorgesteld", bronDetail: `import: ${bronnaam}` });
+    db.partners.push(nieuw);
     uitkomst.nieuw++;
   });
   return uitkomst;

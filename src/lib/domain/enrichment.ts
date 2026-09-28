@@ -1,6 +1,7 @@
 // Epic 6: verrijking en AI-extractie. Uitsluitend openbare bronnen; extracties krijgen bron `web` met lage betrouwbaarheid.
 // US-30: claims worden gesplitst in aantoonbaar (certificaat, meting, MPG-score) en geclaimd (marketingtekst).
-import type { EnrichmentVoorstel, FactorWaarde, Partner } from "./types";
+import { BRON_BETROUWBAARHEID } from "./types";
+import type { Bron, EnrichmentVoorstel, FactorWaarde, Partner } from "./types";
 
 type Regel = { factorId: string; optieId?: string; patroon: RegExp; waarde: (m: RegExpMatchArray) => FactorWaarde; aantoonbaar: (m: RegExpMatchArray, context: string) => boolean; veld: string };
 
@@ -49,8 +50,15 @@ export function striptHtml(html: string) {
     .trim();
 }
 
-/** Extraheer factorvoorstellen uit openbare tekst volgens de taxonomie. */
-export function extraheerVoorstellen(partner: Partner, tekst: string, bronUrl: string, nu = new Date()): EnrichmentVoorstel[] {
+/** Betrouwbaarheid van een regelextractie: web blijft laag; bij hogere bronnen (document, eigen uitgave) telt de bron mee. */
+function extractieBetrouwbaarheid(bron: Bron, aantoonbaar: boolean, marketing: boolean) {
+  if (bron === "web") return aantoonbaar ? 0.55 : marketing ? 0.2 : 0.35;
+  const basis = BRON_BETROUWBAARHEID[bron];
+  return Math.round((aantoonbaar ? basis : marketing ? basis * 0.5 : basis * 0.8) * 100) / 100;
+}
+
+/** Extraheer factorvoorstellen uit tekst volgens de taxonomie. `bron` bepaalt de rang (US-50): web, document of eigen uitgave. */
+export function extraheerVoorstellen(partner: Partner, tekst: string, bronUrl: string, nu = new Date(), bron: Bron = "web"): EnrichmentVoorstel[] {
   const voorstellen: EnrichmentVoorstel[] = [];
   REGELS.forEach((regel) => {
     const m = tekst.match(regel.patroon);
@@ -62,15 +70,16 @@ export function extraheerVoorstellen(partner: Partner, tekst: string, bronUrl: s
     const voorgesteld = regel.waarde(m);
     if (huidig && JSON.stringify(huidig.waarde) === JSON.stringify(voorgesteld)) return;
     voorstellen.push({
-      id: `ev-${partner.id}-${regel.factorId}-${regel.optieId ?? ""}-${nu.getTime().toString(36)}`,
+      id: `ev-${partner.id}-${regel.factorId}-${regel.optieId ?? ""}-${bron}-${nu.getTime().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       partnerId: partner.id,
       factorId: regel.factorId,
+      optieId: regel.optieId,
       veld: regel.veld,
       huidig: huidig?.waarde ?? null,
       voorgesteld,
-      bron: "web",
+      bron,
       bronUrl,
-      betrouwbaarheid: aantoonbaar ? 0.55 : isMarketing ? 0.2 : 0.35,
+      betrouwbaarheid: extractieBetrouwbaarheid(bron, aantoonbaar, isMarketing),
       soort: aantoonbaar ? "aantoonbaar" : "geclaimd",
       citaat: `…${context.trim()}…`,
       status: "open",

@@ -1,6 +1,7 @@
 // US-15 semantisch zoeken; US-39 snelle filters die doorlinken naar /partners.
 import Link from "next/link";
-import { Badge, Kaart, Leeg, Melding, PaginaKop, ScoreBalk, StatusBadge } from "@/components/ui";
+import { Badge, HerkomstRegel, Kaart, Leeg, Melding, PaginaKop, ScoreBalk, StatusBadge } from "@/components/ui";
+import { basisveldHerkomst } from "@/lib/domain/herkomst";
 import { tokens } from "@/lib/domain/embedding";
 import { semantischZoeken } from "@/lib/domain/matching";
 import { ROLLEN, type CertificaatType, type Partner, type PartnerStatus } from "@/lib/domain/types";
@@ -10,6 +11,20 @@ import { getDb } from "@/lib/store";
 const VOORBEELDEN = ["circulaire houtbouw met demontabele gevel", "hoogstedelijke woontoren", "transformatie monument", "zorgwonen met sterke planningsdiscipline"];
 const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "ter_controle"];
 const CERTIFICATEN: CertificaatType[] = ["ISO 9001", "ISO 14001", "VCA", "CO2-prestatieladder", "FSC", "PEFC", "BREEAM-expertise", "Woonkeur", "KOMO"];
+
+/** US-51: bij elk resultaat de herkomst van het profiel (bron, datum, betrouwbaarheid, status) en de verhouding gevalideerd/voorgesteld. */
+function HerkomstSamenvatting({ p }: { p: Partner }) {
+  const h = basisveldHerkomst(p, "omschrijving");
+  const waarden = p.factoren.filter((f) => !f.afgeleid);
+  const gevalideerd = waarden.filter((f) => f.status === "gevalideerd").length;
+  return (
+    <p className="klein-tekst">
+      <span className="muted">Profieltekst: </span>
+      {h ? <HerkomstRegel bron={h.bron} detail={h.bronDetail} datum={h.vastgesteldOp} betrouwbaarheid={h.betrouwbaarheid} status={h.status} /> : <span className="muted">herkomst onbekend</span>}
+      {waarden.length ? <span className="muted"> · {gevalideerd} van {waarden.length} kenmerken gevalideerd</span> : null}
+    </p>
+  );
+}
 
 /** De zin uit omschrijving/referenties met de meeste semantische treffers. */
 function besteZin(p: Partner, treffers: string[]) {
@@ -79,6 +94,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
                       {!r.treffers.length ? <span className="muted">gelijkenis zonder letterlijke woordtreffers</span> : null}
                     </div>
                     {besteZin(r.partner, r.treffers) ? <blockquote className="zoekCitaat">{besteZin(r.partner, r.treffers)}</blockquote> : null}
+                    <HerkomstSamenvatting p={r.partner} />
                   </div>
                   <ScoreBalk score={r.score} label="Semantische score" />
                 </div>

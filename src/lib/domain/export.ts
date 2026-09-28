@@ -1,5 +1,6 @@
 // B8: export naar CSV (opent direct in Excel; puntkomma + BOM voor NL-instellingen).
-import { effectieveStatus } from "./herkomst";
+import { basisveldWaarde, BASISVELDEN_LIJST, betrouwbaarheidNiveau, bronTekst, effectieveStatus, geenBronVeldnaam } from "./herkomst";
+import { BASISVELD_LABEL } from "./types";
 import { STATUS_LABEL } from "../format";
 import type { Database } from "./types";
 
@@ -31,14 +32,22 @@ export function partnersCsv(db: Database, metGearchiveerd = false) {
         Omzet: p.omzet ?? "",
         Certificaten: p.certificaten.map((c) => `${c.type} t/m ${c.geldigTot}`).join(" | "),
         Projecten: db.engagements.filter((e) => e.partnerId === p.id).length,
-        Omschrijving: p.omschrijving.slice(0, 500)
+        Omschrijving: p.omschrijving.slice(0, 500),
+        // US-52: herkomst per basisveld; US-53: velden zonder betrouwbare bron.
+        "Herkomst basisvelden": BASISVELDEN_LIJST.filter((v) => basisveldWaarde(p, v))
+          .map((v) => {
+            const h = p.veldHerkomst?.[v];
+            return `${BASISVELD_LABEL[v]}: ${h ? `${bronTekst(h.bron)}, ${betrouwbaarheidNiveau(h.betrouwbaarheid)}, ${h.status}, ${h.vastgesteldOp}` : "onbekend"}`;
+          })
+          .join(" | "),
+        "Geen betrouwbare bron": Object.entries(p.geenBron ?? {}).map(([k, m]) => `${geenBronVeldnaam(k, db.factoren)} (${m.op})`).join(" | ")
       };
       factoren.forEach((f) => {
         const w = p.factoren.filter((x) => x.factorId === f.id);
         basis[f.naam] = w
           .map((x) => {
             const optie = x.optieId ? `${f.opties?.find((o) => o.id === x.optieId)?.label ?? x.optieId}: ` : "";
-            return `${optie}${Array.isArray(x.waarde) ? x.waarde.join("+") : x.waarde} [${effectieveStatus(x, f) ?? "berekend"}, ${x.bron}, ${x.peildatum}]`;
+            return `${optie}${Array.isArray(x.waarde) ? x.waarde.join("+") : x.waarde} [${effectieveStatus(x, f) ?? "berekend"}, ${bronTekst(x.bron)}, betrouwbaarheid ${betrouwbaarheidNiveau(x.betrouwbaarheid)}, ${x.peildatum}]`;
           })
           .join(" | ");
       });

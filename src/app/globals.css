@@ -1325,3 +1325,19 @@ a:not(.knop):not(.chip):not(.badge) { color: var(--blue); }
 .chatBeurt { margin-bottom: 14px; }
 .chatVraag { margin: 0 0 6px; }
 .chatAntwoord { background: var(--surface-2, #f4f6f8); border-radius: 10px; padding: 10px 12px; }
+
+/* Aanvulling overeenkomst v3.1: herkomst, rangorde, markeringen en disclaimers */
+.bronLabel { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bronLabel.rang-1 { font-weight: 700; }
+.herkomstRegel { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; }
+.disclaimer { border-left: 3px solid var(--blue-line); background: var(--blue-soft); color: var(--ink); font-size: 13px; margin: 8px 0 14px; padding: 8px 12px; }
+.basisveldTabel td:first-child { white-space: nowrap; }
+.basisveldTabel td { vertical-align: top; }
+.gsLijst { display: grid; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.gsLijst li { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; justify-content: space-between; }
+.voortgang { background: var(--soft); border-radius: var(--pill); height: 8px; overflow: hidden; }
+.voortgang > span { background: var(--blue); display: block; height: 100%; }
+.kwaliteitRaster { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.kwaliteitRaster .metriek a { font-size: 13px; }
+.bevestigDialoog { border: 1px solid var(--red); border-radius: var(--radius); padding: 12px; background: #fff7f7; }
+.beheerTegels { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }

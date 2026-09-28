@@ -3,10 +3,50 @@
 // referenties) én factorwaarden. Alles komt als voorstel in de wachtrij; niets wordt automatisch overgenomen.
 import { extraheerVoorstellen, striptHtml } from "./enrichment";
 import { leesBedrijfsgegevens } from "./webzoek";
-import type { EnrichmentVoorstel, Partner } from "./types";
+import type { BasisVeld, EnrichmentVoorstel, Partner } from "./types";
 
 /** Velden buiten het factorenmodel die via een voorstel kunnen worden overgenomen (zie beoordeelVoorstel). */
-export const BASISVELDEN = { website: "Website", kvk: "KVK-nummer", plaats: "Vestigingsplaats", omschrijving: "Omschrijving", referentie: "Referentieproject" } as const;
+export const BASISVELDEN = {
+  website: "Website",
+  kvk: "KVK-nummer",
+  plaats: "Vestigingsplaats",
+  omschrijving: "Omschrijving",
+  referentie: "Referentieproject",
+  rechtsvorm: "Rechtsvorm",
+  adres: "Vestigingsadres",
+  statutaireNaam: "Statutaire naam",
+  oprichtingsdatum: "Oprichtingsdatum",
+  sbi: "SBI-activiteiten",
+  telefoon: "Telefoon (algemeen)",
+  email: "E-mail (algemeen)"
+} as const;
+
+/** SBI-activiteiten uit voorsteltekst ("4120 Algemene burgerlijke en utiliteitsbouw; 7111 Architecten"). */
+export function leesSbi(tekst: string): Array<{ code: string; omschrijving: string; hoofd?: boolean }> {
+  return tekst
+    .split(";")
+    .map((d) => d.trim())
+    .filter(Boolean)
+    .map((d, i) => {
+      const m = d.match(/^(\d{2,6})\s+(.*)$/);
+      return { code: m?.[1] ?? "", omschrijving: (m?.[2] ?? d).replace(/\s*\(hoofdactiviteit\)$/, ""), hoofd: i === 0 || /hoofdactiviteit/.test(d) || undefined };
+    });
+}
+
+/** Voorstelveld (label) → basisveld met eigen herkomst (US-52). Referenties zijn een lijst en hebben geen veldherkomst. */
+export const BASISVELD_VAN_LABEL: Record<string, BasisVeld> = {
+  [BASISVELDEN.website]: "website",
+  [BASISVELDEN.kvk]: "kvk",
+  [BASISVELDEN.plaats]: "vestigingsplaats",
+  [BASISVELDEN.omschrijving]: "omschrijving",
+  [BASISVELDEN.rechtsvorm]: "rechtsvorm",
+  [BASISVELDEN.adres]: "adres",
+  [BASISVELDEN.statutaireNaam]: "statutaireNaam",
+  [BASISVELDEN.oprichtingsdatum]: "oprichtingsdatum",
+  [BASISVELDEN.sbi]: "sbiActiviteiten",
+  [BASISVELDEN.telefoon]: "telefoon",
+  [BASISVELDEN.email]: "email"
+};
 
 const UITSLUITEN = /(kvk\.nl|linkedin|facebook|instagram|youtube|twitter|x\.com|wikipedia|funda|indeed|glassdoor|trustpilot|drimble|cylex|telefoonboek|openingstijden|bedrijvenpagina|company\.info|creditsafe|graydon|bouwinfo|cobouw|bouwendnederland|conceptenboulevard|google\.|bing\.|duckduckgo|marktplaats|werkspot|jaap\.nl|huislijn|nieuwbouw-in|vacature)/i;
 const SUBPAGINAS = [/over[- ]?ons|about|wie[- ]zijn[- ]wij|organisatie/i, /projecten|referenties|portfolio|werk|cases|woningen|concept/i, /duurzaam|circulair|biobased|mvo|sustainab|hout/i];

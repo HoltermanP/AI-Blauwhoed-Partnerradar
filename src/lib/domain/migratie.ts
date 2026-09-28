@@ -1,8 +1,9 @@
 // Migraties van de opgeslagen database (JSONB-snapshot). Elke migratie is idempotent en verhoogt db.versie.
 import { laadAanvulling } from "./aanvulling";
+import { vulOntbrekendeHerkomst } from "./herkomst";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 8;
+export const HUIDIGE_VERSIE = 9;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -55,7 +56,7 @@ export function hernoemIds(db: Database, mapping: Map<string, string>) {
   loop(db);
 }
 
-export type MigratieUitkomst = { van: number; naar: number; hernoemd: number; aanvulling?: ReturnType<typeof laadAanvulling> };
+export type MigratieUitkomst = { van: number; naar: number; hernoemd: number; aanvulling?: ReturnType<typeof laadAanvulling>; herkomstAangevuld?: number };
 
 /**
  * Versie 1 → 2: tijdstempel-IDs van partners (p-<tijd>) worden stabiele naam-IDs; daarna wordt de aanvullende dataset geladen.
@@ -115,6 +116,16 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
     if (!db.instellingen.verrijkingsbronnen.some((b) => /woningconcepten|conceptenbrochure/i.test(b.naam) || /conceptenbrochure/i.test(b.url))) {
       db.instellingen.verrijkingsbronnen.push({ id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true });
     }
+  }
+  if (van < 9) {
+    // Aanvulling overeenkomst v3.1, groep A (US-49 t/m US-53): goudstandaard per partnertype, bronrangorde en herkomst per basisveld.
+    db.goudstandaard = db.goudstandaard ?? {};
+    db.instellingen.verrijkingsbronnen = (db.instellingen.verrijkingsbronnen ?? []).map((b) => ({
+      ...b,
+      categorie: b.categorie ?? (/conceptenboulevard|woningconcepten|conceptenbrochure/i.test(`${b.naam} ${b.url}`) ? "eigen_uitgave" : "web")
+    }));
+    // Bestaande basisvelden krijgen een afgeleide herkomst met status 'voorgesteld' (alleen een mens valideert).
+    uitkomst.herkomstAangevuld = db.partners.reduce((n, p) => n + vulOntbrekendeHerkomst(p), 0);
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

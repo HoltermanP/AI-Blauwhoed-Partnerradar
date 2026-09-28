@@ -21,6 +21,12 @@ import { naarCsv, partnersCsv } from "../src/lib/domain/export";
 import { veldKwaliteit } from "../src/lib/domain/datakwaliteit";
 import { geldigeRollen, normaliseerWebsite, raadRollen, regelConcept, vrijgaveBlokkades } from "../src/lib/domain/registratie";
 import { budgetStatus, kostenUsd, maandVerbruik, schatVerrijkingsronde } from "../src/lib/domain/kosten";
+import { betrouwbaarheidNiveau, bronRang, bronTekst, markeerGeenBron, registreerHandmatigeBasisvelden, zetBasisveldHerkomst } from "../src/lib/domain/herkomst";
+import { verwerkVoorstellen, veldenZonderBron } from "../src/lib/domain/voorstellen";
+import { goudstandaardVoorPartner, gezochteVelden } from "../src/lib/domain/goudstandaard";
+import { basisVeldKwaliteit, statusVerdeling } from "../src/lib/domain/datakwaliteit";
+import { BASISVELDEN } from "../src/lib/domain/webverrijking";
+import { BRON_BETROUWBAARHEID, type Bron, type EnrichmentVoorstel } from "../src/lib/domain/types";
 
 let fouten = 0;
 function check(naam: string, ok: boolean, detail?: unknown) {
@@ -253,6 +259,58 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   const r = matchProject({ db: dbR, project: dbR.projecten[0] });
   const inAdvies = r.some((rr) => [...rr.kandidaten, ...rr.prospects].some((k) => k.partnerId === doel.id));
   check("Registratie: partner ter controle telt niet mee in matching en zoeken", !inAdvies && !semantischZoeken(dbR, doel.omschrijving || doel.naam).some((t) => t.partner.id === doel.id));
+}
+
+// ---------- Aanvulling overeenkomst v3.1 — groep A: goudstandaard en datakwaliteit (US-49 t/m US-53) ----------
+{
+  const dbA = maakSeedDatabase();
+  const p = JSON.parse(JSON.stringify(dbA.partners.find((x) => x.id === "p-woudbouw")!)) as (typeof dbA.partners)[number];
+  // US-51: centrale mapping
+  check("US-51 betrouwbaarheid hoog/midden/laag", betrouwbaarheidNiveau(0.9) === "hoog" && betrouwbaarheidNiveau(0.5) === "midden" && betrouwbaarheidNiveau(0.2) === "laag");
+  // US-50: rangorde en label
+  check("US-50 rangorde art. 11.2", bronRang("goudstandaard") === 1 && bronRang("eigen_uitgave") === 1 && bronRang("kvk") === 2 && bronRang("document") === 2 && bronRang("web") === 3);
+  check("US-50 label indicatief – niet gevalideerd", bronTekst("web").includes("indicatief – niet gevalideerd") && !bronTekst("kvk").includes("indicatief"));
+  const basisV = (bron: Bron, waarde: string, id: string): EnrichmentVoorstel => ({ id, partnerId: p.id, veld: BASISVELDEN.omschrijving, huidig: null, voorgesteld: waarde, bron, betrouwbaarheid: BRON_BETROUWBAARHEID[bron], soort: "geclaimd", citaat: "", status: "open", gevondenOp: "2026-09-01" });
+  p.omschrijving = "";
+  const vs = [basisV("web", "Van internet", "a"), basisV("eigen_uitgave", "Uit Conceptenboulevard", "b")];
+  verwerkVoorstellen(p, vs, dbA.factoren);
+  check("US-50 hoogste rang wint, lagere is alternatief", !vs[1].alternatief && vs[0].alternatief === true);
+  // US-52: handmatige invoer = gevalideerd; verrijking tegen gevalideerd veld = conflict
+  p.omschrijving = "Houtbouwer";
+  const voor = {};
+  registreerHandmatigeBasisvelden(p, voor, "Tester");
+  check("US-52 basisveld handmatig = gevalideerd met naam en datum", p.veldHerkomst?.omschrijving?.status === "gevalideerd" && p.veldHerkomst?.omschrijving?.gevalideerdDoor === "Tester" && p.veldHerkomst?.omschrijving?.bron === "opgave");
+  const conflict = [{ ...basisV("web", "Iets anders", "c"), huidig: p.omschrijving }];
+  verwerkVoorstellen(p, conflict, dbA.factoren);
+  check("US-52 voorstel op gevalideerd basisveld wordt conflict", conflict[0].conflictMetGevalideerd === true && conflict[0].aard === "gewijzigd");
+  // US-49: goudstandaard gaat voor
+  zetBasisveldHerkomst(p, "omschrijving", { bron: "goudstandaard", vastgesteldOp: "2026-09-01", status: "gevalideerd", gevalideerdDoor: "Beheerder" });
+  const gsV = [{ ...basisV("web", "AI-waarde", "d"), huidig: p.omschrijving }];
+  verwerkVoorstellen(p, gsV, dbA.factoren);
+  check("US-49 goudstandaard gaat voor op AI-voorstel", gsV[0].goudstandaardGaatVoor === true && gsV[0].alternatief === true);
+  const gs = goudstandaardVoorPartner(p, dbA);
+  check("US-49 goudstandaard per partnertype met verplichte velden", gs.some((r) => r.sleutel === "basis:kvk" && r.niveau === "verplicht") && gs.some((r) => r.sleutel.startsWith("factor:")));
+  dbA.goudstandaard.aannemer = { rol: "aannemer", velden: [{ sleutel: "factor:mpg", niveau: "verplicht" }], criteria: [], versie: 1, bijgewerktOp: "", door: "Beheerder" };
+  check("US-49 vastgestelde goudstandaard vervangt het startpunt", goudstandaardVoorPartner(p, dbA).length === 1 && gezochteVelden(p, dbA).includes("factor:mpg"));
+  // US-53: geen betrouwbare bron
+  p.website = undefined;
+  const zonder = veldenZonderBron(p, [], ["basis:website", "basis:omschrijving"]);
+  check("US-53 leeg veld zonder voorstel = geen betrouwbare bron", zonder.join() === "basis:website");
+  markeerGeenBron(p, "basis:website", ["https://example.org", "document: brochure"], new Date("2026-09-10"));
+  check("US-53 markering met datum en doorzochte bronnen", p.geenBron?.["basis:website"]?.op === "2026-09-10" && p.geenBron["basis:website"].doorzocht.length === 2);
+  dbA.partners = [p];
+  check("US-53 telt mee in datakwaliteit", basisVeldKwaliteit(dbA).find((b) => b.veld === "Website")?.geenBron === 1);
+  const sv = statusVerdeling([p], dbA.factoren);
+  check("US-66 statusverdeling over factoren én basisvelden", sv.totaal > 0 && sv.gevalideerd > 0);
+  // Migratie v9: herkomst voor bestaande basisvelden, categorie verrijkingsbronnen
+  const oud = maakLegeDatabase();
+  oud.versie = 8;
+  delete (oud as Partial<typeof oud>).goudstandaard;
+  oud.partners = [JSON.parse(JSON.stringify(dbA.partners[0]))];
+  delete oud.partners[0].veldHerkomst;
+  oud.instellingen.verrijkingsbronnen = [{ id: "x", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/", actief: true }];
+  migreerDatabase(oud, new Map());
+  check("Migratie v9: herkomst aangevuld (voorgesteld) en bron eigen uitgave", oud.partners[0].veldHerkomst?.omschrijving?.status === "voorgesteld" && oud.instellingen.verrijkingsbronnen[0].categorie === "eigen_uitgave" && typeof oud.goudstandaard === "object");
 }
 
 console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");

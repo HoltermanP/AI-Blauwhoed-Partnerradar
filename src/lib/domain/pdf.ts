@@ -2,7 +2,8 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { STATUS_LABEL, ROL_LABEL, datum } from "../format";
-import { effectieveStatus } from "./herkomst";
+import { basisveldWaarde, BASISVELDEN_LIJST, betrouwbaarheidNiveau, bronTekst, effectieveStatus } from "./herkomst";
+import { BASISVELD_LABEL } from "./types";
 import type { Database, Partner } from "./types";
 
 const BLAUW: [number, number, number] = [0, 62, 126];
@@ -112,9 +113,24 @@ export function partnerDossierPdf(p: Partner, db: Database): Buffer {
     body: p.factoren.map((f) => {
       const def = fmap.get(f.factorId);
       const veld = def ? (f.optieId ? `${def.naam}: ${def.opties?.find((o) => o.id === f.optieId)?.label ?? f.optieId}` : def.naam) : f.factorId;
-      return [veld, Array.isArray(f.waarde) ? f.waarde.join(", ") : String(f.waarde), f.bron, effectieveStatus(f, def) ?? "berekend", `${Math.round(f.betrouwbaarheid * 100)}%`, datum(f.peildatum)];
+      return [veld, Array.isArray(f.waarde) ? f.waarde.join(", ") : String(f.waarde), bronTekst(f.bron), effectieveStatus(f, def) ?? "berekend", betrouwbaarheidNiveau(f.betrouwbaarheid), datum(f.peildatum)];
     })
   });
+  // US-52: herkomst per basisveld.
+  const basis = BASISVELDEN_LIJST.filter((v) => basisveldWaarde(p, v));
+  if (basis.length) {
+    const yb = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 60;
+    autoTable(doc, {
+      startY: yb + 6,
+      styles: { fontSize: 8, cellPadding: 1.4 },
+      headStyles: { fillColor: BLAUW },
+      head: [["Basisveld", "Waarde", "Bron", "Status", "Betrouwb.", "Vastgesteld"]],
+      body: basis.map((v) => {
+        const h = p.veldHerkomst?.[v];
+        return [BASISVELD_LABEL[v], basisveldWaarde(p, v).slice(0, 120), h ? bronTekst(h.bron) : "onbekend", h?.status ?? "-", h ? betrouwbaarheidNiveau(h.betrouwbaarheid) : "-", h ? datum(h.vastgesteldOp) : "-"];
+      })
+    });
+  }
 
   const y2 = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 60;
   if (p.certificaten.length) {

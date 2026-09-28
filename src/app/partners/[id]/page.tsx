@@ -7,7 +7,11 @@ import { signalenVoor } from "@/lib/domain/signalen";
 import type { Database, Partner } from "@/lib/domain/types";
 import { datum, datumTijd, euro, getal, ROL_LABEL, waardeTekst } from "@/lib/format";
 import { getDb } from "@/lib/store";
-import { Badge, Definities, Kaart, Knop, Leeg, Melding, Metriek, PaginaKop, StatusBadge, Tabs } from "@/components/ui";
+import { Badge, Definities, GeenBronBadge, HerkomstRegel, Kaart, Knop, Leeg, Melding, Metriek, PaginaKop, StatusBadge, Tabs } from "@/components/ui";
+import BasisveldBevestigen from "@/components/partners/BasisveldBevestigen";
+import { basisveldHerkomst, basisveldWaarde, BASISVELDEN_LIJST } from "@/lib/domain/herkomst";
+import { goudstandaardVolledigheid } from "@/lib/domain/goudstandaard";
+import { BASISVELD_LABEL } from "@/lib/domain/types";
 import CapaciteitBeheer from "@/components/partners/CapaciteitBeheer";
 import CertificatenBeheer from "@/components/partners/CertificatenBeheer";
 import { certificaatStatus } from "@/components/partners/certificaten";
@@ -19,6 +23,7 @@ import PartnerVerrijken from "@/components/partners/PartnerVerrijken";
 import HerkomstActies from "@/components/partners/HerkomstActies";
 import DocumentenBeheer from "@/components/partners/DocumentenBeheer";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
+import { VoorstelBetrouwbaarheid, VoorstelBron, VoorstelSoort } from "@/components/verrijking/VoorstelKenmerken";
 import RegistratieBeoordeling from "@/components/partners/RegistratieBeoordeling";
 import { vrijgaveBlokkades } from "@/lib/domain/registratie";
 
@@ -136,20 +141,11 @@ export default async function PartnerDossier({ params, searchParams }: { params:
                       <span className="muted">{waardeTekst(v.huidig)}</span> → <b>{waardeTekst(v.voorgesteld)}</b>
                     </td>
                     <td>
-                      <Badge kleur={v.soort === "aantoonbaar" ? "groen" : "geel"}>{v.soort}</Badge>
-                      {v.aard === "niet_bevestigd" ? <Badge kleur="rood" titel="De eerder gevonden waarde is niet meer op de bron terug te vinden; accepteren markeert haar als verouderd">niet bevestigd</Badge> : v.aard === "nieuw" ? <Badge kleur="blauw">nieuw</Badge> : null}
-                      {v.conflictMetGevalideerd ? <Badge kleur="rood" titel="Wijkt af van een door een mens gevalideerde waarde; wordt nooit stilzwijgend overschreven">wijkt af van gevalideerd</Badge> : null}
+                      <VoorstelSoort v={v} />
                     </td>
-                    <td className="num">{Math.round(v.betrouwbaarheid * 100)}%</td>
+                    <td className="num"><VoorstelBetrouwbaarheid v={v} /></td>
                     <td className="citaatCel">
-                      {v.bronUrl && /^https?:/.test(v.bronUrl) ? (
-                        <a href={v.bronUrl} target="_blank" rel="noreferrer">
-                          {v.bronUrl}
-                        </a>
-                      ) : (
-                        <span className="muted">{v.bronUrl}</span>
-                      )}
-                      <blockquote>{v.citaat}</blockquote>
+                      <VoorstelBron v={v} />
                     </td>
                     <td>
                       <VoorstelActies id={v.id} magBewerken={magBewerken} />
@@ -323,15 +319,13 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db:
     <div className="raster raster-zij">
       <div>
         <Kaart titel="Profiel">
-          <p>{p.omschrijving}</p>
+          <p>{p.omschrijving || <span className="muted">Geen omschrijving.</span>}</p>
           <Definities
             items={[
-              ["Vestigingsplaats", `${p.vestigingsplaats}${p.adres ? `, ${p.adres}` : ""}`],
               ["Werkgebied", `${p.werkgebiedKm} km rond vestiging`],
-              ["Rechtsvorm", p.rechtsvorm],
-              ["Website", p.website ? <a href={p.website} target="_blank" rel="noreferrer">{p.website}</a> : "–"],
               ["Aangemaakt", datum(p.aangemaaktOp)],
-              ["Bijgewerkt", datumTijd(p.bijgewerktOp)]
+              ["Bijgewerkt", datumTijd(p.bijgewerktOp)],
+              ["Laatst verrijkt", datumTijd(p.laatstVerrijktOp)]
             ]}
           />
           {p.tags.length ? (
@@ -343,6 +337,34 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db:
               ))}
             </p>
           ) : null}
+        </Kaart>
+        <Kaart titel="Basisgegevens en herkomst (US-52)">
+          <p className="muted klein-tekst">Per veld de bron, de datum van vaststelling, de betrouwbaarheid en de status. Alleen een mens zet een gegeven op gevalideerd; een verrijking overschrijft een gevalideerd veld nooit stilzwijgend.</p>
+          <div className="tabelWrap">
+            <table className="tabel basisveldTabel">
+              <tbody>
+                {BASISVELDEN_LIJST.filter((v) => basisveldWaarde(p, v) || p.geenBron?.[`basis:${v}`] || ["kvk", "vestigingsplaats", "website", "omschrijving", "rechtsvorm"].includes(v)).map((v) => {
+                  const w = basisveldWaarde(p, v);
+                  const h = basisveldHerkomst(p, v);
+                  return (
+                    <tr key={v}>
+                      <td className="muted">{BASISVELD_LABEL[v]}</td>
+                      <td>
+                        {w ? (v === "website" ? <a href={w} target="_blank" rel="noreferrer">{w}</a> : v === "omschrijving" ? `${w.slice(0, 140)}${w.length > 140 ? "…" : ""}` : w) : <span className="muted">leeg</span>}{" "}
+                        <GeenBronBadge markering={p.geenBron?.[`basis:${v}`]} />
+                        {w ? (
+                          <div>
+                            {h ? <HerkomstRegel bron={h.bron} detail={h.bronDetail} datum={h.vastgesteldOp} betrouwbaarheid={h.betrouwbaarheid} status={h.status} gevalideerdDoor={h.gevalideerdDoor} gevalideerdOp={h.gevalideerdOp} /> : <span className="muted klein-tekst">herkomst onbekend</span>}
+                            {magBewerken && h?.status !== "gevalideerd" ? <BasisveldBevestigen partnerId={p.id} veld={v} /> : null}
+                          </div>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Kaart>
         <Kaart titel="Referentieprojecten (opgave)">
           {p.referenties.length ? (
@@ -386,6 +408,7 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db:
         </Kaart>
       </div>
       <div>
+        <GoudstandaardKaart p={p} db={db} />
         <Kaart titel="Status (US-07)">
           <p>
             <StatusBadge status={p.status} />
@@ -432,6 +455,32 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db:
         </Kaart>
       </div>
     </div>
+  );
+}
+
+/** US-49: welke goudstandaardvelden voor dit partnertype verplicht of gewenst zijn, en welke nog leeg zijn. */
+function GoudstandaardKaart({ p, db }: { p: Partner; db: Database }) {
+  const gs = goudstandaardVolledigheid(p, db);
+  if (!p.rollen.length) return null;
+  return (
+    <Kaart titel={`Goudstandaard (${gs.gevuld}/${gs.totaal})`} acties={<Link href="/beheer/goudstandaard">Beheer</Link>}>
+      <div className="voortgang" aria-label={`${gs.pct}% gevuld`}>
+        <span style={{ width: `${gs.pct}%` }} />
+      </div>
+      <p className="muted klein-tekst">Velden die Blauwhoed per partnertype ({p.rollen.map((r) => ROL_LABEL[r]).join(", ")}) verplicht of gewenst vindt. Waarden uit de goudstandaard gaan altijd voor op AI-waarden.</p>
+      <ul className="gsLijst">
+        {gs.regels.map((r) => (
+          <li key={r.sleutel}>
+            <span>
+              {r.gevuld ? "✓" : "○"} {r.naam}
+            </span>
+            <span>
+              <Badge kleur={r.niveau === "verplicht" ? (r.gevuld ? "groen" : "rood") : "grijs"}>{r.niveau}</Badge> {!r.gevuld ? <GeenBronBadge markering={p.geenBron?.[r.sleutel]} /> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Kaart>
   );
 }
 

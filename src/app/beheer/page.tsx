@@ -64,7 +64,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
         </Kaart>
       ) : null}
 
-      <div className="raster raster-3">
+      <div className="raster raster-3 beheerTegels">
         <Kaart titel="Factoren">
           <p className="muted">{actieveFactoren} actieve factoren, {db.factoren.length - actieveFactoren} gearchiveerd. Toevoegen, hernoemen, samenvoegen, archiveren (US-04).</p>
           <Link href="/beheer/factoren" className="knop knop-secundair klein">Factoren beheren</Link>
@@ -72,6 +72,10 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
         <Kaart titel="Gewichtsprofielen">
           <p className="muted">{db.gewichtsprofielen.length} profielen met versiehistorie. Gewichten en gevraagde waarden per rol (US-10, US-44).</p>
           <Link href="/beheer/gewichten" className="knop knop-secundair klein">Gewichten beheren</Link>
+        </Kaart>
+        <Kaart titel="Goudstandaard">
+          <p className="muted">Per partnertype de verplichte en gewenste velden en de beoordelingscriteria (US-49). Goudstandaardwaarden gaan altijd voor op AI.</p>
+          <Link href="/beheer/goudstandaard" className="knop knop-secundair klein">Goudstandaard beheren</Link>
         </Kaart>
         <Kaart titel="Auditlog">
           <p className="muted">{db.audit.length} regels. Elke wijziging aan partnergegevens en scoringsregels (US-46).</p>
@@ -140,11 +144,11 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
               </label>
               <button type="submit" className="knop klein">Tonen</button>
             </form>
-            <p className="muted klein-tekst">Basisvelden: {basisKwaliteit.map((b) => `${b.veld} ${b.pct}%`).join(" · ")}</p>
+            <p className="muted klein-tekst">Basisvelden (gevuld / gevalideerd / geen betrouwbare bron): {basisKwaliteit.map((b) => `${b.veld} ${b.pct}% / ${b.gevalideerd}% / ${b.geenBron}`).join(" · ")}</p>
             <div className="tabelWrap">
               <table className="tabel">
                 <thead>
-                  <tr><th>Veld</th><th className="num">Relevant</th><th className="num">Volledig</th><th className="num">Gevalideerd</th><th className="num">Verouderd</th><th className="num">Gem. betrouwb.</th></tr>
+                  <tr><th>Veld</th><th className="num">Relevant</th><th className="num">Volledig</th><th className="num">Gevalideerd</th><th className="num">Verouderd</th><th className="num">Gem. betrouwb.</th><th className="num">Geen bron</th></tr>
                 </thead>
                 <tbody>
                   {kwaliteit.map((k) => (
@@ -155,6 +159,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
                       <td className="num">{k.pctGevalideerd}%</td>
                       <td className="num">{k.pctVerouderd ? <Badge kleur="rood">{k.pctVerouderd}%</Badge> : "0%"}</td>
                       <td className="num">{k.gemBetrouwbaarheid !== null ? `${k.gemBetrouwbaarheid}%` : "–"}</td>
+                      <td className="num">{k.geenBron ? <Badge kleur="mint">{k.geenBron}</Badge> : "0"}</td>
                     </tr>
                   ))}
                 </tbody>

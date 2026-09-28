@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { slaPartnerFactorOp, verwijderPartnerFactor } from "@/lib/actions";
-import { BRON_BETROUWBAARHEID, type Bron, type Factor, type FactorWaarde, type PartnerFactor, type Rol } from "@/lib/domain/types";
+import { BRON_BETROUWBAARHEID, BRON_LABEL, BRONNEN as ALLE_BRONNEN, type Bron, type Factor, type FactorWaarde, type PartnerFactor, type Rol } from "@/lib/domain/types";
 import { datum, waardeTekst } from "@/lib/format";
 import { effectieveStatus } from "@/lib/domain/herkomst";
-import { Badge, Melding } from "@/components/ui";
+import { Badge, BetrouwbaarheidBadge, BronLabel, Melding } from "@/components/ui";
 import { FactorWaardeVeld, standaardWaarde } from "./FactorWaardeVeld";
 
-const BRONNEN: Bron[] = ["opgave", "projecthistorie", "evaluatie", "web", "certificaat"];
+// US-50: alle bronnen in rangorde; goudstandaard vastleggen is voorbehouden aan de beheerder (server controleert).
+const BRONNEN: Bron[] = ALLE_BRONNEN;
 
 type Props = {
   partnerId: string;
@@ -156,10 +157,10 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                         {f?.schaal.soort === "niveau" ? <small className="muted"> / 5</small> : null}
                       </td>
                       <td>
-                        {pf.bron} {pf.afgeleid ? <Badge kleur="mint">afgeleid</Badge> : null} {pf.overschrijving ? <Badge kleur="geel">overschreven</Badge> : null}
+                        <BronLabel bron={pf.bron} /> {pf.afgeleid ? <Badge kleur="mint">afgeleid</Badge> : null} {pf.overschrijving ? <Badge kleur="geel">overschreven</Badge> : null}
                       </td>
                       <td><WaardeStatus pf={pf} factor={f} /></td>
-                      <td className="num">{Math.round(pf.betrouwbaarheid * 100)}%</td>
+                      <td className="num"><BetrouwbaarheidBadge waarde={pf.betrouwbaarheid} /> <small className="muted">{Math.round(pf.betrouwbaarheid * 100)}%</small></td>
                       <td>{datum(pf.peildatum)}</td>
                       <td>{bewijsLink(pf)}</td>
                       <td className="klein-tekst">{pf.toelichting ?? ""}</td>
@@ -248,7 +249,8 @@ function OverschrijfFormulier({ partnerId, factor, huidig, bestaandHandmatig, on
           >
             {BRONNEN.map((b) => (
               <option key={b} value={b}>
-                {b}
+                {BRON_LABEL[b]}
+                {b === "goudstandaard" ? " (alleen beheerder)" : b === "web" ? " – indicatief" : ""}
               </option>
             ))}
           </select>
@@ -361,7 +363,8 @@ function ToevoegFormulier({ partnerId, rollen, factoren, onKlaar }: { partnerId:
           >
             {BRONNEN.map((b) => (
               <option key={b} value={b}>
-                {b}
+                {BRON_LABEL[b]}
+                {b === "goudstandaard" ? " (alleen beheerder)" : b === "web" ? " – indicatief" : ""}
               </option>
             ))}
           </select>

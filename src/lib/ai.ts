@@ -106,7 +106,7 @@ export async function aiFactorExtractie(naam: string, tekst: string, factoren: F
     .map((f) => `- ${f.id}: ${f.naam} (${f.schaal.soort}${"eenheid" in f.schaal ? `, ${f.schaal.eenheid}` : ""})${f.opties?.length ? ` opties: ${f.opties.map((o) => o.id).join("|")}` : ""}`)
     .join("\n");
   const r = await jsonAntwoord<{ voorstellen: AIFactorVoorstel[] }>(
-    "Je extraheert kenmerken van een bouwpartner uit openbare tekst volgens een vaste taxonomie. Geef alleen kenmerken die letterlijk uit de tekst volgen, met een kort citaat. 'aantoonbaar' is true alleen bij certificaat, meting, berekening of concreet opgeleverd project; marketingtaal is niet aantoonbaar. Niveau-schalen zijn 0–5 (3 = aantoonbare ervaring, 4–5 = specialisme). Schrijf in het Nederlands.",
+    "Je extraheert kenmerken van een bouwpartner uit openbare tekst volgens een vaste taxonomie. Geef alleen kenmerken die letterlijk uit de tekst volgen, met een kort citaat. Bij twijfel vul je niets in: een ontbrekend kenmerk is beter dan een onzekere waarde (het veld wordt dan gemarkeerd als 'geen betrouwbare bron'). 'aantoonbaar' is true alleen bij certificaat, meting, berekening of concreet opgeleverd project; marketingtaal is niet aantoonbaar. Niveau-schalen zijn 0–5 (3 = aantoonbare ervaring, 4–5 = specialisme). Schrijf in het Nederlands.",
     `Bedrijf: ${naam}\n\nTaxonomie:\n${taxonomie}\n\nTekst:\n${tekst.slice(0, 20000)}`,
     {
       type: "object",
@@ -195,7 +195,7 @@ export type AIPartnerRegistratie = {
 /** Partnerregistratie door AI: basisgegevens uit openbare tekst, met herkomst per veld. Een beheerder controleert vóór vrijgave. */
 export async function aiPartnerRegistratie(hint: { naam?: string; website?: string }, tekst: string): Promise<AIPartnerRegistratie | null> {
   return jsonAntwoord<AIPartnerRegistratie>(
-    "Je registreert een bouwpartner voor woningontwikkelaar Blauwhoed op basis van openbare tekst (website of aangeleverd document). Vul alleen velden die aantoonbaar uit de tekst volgen, met per veld een kort letterlijk citaat (herkomst) en een betrouwbaarheid 0–1; laat de rest weg. Verzin niets: geen KVK-nummer tenzij het er letterlijk staat (8 cijfers). rollen ⊆ architect|aannemer|installateur|adviseur|leverancier|ontwikkelpartner. omschrijving is feitelijk, maximaal 500 tekens, zonder marketingtaal. referenties zijn concrete projectnamen (met plaats of aantal woningen als dat er staat), maximaal 8. Noem in watIsOnzeker wat een beheerder moet controleren. Schrijf in het Nederlands. Geef nooit namen of gegevens van personen.",
+    "Je registreert een bouwpartner voor woningontwikkelaar Blauwhoed op basis van openbare tekst (website of aangeleverd document). Vul alleen velden die aantoonbaar uit de tekst volgen, met per veld een kort letterlijk citaat (herkomst) en een betrouwbaarheid 0–1; laat de rest weg. Bij twijfel vul je een veld niet in: leeg is beter dan een onzekere waarde. Verzin niets: geen KVK-nummer tenzij het er letterlijk staat (8 cijfers). rollen ⊆ architect|aannemer|installateur|adviseur|leverancier|ontwikkelpartner. omschrijving is feitelijk, maximaal 500 tekens, zonder marketingtaal. referenties zijn concrete projectnamen (met plaats of aantal woningen als dat er staat), maximaal 8. Noem in watIsOnzeker wat een beheerder moet controleren. Schrijf in het Nederlands. Geef nooit namen of gegevens van personen.",
     `${hint.naam ? `Opgegeven naam: ${hint.naam}\n` : ""}${hint.website ? `Opgegeven website: ${hint.website}\n` : ""}\nTekst:\n${tekst.slice(0, 30000)}`,
     {
       type: "object",

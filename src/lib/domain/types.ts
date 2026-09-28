@@ -72,13 +72,53 @@ export type Factor = {
   versie: number;
 };
 
-export type Bron = "opgave" | "projecthistorie" | "evaluatie" | "web" | "certificaat";
+/**
+ * Bron van een gegeven. De rangorde volgt art. 11.2 van de aanvullende overeenkomst (v3.1):
+ * 1. goudstandaard en eigen uitgaven van Blauwhoed (o.a. woningconceptenbrochure, Conceptenboulevard);
+ * 2. aangeleverde documenten, opgave, projecthistorie en gevalideerde registraties (KVK-handelsregister, keurmerkregisters);
+ * 3. indicatieve markt- en internetbronnen ("indicatief – niet gevalideerd").
+ */
+export type Bron = "goudstandaard" | "eigen_uitgave" | "opgave" | "document" | "projecthistorie" | "evaluatie" | "kvk" | "register" | "certificaat" | "web";
+
+export const BRONNEN: Bron[] = ["goudstandaard", "eigen_uitgave", "opgave", "document", "projecthistorie", "evaluatie", "kvk", "register", "certificaat", "web"];
+
+/** Rang per bron (1 = hoogst). Bij conflicterende voorstellen wint de hoogste rang. */
+export const BRON_RANG: Record<Bron, 1 | 2 | 3> = {
+  goudstandaard: 1,
+  eigen_uitgave: 1,
+  opgave: 2,
+  document: 2,
+  projecthistorie: 2,
+  evaluatie: 2,
+  kvk: 2,
+  register: 2,
+  certificaat: 2,
+  web: 3
+};
+
+export const BRON_LABEL: Record<Bron, string> = {
+  goudstandaard: "Goudstandaard Blauwhoed",
+  eigen_uitgave: "Eigen uitgave Blauwhoed",
+  opgave: "Opgave (aangeleverd)",
+  document: "Aangeleverd document",
+  projecthistorie: "Projecthistorie",
+  evaluatie: "Evaluatie Blauwhoed",
+  kvk: "KVK – gevalideerde registratie",
+  register: "Keurmerk-/brancheregister",
+  certificaat: "Certificaat",
+  web: "Internet"
+};
 
 /** Standaardbetrouwbaarheid per bron (bewijs boven zelfbeeld). */
 export const BRON_BETROUWBAARHEID: Record<Bron, number> = {
+  goudstandaard: 1,
+  eigen_uitgave: 0.95,
   certificaat: 0.95,
+  kvk: 0.9,
+  register: 0.9,
   projecthistorie: 0.9,
   evaluatie: 0.9,
+  document: 0.75,
   opgave: 0.6,
   web: 0.4
 };
@@ -202,12 +242,48 @@ export type PartnerDocument = {
   bestandUrl?: string;
   bestandType?: string;
   bestandGrootte?: number;
+  /** US-61: uit het bestand (PDF, Word, tekst) gelezen tekst; voedt de verrijking als bron 'aangeleverd document'. */
+  geextraheerdeTekst?: string;
+  tekstGeextraheerdOp?: string;
+  /** Waarom er geen tekst gelezen kon worden (bijv. gescande PDF of oud .doc-formaat). */
+  extractieMelding?: string;
   toelichting?: string;
   toegevoegdDoor: string;
   op: string;
 };
 
 export type Geo = { lat: number; lng: number };
+
+/** US-52: basisvelden buiten het factorenmodel die elk een eigen herkomst en status hebben. */
+export type BasisVeld = "website" | "kvk" | "rechtsvorm" | "vestigingsplaats" | "adres" | "omschrijving" | "telefoon" | "email" | "statutaireNaam" | "oprichtingsdatum" | "sbiActiviteiten";
+
+export const BASISVELD_LABEL: Record<BasisVeld, string> = {
+  website: "Website",
+  kvk: "KVK-nummer",
+  rechtsvorm: "Rechtsvorm",
+  vestigingsplaats: "Vestigingsplaats",
+  adres: "Vestigingsadres",
+  omschrijving: "Omschrijving",
+  telefoon: "Telefoon (algemeen)",
+  email: "E-mail (algemeen)",
+  statutaireNaam: "Statutaire naam",
+  oprichtingsdatum: "Oprichtingsdatum",
+  sbiActiviteiten: "SBI-activiteiten"
+};
+
+export type VeldHerkomst = {
+  bron: Bron;
+  /** URL, documentnaam of registerverwijzing. */
+  bronDetail?: string;
+  vastgesteldOp: string;
+  betrouwbaarheid: number;
+  status: FactorWaardeStatus;
+  gevalideerdDoor?: string;
+  gevalideerdOp?: string;
+};
+
+/** US-53: expliciete markering dat er voor een veld geen betrouwbare bron is gevonden (het veld blijft leeg). */
+export type GeenBronMarkering = { op: string; doorzocht: string[] };
 
 /** Registratie door AI: wie het vroeg, waaruit het is opgebouwd, herkomst per veld en het besluit van de beheerder. */
 export type PartnerRegistratie = {
@@ -256,13 +332,26 @@ export type Partner = {
   kwalificatie: Kwalificatie[];
   financieel?: Financieel;
   bronnen: Array<{ url: string; opgehaaldOp: string; soort: string }>;
+  /** Moment van de laatste verrijking (voor het verrijkingsschema: "niet verrijkt sinds X maanden"). */
+  laatstVerrijktOp?: string;
   /** Inhoudshash van de laatst gelezen webbronnen; ongewijzigd = partner overslaan in de volgende ronde (delta-selectie). */
   webHash?: string;
   /** Ruwe brondata per geïmporteerde rij (bijv. per woningconcept uit het Excel-overzicht): alle oorspronkelijke kolommen. */
   brongegevens?: Array<{ bron: string; op: string; titel?: string; velden: Record<string, string> }>;
   tags: string[];
-  /** Alleen bij partners die door AI zijn geregistreerd. */
+  /** Alleen bij partners die door AI zijn geregistreerd of voorgesteld (concept). */
   registratie?: PartnerRegistratie;
+  /** Algemene bedrijfscontactgegevens (organisatie, geen persoon). */
+  telefoon?: string;
+  email?: string;
+  /** Uit het KVK-handelsregister (Basisprofiel). */
+  statutaireNaam?: string;
+  oprichtingsdatum?: string;
+  sbiActiviteiten?: Array<{ code: string; omschrijving: string; hoofd?: boolean }>;
+  /** US-52: herkomst, datum, betrouwbaarheid en status per basisveld. */
+  veldHerkomst?: Partial<Record<BasisVeld, VeldHerkomst>>;
+  /** US-53: velden waarvoor bij verrijking geen betrouwbare bron is gevonden (sleutel `basis:<veld>` of `factor:<id>[/<optie>]`). */
+  geenBron?: Record<string, GeenBronMarkering>;
   aangemaaktOp: string;
   bijgewerktOp: string;
 };
@@ -492,6 +581,8 @@ export type EnrichmentVoorstel = {
   id: string;
   partnerId: string;
   factorId?: string;
+  /** Optie binnen de factor (bijv. bouwsysteem/houtbouw). */
+  optieId?: string;
   veld: string;
   huidig: FactorWaarde | null;
   voorgesteld: FactorWaarde;
@@ -505,6 +596,10 @@ export type EnrichmentVoorstel = {
   conflictMetGevalideerd?: boolean;
   /** Ronde waarin dit voorstel is gevonden (voor het verschillenoverzicht per ronde). */
   rondeId?: string;
+  /** US-50: een voorstel met een hogere bronrang (of de huidige waarde) gaat voor; dit voorstel is een alternatief. */
+  alternatief?: boolean;
+  /** US-49: de huidige waarde komt uit de goudstandaard/eigen uitgave van Blauwhoed; AI overschrijft die nooit. */
+  goudstandaardGaatVoor?: boolean;
   citaat: string;
   status: "open" | "geaccepteerd" | "afgewezen";
   gevondenOp: string;
@@ -530,7 +625,14 @@ export type VerrijkingsRonde = {
 };
 
 /** Configureerbare extra verrijkingsbron (openbare URL, bijv. Conceptenboulevard of een brochurepagina). Toevoegbaar zonder codewijziging. */
-export type VerrijkingsBron = { id: string; naam: string; url: string; actief: boolean };
+export type VerrijkingsBron = {
+  id: string;
+  naam: string;
+  url: string;
+  actief: boolean;
+  /** US-50: categorie van de bron. Eigen uitgaven van Blauwhoed (Conceptenboulevard, woningconceptenbrochure) hebben rang 1; overige webbronnen zijn indicatief. */
+  categorie?: "eigen_uitgave" | "web";
+};
 
 /** Eis 2: één modelaanroep binnen een bewerking. */
 export type AIAanroep = {
@@ -582,8 +684,29 @@ export type Signaal = {
   link?: string;
 };
 
+/** US-49: goudstandaard per partnertype (rol): welke velden verplicht of gewenst zijn en de beoordelingscriteria. */
+export type GoudstandaardVeld = {
+  /** `basis:<BasisVeld>` of `factor:<factorId>`. */
+  sleutel: string;
+  niveau: "verplicht" | "gewenst";
+  toelichting?: string;
+};
+
+export type Beoordelingscriterium = { id: string; naam: string; omschrijving: string; factorId?: string };
+
+export type GoudstandaardProfiel = {
+  rol: Rol;
+  velden: GoudstandaardVeld[];
+  criteria: Beoordelingscriterium[];
+  versie: number;
+  bijgewerktOp: string;
+  door: string;
+};
+
 export type Database = {
   versie: number;
+  /** US-49: goudstandaard per partnertype. */
+  goudstandaard: Partial<Record<Rol, GoudstandaardProfiel>>;
   factoren: Factor[];
   partners: Partner[];
   projecten: Project[];

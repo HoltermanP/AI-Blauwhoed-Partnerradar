@@ -22,6 +22,8 @@ export default function PartnerFormulier({ id, begin, plaatsen }: Props) {
   const [werkgebiedKm, setWerkgebiedKm] = useState(begin?.werkgebiedKm ?? 75);
   const [rollen, setRollen] = useState<Rol[]>(begin?.rollen ?? []);
   const [website, setWebsite] = useState(begin?.website ?? "");
+  const [telefoon, setTelefoon] = useState(begin?.telefoon ?? "");
+  const [email, setEmail] = useState(begin?.email ?? "");
   const [omschrijving, setOmschrijving] = useState(begin?.omschrijving ?? "");
   const [referenties, setReferenties] = useState((begin?.referenties ?? []).join("\n"));
   const [tags, setTags] = useState((begin?.tags ?? []).join(", "));
@@ -49,6 +51,8 @@ export default function PartnerFormulier({ id, begin, plaatsen }: Props) {
       werkgebiedKm: Number(werkgebiedKm),
       rollen,
       website: website.trim() || undefined,
+      telefoon: telefoon.trim() || undefined,
+      email: email.trim() || undefined,
       omschrijving: omschrijving.trim(),
       referenties: referenties.split("\n").map((r) => r.trim()).filter(Boolean),
       omzet: num(omzet),
@@ -113,6 +117,14 @@ export default function PartnerFormulier({ id, begin, plaatsen }: Props) {
         <label>
           Website
           <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://" />
+        </label>
+        <label>
+          Telefoon (algemeen, organisatie)
+          <input type="tel" value={telefoon} onChange={(e) => setTelefoon(e.target.value)} />
+        </label>
+        <label>
+          E-mail (algemeen, bijv. info@)
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
       </div>
       <div className="veld">

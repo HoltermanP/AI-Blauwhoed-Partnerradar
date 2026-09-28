@@ -3,6 +3,7 @@ import Link from "next/link";
 import ClaimsSplitser from "@/components/verrijking/ClaimsSplitser";
 import VerrijkingStart from "@/components/verrijking/VerrijkingStart";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
+import { VoorstelBetrouwbaarheid, VoorstelBron, VoorstelSoort } from "@/components/verrijking/VoorstelKenmerken";
 import BronnenBeheer from "@/components/verrijking/BronnenBeheer";
 import { Badge, Definities, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
@@ -143,26 +144,11 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
                       <span className="muted">{waardeTekst(v.huidig)}</span> → <b>{waardeTekst(v.voorgesteld)}</b>
                     </td>
                     <td>
-                      <Badge kleur={v.soort === "aantoonbaar" ? "groen" : "geel"}>{v.soort}</Badge>
-                      {v.aard === "niet_bevestigd" ? <Badge kleur="rood" titel="De eerder gevonden waarde is niet meer op de bron terug te vinden; accepteren markeert haar als verouderd">niet bevestigd</Badge> : v.aard === "nieuw" ? <Badge kleur="blauw">nieuw</Badge> : null}
-                      {v.conflictMetGevalideerd ? <Badge kleur="rood" titel="Wijkt af van een door een mens gevalideerde waarde; wordt nooit stilzwijgend overschreven">wijkt af van gevalideerd</Badge> : null}
+                      <VoorstelSoort v={v} />
                     </td>
-                    <td className="num">{Math.round(v.betrouwbaarheid * 100)}%</td>
+                    <td className="num"><VoorstelBetrouwbaarheid v={v} /></td>
                     <td className="citaatCel">
-                      <span className="muted">{v.bron}</span>
-                      {v.bronUrl ? (
-                        <>
-                          {" · "}
-                          {/^https?:/.test(v.bronUrl) ? (
-                            <a href={v.bronUrl} target="_blank" rel="noreferrer">
-                              {v.bronUrl}
-                            </a>
-                          ) : (
-                            v.bronUrl
-                          )}
-                        </>
-                      ) : null}
-                      <blockquote>{v.citaat}</blockquote>
+                      <VoorstelBron v={v} />
                     </td>
                     <td>{datumTijd(v.gevondenOp)}</td>
                     {status === "open" ? (

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import readXlsxFile, { readSheetNames } from "read-excel-file";
 import { importeerPartners, laadHoutbouwersOverzicht } from "@/lib/actions";
+import { BRON_LABEL, type Bron } from "@/lib/domain/types";
 import type { ImportUitkomst } from "@/lib/domain/partnerimport";
 import type { ImportRij } from "@/lib/domain/partnerimport";
 import { Melding } from "@/components/ui";
@@ -70,10 +71,12 @@ export default function PartnerImport({ magBewerken }: { magBewerken: boolean })
   const [open, setOpen] = useState(false);
   const [voorbeeld, setVoorbeeld] = useState<Voorbeeld | null>(null);
   const [koppeling, setKoppeling] = useState<Record<string, string>>({});
+  // US-50: de bron van een import bepaalt de rang van de waarden (eigen uitgave Blauwhoed gaat voor op internetbronnen).
+  const [bron, setBron] = useState<Bron>("opgave");
 
   const verwerk = (rijen: ImportRij[], naam: string) =>
     start(async () => {
-      const r = await importeerPartners(rijen, naam);
+      const r = await importeerPartners(rijen, naam, bron);
       if (!r.ok) return setFout(r.fout);
       setUitkomst(r.data ?? null);
       setVoorbeeld(null);
@@ -163,6 +166,17 @@ export default function PartnerImport({ magBewerken }: { magBewerken: boolean })
               </div>
             </div>
           ) : null}
+          <label>
+            Bron van dit bestand (bepaalt de rang van de waarden)
+            <select value={bron} onChange={(e) => setBron(e.target.value as Bron)} disabled={bezig}>
+              {(["eigen_uitgave", "goudstandaard", "opgave", "document", "web"] as Bron[]).map((b) => (
+                <option key={b} value={b}>
+                  {BRON_LABEL[b]}
+                  {b === "goudstandaard" ? " (alleen beheerder)" : b === "web" ? " – indicatief, niet gevalideerd" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="formulierActies">
             <label className="knop klein">
               <input type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={(e) => onBestand(e.target.files?.[0])} disabled={bezig} />

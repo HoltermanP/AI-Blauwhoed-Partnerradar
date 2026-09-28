@@ -12,6 +12,8 @@ import KenmerkFilters from "@/components/partners/KenmerkFilters";
 import PartnerImport from "@/components/partners/PartnerImport";
 import { parseKenmerken, type KenmerkEis } from "@/components/partners/kenmerken";
 import { leidEisenAf } from "@/lib/domain/projectfactoren";
+import { goudstandaardVolledigheid } from "@/lib/domain/goudstandaard";
+import { heeftWaardeStatus } from "@/lib/domain/datakwaliteit";
 
 
 const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "ter_controle"];
@@ -27,6 +29,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
   const status = STATUSSEN.includes(sp.status as PartnerStatus) ? (sp.status as PartnerStatus) : undefined;
   const cert = CERTIFICAAT_TYPEN.includes(sp.cert as CertificaatType) ? (sp.cert as CertificaatType) : undefined;
   const plaats = (sp.plaats ?? "").trim();
+  const waardeStatus = (["gevalideerd", "voorgesteld", "verouderd"] as const).find((x) => x === sp.waardestatus);
   const straal = sp.straal ? Number(sp.straal) : undefined;
   const centrum = plaats ? geocode(plaats) : null;
   // Kenmerken: meerdere factoren tegelijk (EN). Oud formaat factor+min blijft werken. Met ?project= worden ze uit het project afgeleid.
@@ -69,13 +72,17 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       if (cert && !p.certificaten.some((c) => c.type === cert && new Date(c.geldigTot) >= nu)) return false;
       if (centrum && afstand !== null && straal && afstand > straal) return false;
       if (kenmerken.length && !voldoet) return false;
+      // US-66: doorklikfilters vanaf het dashboard.
+      if (sp.gs === "onvolledig" && !goudstandaardVolledigheid(p, db).verplichtOpen.length) return false;
+      if (waardeStatus && !heeftWaardeStatus(p, waardeStatus, db.factoren, nu)) return false;
+      if (sp.geenbron === "1" && !Object.keys(p.geenBron ?? {}).length) return false;
       return true;
     })
     .sort((a, b) => a.p.naam.localeCompare(b.p.naam));
 
   const telling = kenmerken.map((k, i) => db.partners.filter((p) => effectieveFactoren(p, db, nu).some((f) => f.factorId === k.factorId && voldoetAan(f, k, kenmerkFactorenActief[i]))).length);
   const kenmerkFactoren = db.factoren.filter((f) => f.actief && (f.schaal.soort === "niveau" || f.schaal.soort === "getal" || f.schaal.soort === "percentage"));
-  const gefilterd = !!(q || rol || status || cert || plaats || factorId || project);
+  const gefilterd = !!(q || rol || status || cert || plaats || factorId || project || sp.gs || waardeStatus || sp.geenbron);
   // B5: kolomkeuze via de querystring (checkboxes in het filterformulier).
   const KOLOMMEN: Array<{ id: string; label: string }> = [
     { id: "status", label: "Status" },
@@ -123,7 +130,15 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
         </Melding>
       ) : null}
       <Kaart titel="Filters" acties={gefilterd ? <Link href="/partners">Wis filters</Link> : null}>
+        {sp.gs || waardeStatus || sp.geenbron ? (
+          <Melding soort="info">
+            Actief datakwaliteitsfilter: {[sp.gs === "onvolledig" ? "verplichte goudstandaardvelden onvolledig" : "", waardeStatus ? `heeft waarden met status ${waardeStatus}` : "", sp.geenbron === "1" ? "velden zonder betrouwbare bron" : ""].filter(Boolean).join(", ")}.
+          </Melding>
+        ) : null}
         <form method="get" className="formulier partnerFilters">
+          {sp.gs ? <input type="hidden" name="gs" value={sp.gs} /> : null}
+          {waardeStatus ? <input type="hidden" name="waardestatus" value={waardeStatus} /> : null}
+          {sp.geenbron ? <input type="hidden" name="geenbron" value={sp.geenbron} /> : null}
           <div className="rij">
             <label>
               Zoeken

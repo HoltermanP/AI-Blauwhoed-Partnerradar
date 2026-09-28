@@ -154,6 +154,12 @@ export function kandidaatNaarPartner(k: DiscoveryCandidate, nu = new Date()): Pa
     bronnen: [{ url: k.bronUrl, opgehaaldOp: k.opgehaaldOp, soort: k.bron }],
     tags: ["prospect"],
     aangemaaktOp: iso,
-    bijgewerktOp: iso
+    bijgewerktOp: iso,
+    // US-52: gegevens uit een externe bron zijn indicatief en nog niet gevalideerd.
+    veldHerkomst: Object.fromEntries(
+      (["kvk", "vestigingsplaats", "adres", "website", "omschrijving"] as const)
+        .filter((v) => ({ kvk: k.kvk, vestigingsplaats: k.vestigingsplaats, adres: k.adres, website: k.website, omschrijving: profiel })[v])
+        .map((v) => [v, { bron: k.bron === "KVK-register" && (v === "kvk" || v === "vestigingsplaats" || v === "adres") ? "kvk" : "web", bronDetail: k.bronUrl, vastgesteldOp: k.opgehaaldOp.slice(0, 10), betrouwbaarheid: k.bron === "KVK-register" ? 0.9 : 0.4, status: "voorgesteld" }])
+    )
   };
 }

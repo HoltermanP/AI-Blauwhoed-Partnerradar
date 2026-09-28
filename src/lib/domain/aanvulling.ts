@@ -4,6 +4,7 @@
 import aanvulling from "@/data/aanvulling-seed.json";
 import { geocode } from "./geo";
 import { normaliseerNaam } from "./discovery";
+import { vulOntbrekendeHerkomst } from "./herkomst";
 import type { Bouwstijl, Database, Engagement, Geo, Partner, PartnerFactor, Prijssegment, Project, Projectfase, Projecttype, Rol } from "./types";
 
 type AanvullingPartner = {
@@ -111,6 +112,8 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
       gewijzigd = true;
     }
     if (gewijzigd) {
+      // US-52: nieuw gevulde basisvelden uit openbare webbronnen zijn indicatief en nog niet gevalideerd.
+      vulOntbrekendeHerkomst(p, { bron: "web", status: "voorgesteld", bronDetail: w.website });
       noteerBron(p, w.website);
       p.bijgewerktOp = iso;
       u.websitesAangevuld++;
@@ -150,6 +153,7 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
       factoren.forEach((f) => {
         if (!bestaand.factoren.some((x) => x.factorId === f.factorId && (x.optieId ?? "") === (f.optieId ?? ""))) bestaand.factoren.push(f);
       });
+      vulOntbrekendeHerkomst(bestaand, { bron: "web", status: "voorgesteld", bronDetail: a.bronUrl });
       if (bestaand.bronnen.some((b) => b.url === a.bronUrl && b.soort === "web-aanvulling")) return;
       noteerBron(bestaand, a.bronUrl);
       bestaand.bijgewerktOp = iso;
@@ -183,6 +187,7 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
       aangemaaktOp: iso,
       bijgewerktOp: iso
     };
+    vulOntbrekendeHerkomst(partner, { bron: "web", status: "voorgesteld", bronDetail: a.bronUrl });
     db.partners.push(partner);
     u.partnersNieuw++;
   });

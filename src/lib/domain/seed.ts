@@ -547,24 +547,26 @@ export function maakLegeDatabase(): Database {
     engagements: [],
     evaluaties: [],
     audit: [{ id: "a0", op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "init", actie: "lege database aangemaakt" }],
-    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, aiBudgetUsdPerMaand: 100, verrijkingsbronnen: [{ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true }, { id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true }] }
+    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, aiBudgetUsdPerMaand: 100, verrijkingsbronnen: [{ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true, categorie: "eigen_uitgave" }, { id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true, categorie: "eigen_uitgave" }] }
   };
 }
 
 export function maakSeedDatabase(): Database {
   return {
     versie: 2,
+    goudstandaard: {},
     factoren: FACTOREN.map((x) => ({ ...x })),
-    partners: SEED_PARTNERS,
-    projecten: SEED_PROJECTEN,
-    engagements: SEED_ENGAGEMENTS,
-    evaluaties: SEED_EVALUATIES,
+    // Diepe kopieën: elke database (demo-reset, tests) krijgt eigen objecten.
+    partners: structuredClone(SEED_PARTNERS),
+    projecten: structuredClone(SEED_PROJECTEN),
+    engagements: structuredClone(SEED_ENGAGEMENTS),
+    evaluaties: structuredClone(SEED_EVALUATIES),
     kandidaten: [],
     zoekprofielen: [],
     matchRuns: [],
     feedback: [],
     teams: [],
-    gewichtsprofielen: GEWICHTSPROFIELEN,
+    gewichtsprofielen: structuredClone(GEWICHTSPROFIELEN),
     verrijkingsvoorstellen: [],
     verrijkingsrondes: [],
     aiBewerkingen: [],
