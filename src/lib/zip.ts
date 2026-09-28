@@ -19,7 +19,10 @@ export function crc32(buf: Buffer) {
 }
 
 /** Schrijf een ZIP-archief (deflate). */
-export function maakZip(bestanden: Array<{ naam: string; inhoud: Buffer | string }>): Buffer {
+export function maakZip(bestanden: Array<{ naam: string; inhoud: Buffer | string }>, nu = new Date()): Buffer {
+  // DOS-tijd en -datum van het archief (lokale tijd).
+  const dosTijd = (nu.getHours() << 11) | (nu.getMinutes() << 5) | Math.floor(nu.getSeconds() / 2);
+  const dosDatum = ((nu.getFullYear() - 1980) << 9) | ((nu.getMonth() + 1) << 5) | nu.getDate();
   const lokaal: Buffer[] = [];
   const centraal: Buffer[] = [];
   let offset = 0;
@@ -33,7 +36,8 @@ export function maakZip(bestanden: Array<{ naam: string; inhoud: Buffer | string
     kop.writeUInt16LE(20, 4);
     kop.writeUInt16LE(0x0800, 6); // UTF-8-namen
     kop.writeUInt16LE(8, 8); // deflate
-    kop.writeUInt32LE(0, 10);
+    kop.writeUInt16LE(dosTijd, 10);
+    kop.writeUInt16LE(dosDatum, 12);
     kop.writeUInt32LE(crc, 14);
     kop.writeUInt32LE(gecomprimeerd.length, 18);
     kop.writeUInt32LE(data.length, 22);
@@ -46,7 +50,8 @@ export function maakZip(bestanden: Array<{ naam: string; inhoud: Buffer | string
     c.writeUInt16LE(20, 6);
     c.writeUInt16LE(0x0800, 8);
     c.writeUInt16LE(8, 10);
-    c.writeUInt32LE(0, 12);
+    c.writeUInt16LE(dosTijd, 12);
+    c.writeUInt16LE(dosDatum, 14);
     c.writeUInt32LE(crc, 16);
     c.writeUInt32LE(gecomprimeerd.length, 20);
     c.writeUInt32LE(data.length, 24);

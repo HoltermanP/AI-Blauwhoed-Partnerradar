@@ -27,6 +27,10 @@ import { aiBudget, budgetStatus, kostenEur, maandVerbruik, modelVoor, schatVerri
 import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
 import type { AIBewerking } from "../src/lib/domain/types";
 import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
+import { matchRijen, waardenRijen } from "../src/lib/domain/export";
+import { volledigeExportJson, volledigeExportTabellen } from "../src/lib/domain/volledigeExport";
+import { naarXlsx } from "../src/lib/xlsx";
+import leesExcel, { readSheetNames } from "read-excel-file/node";
 import { afgeleideTotaalscore, controleerTotaal, historieTreft } from "../src/lib/domain/tevredenheid";
 import { aanbiedersUitOverzicht, ontdubbel, regelOnderbouwing, regelZoekvragen } from "../src/lib/domain/aandragen";
 import { leesSbi } from "../src/lib/domain/webverrijking";
@@ -462,6 +466,26 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   check("US-63 chat vindt partners op projectnummer", ctx.partners.some((p) => dbP.engagements.some((e) => e.partnerId === p.id && e.projectId === eem.id)) && ctx.records.some((r) => r.projecten.some((x) => x.projectnummer === "2021-003")));
 }
 
+// ---------- US-67/US-68: exports ----------
+const groepExport = (async () => {
+  const dbE = maakSeedDatabase();
+  const proj = dbE.projecten.find((p) => p.id === "proj-groene-loper")!;
+  const run = { id: "run-x", projectId: proj.id, naam: "Test", gestartOp: "2026-09-01T10:00:00Z", door: "t", input: { eisen: proj.eisen }, resultaat: matchProject({ db: dbE, project: proj }) };
+  const mr = matchRijen(run, dbE);
+  check("US-67 matchresultaten met criteria, bron en betrouwbaarheid", mr.kandidaten.length > 0 && mr.criteria.some((c) => ["hoog", "midden", "laag"].includes(String(c.Betrouwbaarheid))) && mr.uitsluitingen.length > 0 && String(mr.toelichting[0].Toelichting).includes("eerste selectie"));
+  const buf = await naarXlsx([{ naam: "Kandidaten", rijen: mr.kandidaten }, { naam: "Waarden", rijen: waardenRijen(dbE) }]);
+  const bladen = await readSheetNames(buf);
+  const terug = await leesExcel(buf, { sheet: "Waarden" });
+  check("US-67 echt Excel-bestand met status en betrouwbaarheid per veld", bladen.join() === "Kandidaten,Waarden" && terug[0].includes("Status") && terug[0].includes("Betrouwbaarheid") && terug.length > 10);
+  dbE.partners.push({ ...kandidaatNaarConcept({ id: "k9", naam: "Concept BV", rollen: ["aannemer"], bron: "x", bronUrl: "https://x.nl", opgehaaldOp: "2026-09-01T00:00:00Z", ruweData: {}, status: "geaccepteerd" }, "B"), id: "p-concept-x" });
+  const tab = volledigeExportTabellen(dbE);
+  check("US-68 volledige export: alle tabellen incl. concepten, verbanden en verbruik", ["partners", "waarden-met-herkomst", "concepten", "projecten", "evaluaties", "verbanden", "ai-verbruik", "factoren"].every((k) => k in tab) && tab.concepten.length === 1 && tab.verbanden.length > 0 && tab["waarden-met-herkomst"].every((r) => "Status" in r && "Betrouwbaarheid" in r && "Bron" in r));
+  const json = volledigeExportJson(dbE, "Beheerder");
+  check("US-68 JSON bevat volledige staat en herkomst per partner", json.database.partners.length === dbE.partners.length && json.afgeleid.herkomstPerPartner.length === dbE.partners.length && json.afgeleid.verbanden.length > 0);
+  const zipE = maakZip(Object.entries(tab).map(([n, r]) => ({ naam: `${n}.csv`, inhoud: naarCsv(r.length ? r : [{ Melding: "geen" }]) })));
+  check("US-68 CSV-bundel als zip", (leesZipBestand(zipE, "concepten.csv")?.toString() ?? "").includes("Concept BV"));
+})();
+
 const groepD = (async () => {
   const prof = leesBasisprofiel({ kvkNummer: "12345678", statutaireNaam: "Bouwbedrijf Voorbeeld B.V.", materieleRegistratie: { datumAanvang: "19870401" }, sbiActiviteiten: [{ sbiCode: "4120", sbiOmschrijving: "Algemene burgerlijke en utiliteitsbouw", indHoofdactiviteit: "Ja" }, { sbiCode: "7111", sbiOmschrijving: "Architecten", indHoofdactiviteit: "Nee" }], _embedded: { eigenaar: { rechtsvorm: "BeslotenVennootschap" }, hoofdvestiging: { adressen: [{ type: "bezoekadres", straatnaam: "Kerkstraat", huisnummer: 1, postcode: "3811AB", plaats: "Amersfoort" }] } } });
   check("US-60 KVK Basisprofiel: statutaire naam, rechtsvorm, SBI, adres, oprichtingsdatum", prof.statutaireNaam === "Bouwbedrijf Voorbeeld B.V." && prof.rechtsvorm === "B.V." && prof.sbiActiviteiten.length === 2 && prof.sbiActiviteiten[0].hoofd === true && prof.adres === "Kerkstraat 1 3811AB" && prof.plaats === "Amersfoort" && prof.oprichtingsdatum === "1987-04-01", prof);
@@ -495,7 +519,7 @@ const groepD = (async () => {
   check("US-62 certificaat zonder geldigheid", certificaatStatus("").label === "geldigheid onbekend");
 })();
 
-groepD.then(() => {
+Promise.all([groepD, groepExport]).then(() => {
   console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");
   process.exit(fouten ? 1 : 0);
 });

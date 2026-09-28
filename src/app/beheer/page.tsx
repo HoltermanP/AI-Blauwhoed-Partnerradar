@@ -168,6 +168,17 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
             </dl>
             <Link href="/beheer/verbruik" className="knop knop-secundair klein">Budget, modellen en specificatie</Link>
           </Kaart>
+          <Kaart titel="Volledige data-export (US-68)">
+            <p className="muted klein-tekst">Het complete bestand met herkomst en status per gegeven: alle partners (ook concepten en gearchiveerde), velden, factoren, projecten, evaluaties, verbanden en het AI-verbruik. Zo beschikt Blauwhoed altijd over alle gegevens (art. 15.4). Het downloaden wordt gelogd.</p>
+            {heeftRecht(gebruiker.rol, "volledige_export") ? (
+              <div className="formulierActies">
+                <a className="knop klein" href="/api/export/volledig?formaat=json">Volledige export (JSON)</a>
+                <a className="knop knop-secundair klein" href="/api/export/volledig?formaat=csv">Volledige export (CSV, zip)</a>
+              </div>
+            ) : (
+              <p className="muted klein-tekst">Alleen de beheerder maakt een volledige export.</p>
+            )}
+          </Kaart>
           <Kaart titel="Demo">
             <DemoReset magBeheren={magBeheren} />
           </Kaart>

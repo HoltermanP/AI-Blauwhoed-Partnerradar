@@ -58,6 +58,11 @@ export default async function MatchPagina({ params, searchParams }: { params: Pr
             <Knop href={`/projecten/${p.id}/team${run ? `?run=${run.id}` : ""}`} variant="secundair">
               Teamsamenstelling
             </Knop>
+            {run ? (
+              <Knop href={`/api/export/match/${run.id}`} variant="secundair">
+                Export (Excel)
+              </Knop>
+            ) : null}
           </>
         }
       />

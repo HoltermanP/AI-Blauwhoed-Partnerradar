@@ -44,7 +44,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
 
   return (
     <>
-      <PaginaKop eyebrow="Epic 4" titel="Historie" intro="Projecthistorie is het bewijs boven zelfbeeld: engagements, kostenvastheid, planningsbetrouwbaarheid en samenwerkingsnetwerk." acties={<><Knop href="/api/export/historie" variant="secundair">Export (CSV)</Knop> <Knop href="/api/export/historie?formaat=pdf" variant="secundair">Export (PDF)</Knop></>} />
+      <PaginaKop eyebrow="Epic 4" titel="Historie" intro="Projecthistorie is het bewijs boven zelfbeeld: engagements, kostenvastheid, planningsbetrouwbaarheid en samenwerkingsnetwerk." acties={<><Knop href="/api/export/historie?formaat=xlsx" variant="secundair">Export (Excel)</Knop> <Knop href="/api/export/historie" variant="secundair">Export (CSV)</Knop> <Knop href="/api/export/historie?formaat=pdf" variant="secundair">Export (PDF)</Knop></>} />
 
       <Kaart titel={`Engagements (${engagements.length})`}>
         <form className="formulier historieFilters" method="get">

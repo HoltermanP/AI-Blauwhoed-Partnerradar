@@ -1,7 +1,8 @@
 // B8: projecthistorie-export als CSV (Excel-compatibel). Recht 'lezen' vereist.
 import { NextResponse } from "next/server";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
-import { historieCsv } from "@/lib/domain/export";
+import { historieCsv, historieRijen } from "@/lib/domain/export";
+import { naarXlsx, xlsxAntwoord } from "@/lib/xlsx";
 import { historiePdf } from "@/lib/domain/pdf";
 import { getDb } from "@/lib/store";
 
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
   if (!heeftRecht(g.rol, "lezen")) return NextResponse.json({ fout: "Geen leesrecht." }, { status: 403 });
   const db = await getDb();
   const stempel = new Date().toISOString().slice(0, 10);
+  if (new URL(request.url).searchParams.get("formaat") === "xlsx") return xlsxAntwoord(await naarXlsx([{ naam: "Projecthistorie", rijen: historieRijen(db) }]), `projecthistorie-${stempel}`);
   if (new URL(request.url).searchParams.get("formaat") === "pdf") {
     return new NextResponse(new Uint8Array(historiePdf(db)), { headers: { "content-type": "application/pdf", "content-disposition": `attachment; filename="projecthistorie-${stempel}.pdf"` } });
   }
