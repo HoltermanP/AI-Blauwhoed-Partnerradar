@@ -26,6 +26,7 @@ import DocumentenBeheer from "@/components/partners/DocumentenBeheer";
 import VoorstelActies from "@/components/verrijking/VoorstelActies";
 import { VoorstelBetrouwbaarheid, VoorstelBron, VoorstelSoort } from "@/components/verrijking/VoorstelKenmerken";
 import ConceptControle from "@/components/vrijgave/ConceptControle";
+import DefinitiefVerwijderen from "@/components/partners/DefinitiefVerwijderen";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
 export const maxDuration = 60;
@@ -159,7 +160,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
       ) : null}
       <Tabs items={tabItems} actief={tab} basis={`/partners/${p.id}`} />
 
-      {tab === "profiel" ? <Profiel p={p} db={db} stats={stats} magBewerken={magBewerken} magPromoveren={magPromoveren} /> : null}
+      {tab === "profiel" ? <Profiel p={p} db={db} stats={stats} magBewerken={magBewerken} magPromoveren={magPromoveren} magVerwijderen={heeftRecht(gebruiker.rol, "definitief_verwijderen")} /> : null}
       {tab === "factoren" ? (
         <Kaart titel="Factorwaarden">
           <FactorenBeheer partnerId={p.id} rollen={p.rollen} factoren={db.factoren} effectief={effectieveFactoren(p, db, nu)} handmatig={p.factoren} magBewerken={magBewerken} />
@@ -251,7 +252,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   );
 }
 
-function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db: Database; stats: ReturnType<typeof leidFactorenAf>["statistieken"]; magBewerken: boolean; magPromoveren: boolean }) {
+function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen }: { p: Partner; db: Database; stats: ReturnType<typeof leidFactorenAf>["statistieken"]; magBewerken: boolean; magPromoveren: boolean; magVerwijderen: boolean }) {
   const belasting = huidigeBelasting(p, db);
   return (
     <div className="raster raster-zij">
@@ -358,6 +359,13 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren }: { p: Partner; db:
           ) : (
             <StatusBeheer partnerId={p.id} huidig={p.status} reden={p.statusReden} geblokkeerdTot={p.geblokkeerdTot} magBewerken={magBewerken} magPromoveren={magPromoveren} />
           )}
+          {p.status === "gearchiveerd" ? (
+            magVerwijderen ? (
+              <DefinitiefVerwijderen partnerId={p.id} naam={p.naam} />
+            ) : (
+              <p className="muted klein-tekst">Gearchiveerd: niet gewist. Definitief verwijderen (AVG) kan alleen de beheerder, op verzoek van Blauwhoed.</p>
+            )
+          ) : null}
         </Kaart>
         <Kaart titel="Uit de historie">
           <Definities

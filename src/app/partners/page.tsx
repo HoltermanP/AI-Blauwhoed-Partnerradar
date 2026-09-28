@@ -125,6 +125,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
           <Link href="/vrijgave">Naar de vrijgavewachtrij</Link>
         </Melding>
       ) : null}
+      {sp.verwijderd === "1" ? <Melding soort="succes">De partner is definitief verwijderd (AVG). De auditlog bewaart alleen dát er verwijderd is.</Melding> : null}
       {project && afgeleid ? (
         <Melding soort="info">
           Kenmerken afgeleid uit project <Link href={`/projecten/${project.id}`}><b>{project.naam}</b></Link>: {afgeleid.kenmerken.map((k) => k.label).join(", ")}. Pas ze hieronder aan of{" "}

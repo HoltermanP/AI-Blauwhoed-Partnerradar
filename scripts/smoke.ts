@@ -28,6 +28,7 @@ import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } fro
 import type { AIBewerking } from "../src/lib/domain/types";
 import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
 import { matchRijen, waardenRijen } from "../src/lib/domain/export";
+import { controleerVerwijderen, verwijderPartnerDefinitief, VERWIJDERD } from "../src/lib/domain/verwijderen";
 import { volledigeExportJson, volledigeExportTabellen } from "../src/lib/domain/volledigeExport";
 import { naarXlsx } from "../src/lib/xlsx";
 import leesExcel, { readSheetNames } from "read-excel-file/node";
@@ -464,6 +465,25 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   eem.projectnummer = "2021-003";
   const ctx = chatContext(dbP, "Welke partners werkten op project 2021-003?");
   check("US-63 chat vindt partners op projectnummer", ctx.partners.some((p) => dbP.engagements.some((e) => e.partnerId === p.id && e.projectId === eem.id)) && ctx.records.some((r) => r.projecten.some((x) => x.projectnummer === "2021-003")));
+}
+
+// ---------- US-69: definitief verwijderen (AVG) ----------
+{
+  const dbV = maakSeedDatabase();
+  const p = dbV.partners.find((x) => x.id === "p-woudbouw")!;
+  const proj = dbV.projecten.find((x) => x.id === "proj-groene-loper")!;
+  dbV.matchRuns.push({ id: "run-v", projectId: proj.id, naam: "t", gestartOp: "", door: "", input: { eisen: proj.eisen }, resultaat: matchProject({ db: dbV, project: proj }) });
+  dbV.teams.push({ id: "t1", projectId: proj.id, matchRunId: "run-v", variant: "voorkeur", leden: [{ rol: "aannemer", partnerId: p.id, partnerNaam: p.naam, score: 80 }], teamScore: 80, onderdelen: { gemiddeldeKwaliteit: 0, samenwerkingshistorie: 0, nabijheid: 0, beschikbaarheid: 0 }, onderbouwing: [], gemaaktOp: "" });
+  dbV.kandidaten.push({ id: "k-v", naam: p.naam, rollen: ["aannemer"], bron: "x", bronUrl: "https://x", opgehaaldOp: "", ruweData: {}, status: "geaccepteerd", gepromoveerdTot: p.id });
+  p.documenten = [{ id: "d", naam: "brochure", soort: "brochure", bestandUrl: "https://blob.example/x.pdf", toegevoegdDoor: "t", op: "" }];
+  dbV.audit.push({ id: "a1", op: "", door: "t", gebruikersrol: "gebruiker", entiteit: "partner", entiteitId: "ander", actie: "x", details: `vergeleken met ${p.naam}` });
+  check("US-69 alleen gearchiveerd, met reden en exacte naam", controleerVerwijderen(p, "verzoek", p.naam) !== null && (p.status = "gearchiveerd") && controleerVerwijderen(p, "", p.naam) !== null && controleerVerwijderen(p, "verzoek", "Woudbouw") !== null && controleerVerwijderen(p, "verzoek Blauwhoed", p.naam) === null);
+  const engVoor = dbV.engagements.filter((e) => e.partnerId === p.id).length;
+  const u = verwijderPartnerDefinitief(dbV, p.id);
+  const json = JSON.stringify(dbV);
+  check("US-69 partner, historie, beoordelingen, voorstellen en kandidaat weg", !dbV.partners.some((x) => x.id === p.id) && u.engagements === engVoor && engVoor > 0 && u.evaluaties > 0 && u.kandidaten === 1 && !dbV.evaluaties.some((e) => e.partnerId === p.id), u);
+  check("US-69 matchruns opgeschoond, team geanonimiseerd, blob opgeruimd", u.matchruns === 1 && dbV.teams[0].leden[0].partnerNaam === VERWIJDERD && u.blobs[0] === "https://blob.example/x.pdf");
+  check("US-69 geen naam of id meer in de gegevens (behalve de verwijderregel)", !json.includes("Woudbouw Groep") && !json.includes('"p-woudbouw"'));
 }
 
 // ---------- US-67/US-68: exports ----------

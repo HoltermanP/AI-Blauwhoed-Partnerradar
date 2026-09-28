@@ -34,6 +34,7 @@ import { slaNuOp } from "./store";
 import { matchProject, valideerGewichten } from "./domain/matching";
 import { risicoklasse } from "./domain/signalen";
 import { afgeleideTotaalscore, controleerTotaal } from "./domain/tevredenheid";
+import { controleerVerwijderen, verwijderPartnerDefinitief } from "./domain/verwijderen";
 import { stelTeamSamen } from "./domain/team";
 import type {
   BasisVeld,
@@ -1404,6 +1405,32 @@ export async function verwijderPartnerDocument(partnerId: string, docId: string)
       }
     }
     revalidatePath(`/partners/${partnerId}`);
+  });
+}
+
+// ---------- Definitief verwijderen (US-69, AVG) ----------
+/**
+ * Alleen de beheerder, alleen een gearchiveerde partner, met dubbele bevestiging (naam typen) en een verplichte reden.
+ * De auditlog bewaart alleen dát er verwijderd is (wie, wanneer, reden, intern id), zonder persoonsgegevens.
+ */
+export async function verwijderPartnerDefinitiefActie(partnerId: string, reden: string, bevestiging: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("definitief_verwijderen");
+    const db = await getDb();
+    const fout = controleerVerwijderen(db.partners.find((x) => x.id === partnerId), reden, bevestiging);
+    if (fout) throw new Error(fout);
+    const u = await muteer(g, { entiteit: "partner", entiteitId: partnerId, actie: "definitief verwijderd (AVG)", details: `reden: ${reden.trim().slice(0, 300)}` }, (db) => verwijderPartnerDefinitief(db, partnerId));
+    // Bestanden in Vercel Blob opruimen (na de mutatie; falen blokkeert de verwijdering niet).
+    if (u.blobs.length && process.env.BLOB_READ_WRITE_TOKEN) {
+      try {
+        await del(u.blobs);
+      } catch (e) {
+        console.warn("Blob verwijderen mislukt:", e instanceof Error ? e.message : e);
+      }
+    }
+    await slaNuOp();
+    ["/partners", "/", "/historie", "/verbanden", "/vrijgave"].forEach((p) => revalidatePath(p));
+    return u;
   });
 }
 
