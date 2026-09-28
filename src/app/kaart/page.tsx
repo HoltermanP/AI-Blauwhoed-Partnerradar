@@ -8,7 +8,8 @@ import { getDb } from "@/lib/store";
 import { Kaart, Leeg, PaginaKop, StatusBadge } from "@/components/ui";
 import { NederlandKaart, STATUS_KLEUR, type KaartKoppeling } from "@/components/kaart/NederlandKaart";
 
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "concept"];
+// US-54: concepten (AI-voorstellen) staan nooit op de kaart; gearchiveerde alleen via het statusfilter.
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
 const isRol = (r: string | undefined): r is Rol => !!r && (ROLLEN as string[]).includes(r);
 const isStatus = (s: string | undefined): s is PartnerStatus => !!s && (STATUSSEN as string[]).includes(s);
 
@@ -19,7 +20,7 @@ export default async function KaartPagina({ searchParams }: { searchParams: Prom
   const status = isStatus(sp.status) ? sp.status : undefined;
   const project = db.projecten.find((p) => p.id === sp.project);
 
-  const partners = db.partners.filter((p) => (!rol || p.rollen.includes(rol)) && (!status || p.status === status));
+  const partners = db.partners.filter((p) => p.status !== "concept" && (status ? p.status === status : p.status !== "gearchiveerd") && (!rol || p.rollen.includes(rol)));
   const koppelingen: KaartKoppeling[] = project
     ? partners
         .map((p) => {

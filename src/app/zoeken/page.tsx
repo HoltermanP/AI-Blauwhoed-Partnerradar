@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Badge, HerkomstRegel, Kaart, Leeg, Melding, PaginaKop, ScoreBalk, StatusBadge } from "@/components/ui";
 import { basisveldHerkomst } from "@/lib/domain/herkomst";
+import { zichtbaar } from "@/lib/domain/zichtbaarheid";
 import { tokens } from "@/lib/domain/embedding";
 import { semantischZoeken } from "@/lib/domain/matching";
 import { ROLLEN, type CertificaatType, type Partner, type PartnerStatus } from "@/lib/domain/types";
@@ -9,7 +10,7 @@ import { ROL_LABEL, STATUS_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
 
 const VOORBEELDEN = ["circulaire houtbouw met demontabele gevel", "hoogstedelijke woontoren", "transformatie monument", "zorgwonen met sterke planningsdiscipline"];
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "concept"];
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
 const CERTIFICATEN: CertificaatType[] = ["ISO 9001", "ISO 14001", "VCA", "CO2-prestatieladder", "FSC", "PEFC", "BREEAM-expertise", "Woonkeur", "KOMO"];
 
 /** US-51: bij elk resultaat de herkomst van het profiel (bron, datum, betrouwbaarheid, status) en de verhouding gevalideerd/voorgesteld. */
@@ -113,7 +114,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
             <h4>Rol</h4>
             {ROLLEN.map((r) => (
               <Link key={r} href={`/partners?rol=${r}`} className="chip">
-                {ROL_LABEL[r]} <b>{db.partners.filter((p) => p.rollen.includes(r)).length}</b>
+                {ROL_LABEL[r]} <b>{db.partners.filter((p) => zichtbaar(p) && p.rollen.includes(r)).length}</b>
               </Link>
             ))}
           </div>

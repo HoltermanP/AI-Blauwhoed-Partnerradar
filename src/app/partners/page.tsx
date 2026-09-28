@@ -16,7 +16,8 @@ import { goudstandaardVolledigheid } from "@/lib/domain/goudstandaard";
 import { heeftWaardeStatus } from "@/lib/domain/datakwaliteit";
 
 
-const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd", "concept"];
+// US-54: concepten zijn uitgesloten van filteren; ze staan in de vrijgavewachtrij (/vrijgave).
+const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
 
 export default async function PartnersPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -68,7 +69,8 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       }
       if (rol && !p.rollen.includes(rol)) return false;
       if (status && p.status !== status) return false;
-      if (!status && (p.status === "gearchiveerd" || p.status === "concept")) return false; // alleen via het statusfilter
+      if (p.status === "concept") return false; // concepten: alleen in de vrijgavewachtrij
+      if (!status && p.status === "gearchiveerd") return false; // alleen via het statusfilter
       if (cert && !p.certificaten.some((c) => c.type === cert && new Date(c.geldigTot) >= nu)) return false;
       if (centrum && afstand !== null && straal && afstand > straal) return false;
       if (kenmerken.length && !voldoet) return false;
@@ -103,7 +105,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       <PaginaKop
         eyebrow="Partners"
         titel="Partneroverzicht"
-        intro={`${rijen.length} van ${db.partners.length} partners. Filter op rol, regio, kenmerk, certificaat en status; combineer vrij.`}
+        intro={`${rijen.length} van ${db.partners.filter((p) => p.status !== "concept").length} partners. Filter op rol, regio, kenmerk, certificaat en status; combineer vrij.`}
         acties={
           magBewerken ? (
             <>
@@ -119,7 +121,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
           )
         }
       />
-      {db.partners.some((p) => p.status === "concept") && status !== "concept" ? (
+      {db.partners.some((p) => p.status === "concept") ? (
         <Melding soort="info">
           {db.partners.filter((p) => p.status === "concept").length} concept(en) (AI-voorstellen) wachten op vrijgave door een beheerder en tellen nog niet mee.{" "}
           <Link href="/vrijgave">Naar de vrijgavewachtrij</Link>

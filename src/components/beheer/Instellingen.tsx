@@ -36,7 +36,7 @@ export function Instellingen({ instellingen, magBeheren }: { instellingen: Datab
         AI-provider
         <select value={instellingen.aiProvider} disabled={!magBeheren || bezig} onChange={(e) => zet("aiProvider", e.target.value)}>
           <option value="uit">Uit (alleen lokale regels)</option>
-          <option value="anthropic">Anthropic (zero-data-retention, nog niet aangesloten)</option>
+          <option value="anthropic">Anthropic Claude (actief zodra ANTHROPIC_API_KEY is gezet; model per functie onder AI-verbruik)</option>
         </select>
       </label>
       <div className="vinkjes">
