@@ -1,9 +1,11 @@
 // Migraties van de opgeslagen database (JSONB-snapshot). Elke migratie is idempotent en verhoogt db.versie.
 import { laadAanvulling } from "./aanvulling";
 import { vulOntbrekendeHerkomst } from "./herkomst";
+import { standaardAanvullingInstellingen } from "./instellingen";
+import { kostenEur } from "./kosten";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 10;
+export const HUIDIGE_VERSIE = 11;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -91,7 +93,7 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
   if (van < 4) {
     // Eis 2: kostenadministratie voor AI-bewerkingen.
     db.aiBewerkingen = db.aiBewerkingen ?? [];
-    db.instellingen.aiBudgetUsdPerMaand = db.instellingen.aiBudgetUsdPerMaand ?? 100;
+    (db.instellingen as { aiBudgetUsdPerMaand?: number }).aiBudgetUsdPerMaand ??= 100;
   }
   if (van < 5) {
     // B3: verrijkingsrondes met verschillenoverzicht en configureerbare bronnen.
@@ -163,6 +165,27 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
       concepten++;
     });
     uitkomst.concepten = concepten;
+  }
+  if (van < 11) {
+    // US-56/58/59/62: budget in bewerkingen en euro, model per functie, verrijkingsschema en keurmerkregisters.
+    const std = standaardAanvullingInstellingen(nu);
+    const oud = db.instellingen as typeof db.instellingen & { aiBudgetUsdPerMaand?: number };
+    db.instellingen.aiBudget = db.instellingen.aiBudget ?? std.aiBudget;
+    db.instellingen.modellen = { ...std.modellen, ...(db.instellingen.modellen ?? {}) };
+    db.instellingen.verrijkingsschema = db.instellingen.verrijkingsschema ?? std.verrijkingsschema;
+    db.instellingen.registerbronnen = db.instellingen.registerbronnen ?? std.registerbronnen;
+    delete oud.aiBudgetUsdPerMaand;
+    // Kosten van bestaande bewerkingen herrekenen in euro tegen de rekenprijzen (was USD per model).
+    (db.aiBewerkingen ?? []).forEach((b) => {
+      const x = b as typeof b & { kostenUsd?: number };
+      x.kostenEur = kostenEur(b.invoerTokens, b.uitvoerTokens, db.instellingen.aiBudget);
+      delete x.kostenUsd;
+      b.aanroepen.forEach((a) => {
+        const y = a as typeof a & { kostenUsd?: number };
+        y.kostenEur = kostenEur(a.invoerTokens, a.uitvoerTokens, db.instellingen.aiBudget);
+        delete y.kostenUsd;
+      });
+    });
   }
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });

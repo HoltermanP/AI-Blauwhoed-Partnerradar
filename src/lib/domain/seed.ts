@@ -2,6 +2,7 @@
 import { FACTOREN } from "./factors";
 import { geocode } from "./geo";
 import { GEWICHTSPROFIELEN } from "./gewichten";
+import { standaardAanvullingInstellingen } from "./instellingen";
 import type { Bron, Certificaat, Database, Engagement, Evaluatie, Partner, PartnerFactor, Project, Rol } from "./types";
 import { BRON_BETROUWBAARHEID } from "./types";
 
@@ -547,7 +548,7 @@ export function maakLegeDatabase(): Database {
     engagements: [],
     evaluaties: [],
     audit: [{ id: "a0", op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "init", actie: "lege database aangemaakt" }],
-    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, aiBudgetUsdPerMaand: 100, verrijkingsbronnen: [{ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true, categorie: "eigen_uitgave" }, { id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true, categorie: "eigen_uitgave" }] }
+    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, ...standaardAanvullingInstellingen(), verrijkingsbronnen: [{ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true, categorie: "eigen_uitgave" }, { id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true, categorie: "eigen_uitgave" }] }
   };
 }
 
@@ -574,7 +575,7 @@ export function maakSeedDatabase(): Database {
     gebruikers: [],
     importWachtrij: [],
     afwijsredenen: [],
-    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false, aiBudgetUsdPerMaand: 100, verrijkingsbronnen: [] }
+    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false, ...standaardAanvullingInstellingen(), verrijkingsbronnen: [] }
   };
 }
 

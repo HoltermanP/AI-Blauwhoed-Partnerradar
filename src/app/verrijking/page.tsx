@@ -11,6 +11,11 @@ import type { EnrichmentVoorstel } from "@/lib/domain/types";
 import { datumTijd, waardeTekst } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { budgetStatus, schatVerrijkingsronde } from "@/lib/domain/kosten";
+import { FREQUENTIE_LABEL, OMVANG_LABEL, schemaVan, selecteerPartners, volgendeGeplandeRonde } from "@/lib/domain/schema";
+import SchemaBeheer from "@/components/verrijking/SchemaBeheer";
+import RegisterBeheer from "@/components/verrijking/RegisterBeheer";
+import { CERTIFICAAT_TYPEN } from "@/components/partners/certificaten";
+import type { SchattingPerOmvang } from "@/components/verrijking/VerrijkingStart";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
 export const maxDuration = 60;
@@ -29,13 +34,17 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
   const partners = db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept").map((p) => ({ id: p.id, naam: p.naam }));
   const voorstellen = db.verrijkingsvoorstellen.filter((v) => v.status === status && (!rondeParam || v.rondeId === rondeParam));
-  const laatstGeraadpleegd = (p: (typeof db.partners)[number]) => p.bronnen.filter((b) => b.soort === "web-verrijking").map((b) => b.opgehaaldOp).sort().pop() ?? "";
-  const wachtend = db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept");
-  const volgendeBatch = Math.min(20, wachtend.length);
-  const schatting = schatVerrijkingsronde(volgendeBatch);
-  const schattingHeleBestand = schatVerrijkingsronde(wachtend.length);
   const budget = budgetStatus(db);
-  void laatstGeraadpleegd;
+  // US-57: verwachte AI-bewerkingen per omvang (na het overslaan van ongewijzigde websites) en het effect op het budget.
+  const schema = schemaVan(db);
+  const aiActief = Boolean(process.env.ANTHROPIC_API_KEY);
+  const schattingen = Object.fromEntries(
+    (["alles", "partnertype", "niet_verrijkt_sinds", "gewijzigde_website"] as const).map((o) => [o, schatVerrijkingsronde(selecteerPartners(db, { ...schema, omvang: o }), db, aiActief, { alleenGewijzigd: o === "gewijzigde_website" })])
+  ) as SchattingPerOmvang;
+  const openRonde = db.verrijkingsrondes.find((r) => !r.klaarOp);
+  const volgende = volgendeGeplandeRonde(schema);
+  const geplandeSelectie = selecteerPartners(db, schema);
+  const geplandeSchatting = schatVerrijkingsronde(geplandeSelectie, db, aiActief, { alleenGewijzigd: schema.omvang === "gewijzigde_website" });
   const partnerNaam = (id: string) => db.partners.find((p) => p.id === id)?.naam ?? id;
   const i = db.instellingen;
 
@@ -45,7 +54,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
 
       <div className="raster raster-zij">
         <Kaart titel="Verrijkingsronde">
-          <VerrijkingStart partners={partners} magBewerken={magBewerken} externeBronnen={i.externeBronnenToegestaan} schatting={{ batch: volgendeBatch, batchUsd: schatting.geschatteKostenUsd, totaal: wachtend.length, totaalUsd: schattingHeleBestand.geschatteKostenUsd, aiActief: i.aiProvider === "anthropic", budgetOverschreden: budget.overschreden }} />
+          <VerrijkingStart partners={partners} magBewerken={magBewerken} externeBronnen={i.externeBronnenToegestaan} schattingen={schattingen} budgetOverschreden={budget.overschreden} openRonde={openRonde ? `${openRonde.partnerIdsVerwerkt.length} van ${openRonde.totaal} verwerkt` : null} />
         </Kaart>
         <Kaart titel="Instellingen en beleid">
           <Definities
@@ -57,14 +66,31 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
             ]}
           />
           <Melding soort="info">
-            US-48: de extractie draait lokaal met regels uit de taxonomie. Er gaan geen brongegevens naar modelleveranciers. Instellingen wijzig je onder <Link href="/beheer">Beheer</Link>.
+            US-48/US-59: zonder ANTHROPIC_API_KEY draait de extractie op regels uit de taxonomie. Met sleutel leest het per functie ingestelde model (zie <Link href="/beheer/verbruik">AI-verbruik</Link>) uitsluitend openbare bedrijfsteksten; nooit contactpersonen. Elke verrijkte partner telt als één AI-bewerking.
           </Melding>
-          <h4>Periodiek (US-31)</h4>
-          <p className="muted">
-            Een cron-job draait dezelfde ronde via <code>POST /api/verrijking/run</code> met header <code>x-cron-secret</code> (waarde uit <code>CRON_SECRET</code>). Alleen wijzigingen ten opzichte van het huidige profiel komen in de wachtrij.
-          </p>
         </Kaart>
       </div>
+
+      <Kaart titel="Verrijkingsschema (US-56)">
+        <div className="raster raster-2">
+          <SchemaBeheer schema={schema} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
+          <div>
+            <Definities
+              items={[
+                ["Status", schema.frequentie === "uit" ? "uit" : `${FREQUENTIE_LABEL[schema.frequentie].toLowerCase()}, ${OMVANG_LABEL[schema.omvang].toLowerCase()}`],
+                ["Volgende geplande ronde", volgende ? datumTijd(volgende.toISOString()) : "–"],
+                ["Verwacht bij die ronde", schema.frequentie === "uit" ? "–" : `${geplandeSchatting.bewerkingen} AI-bewerking(en) voor ${geplandeSchatting.partners} partner(s); resterend budget daarna ${geplandeSchatting.resterendNa}`],
+                ["Laatste geplande ronde", datumTijd(schema.laatsteGeplandeRonde)],
+                ["Laatste controle (cron)", datumTijd(schema.laatsteControle)]
+              ]}
+            />
+            {schema.overgeslagen ? <Melding soort="waarschuwing">Niet gestart op {datumTijd(schema.overgeslagen.op)}: {schema.overgeslagen.reden}</Melding> : null}
+            <p className="muted klein-tekst">
+              Een dagelijkse cron (vercel.json) roept <code>/api/verrijking/run</code> aan; dat endpoint start een ronde zodra het geplande moment is verstreken. Een ronde die het maandbudget zou overschrijden, start niet automatisch: de beheerder krijgt een signaal. Alleen wijzigingen komen in de wachtrij.
+            </p>
+          </div>
+        </div>
+      </Kaart>
 
       <Kaart titel="Rondes en verschillenoverzicht">
         {db.verrijkingsrondes.length ? (
@@ -107,6 +133,10 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
 
       <Kaart titel="Extra bronnen (configuratie)">
         <BronnenBeheer bronnen={i.verrijkingsbronnen ?? []} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
+      </Kaart>
+
+      <Kaart titel="Keurmerk- en brancheregisters (US-62)">
+        <RegisterBeheer registers={i.registerbronnen ?? []} certificaten={CERTIFICAAT_TYPEN} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
       </Kaart>
 
       <Kaart titel={rondeParam ? "Verschillen van de gekozen ronde" : "Wachtrij voorstellen"} acties={rondeParam ? <Link href="/verrijking">Alle voorstellen</Link> : null}>

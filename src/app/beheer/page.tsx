@@ -7,7 +7,6 @@ import { getDb } from "@/lib/store";
 import { Badge, Kaart, Melding, PaginaKop } from "@/components/ui";
 import { Instellingen } from "@/components/beheer/Instellingen";
 import { DemoReset } from "@/components/beheer/DemoReset";
-import AIKosten from "@/components/beheer/AIKosten";
 import { budgetStatus, maandVerbruik } from "@/lib/domain/kosten";
 import { basisVeldKwaliteit, veldKwaliteit } from "@/lib/domain/datakwaliteit";
 import { ROLLEN, type Rol } from "@/lib/domain/types";
@@ -40,10 +39,8 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
   const terControle = db.partners.filter((p) => p.status === "concept");
   const verbruik = maandVerbruik(db.aiBewerkingen ?? []);
   const budget = budgetStatus(db);
-  const laatsteBewerkingen = (db.aiBewerkingen ?? []).slice(0, 10);
   const kwaliteit = veldKwaliteit(db, dkRol);
   const basisKwaliteit = basisVeldKwaliteit(db, dkRol);
-  const SOORT_LABEL: Record<string, string> = { verrijking: "verrijking (1 partner)", verrijkingsronde: "verrijkingsronde", discovery: "discovery", projectextractie: "projectextractie", partnerregistratie: "partnerregistratie", chat: "chat", samenvatting: "samenvatting", overig: "overig" };
 
   return (
     <>
@@ -87,9 +84,8 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
             <details className="uitklap" style={{ marginTop: 14 }}>
               <summary>Hoe werkt de afscherming?</summary>
               <ul className="lijst klein-tekst" style={{ marginTop: 8 }}>
-                <li>Verrijking (US-35) en discovery (US-23) draaien nu volledig lokaal met regels: tekstextractie, trefwoorden en de factorencatalogus. Er gaat geen data naar een modelleverancier.</li>
-                <li>Bij AI-provider = Anthropic wordt uitsluitend een provider met zero-data-retention verwacht. Alleen openbare bedrijfsteksten (website, referenties) gaan mee; nooit contactpersonen, financiële cijfers of evaluaties.</li>
-                <li>Eerlijkheidshalve: dit is op dit moment een instelling. De daadwerkelijke aanroep naar een AI-provider is nog niet gebouwd; de instelling bepaalt straks welk pad de verrijking neemt.</li>
+                <li>Zonder ANTHROPIC_API_KEY draaien verrijking, discovery, chat en samenvattingen volledig lokaal op regels; er gaat geen data naar een modelleverancier en er worden geen AI-bewerkingen geteld.</li>
+                <li>Met sleutel gebruikt elke functie het ingestelde model (Beheer → AI-verbruik). Alleen openbare bedrijfsteksten (website, referenties, aangeleverde documenten) gaan mee; nooit contactpersonen, financiële cijfers of evaluaties.</li>
                 <li>&ldquo;Afgeschermde omgeving&rdquo; markeert dat verwerking binnen de eigen (Blauwhoed-)omgeving blijft; &ldquo;externe bronnen&rdquo; bepaalt of partnerwebsites opgehaald mogen worden.</li>
               </ul>
             </details>
@@ -162,38 +158,15 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
               </table>
             </div>
           </Kaart>
-          <Kaart titel="AI-verbruik en kosten (eis 2)">
-            {budget.overschreden ? <Melding soort="fout">Maandbudget overschreden: geplande verrijkingsrondes zijn gepauzeerd; interactieve functies gaan voor.</Melding> : budget.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
+          <Kaart titel="AI-verbruik (US-58)" acties={<Link href="/beheer/verbruik">Rapportage</Link>}>
+            {budget.overschreden ? <Melding soort="fout">Maandbudget bereikt: geplande verrijkingsrondes zijn gepauzeerd; interactieve functies gaan voor.</Melding> : budget.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
             <dl className="definities">
-              <div><dt>Maand</dt><dd>{verbruik.maand}</dd></div>
-              <div><dt>Verbruik</dt><dd>${verbruik.kostenUsd.toFixed(2)} van ${budget.budgetUsd.toFixed(0)} ({Math.round(budget.pct)}%)</dd></div>
-              <div><dt>Bewerkingen</dt><dd>{verbruik.bewerkingen} (met {verbruik.aanroepen} modelaanroepen)</dd></div>
+              <div><dt>Maand</dt><dd>{verbruik.periode}</dd></div>
+              <div><dt>Bewerkingen</dt><dd>{budget.bewerkingen} van {budget.budgetBewerkingen} ({Math.round(budget.pct)}%)</dd></div>
+              <div><dt>Tokenkosten</dt><dd>€ {budget.kostenEur.toFixed(2)} van € {budget.tokenbudgetEur.toFixed(0)}</dd></div>
               <div><dt>Tokens</dt><dd>{verbruik.invoerTokens.toLocaleString("nl-NL")} in · {verbruik.uitvoerTokens.toLocaleString("nl-NL")} uit</dd></div>
             </dl>
-            <AIKosten budget={db.instellingen.aiBudgetUsdPerMaand ?? 0} magBeheren={magBeheren} />
-            {laatsteBewerkingen.length ? (
-              <div className="tabelWrap">
-                <table className="tabel">
-                  <thead>
-                    <tr><th>Wanneer</th><th>Soort</th><th>Door</th><th className="num">Aanroepen</th><th className="num">Tokens in/uit</th><th className="num">Kosten</th></tr>
-                  </thead>
-                  <tbody>
-                    {laatsteBewerkingen.map((b) => (
-                      <tr key={b.id}>
-                        <td>{datumTijd(b.op)}</td>
-                        <td title={b.omschrijving}>{SOORT_LABEL[b.soort] ?? b.soort}</td>
-                        <td>{b.door}</td>
-                        <td className="num">{b.aanroepen.length}</td>
-                        <td className="num">{b.invoerTokens.toLocaleString("nl-NL")} / {b.uitvoerTokens.toLocaleString("nl-NL")}</td>
-                        <td className="num">${b.kostenUsd.toFixed(3)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="muted klein-tekst">Nog geen AI-bewerkingen geregistreerd. Elke gebruikershandeling met AI (verrijking, discovery, projectextractie, chat) verschijnt hier met tokens en kosten.</p>
-            )}
+            <Link href="/beheer/verbruik" className="knop knop-secundair klein">Budget, modellen en specificatie</Link>
           </Kaart>
           <Kaart titel="Demo">
             <DemoReset magBeheren={magBeheren} />

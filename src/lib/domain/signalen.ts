@@ -22,10 +22,16 @@ export function signalenVoor(db: Database, nu = new Date()): Signaal[] {
   const signalen: Signaal[] = [];
   const dag = 24 * 3600 * 1000;
 
-  // Eis 2: melding bij 80% van het AI-maandbudget; boven 100% zijn geplande rondes gepauzeerd.
+  // US-58: signalen op het budget in AI-bewerkingen (en het tokenbudget in euro).
   const budget = budgetStatus(db, nu);
-  if (budget.overschreden) signalen.push({ id: "ai-budget-op", soort: "budget", ernst: "kritiek", titel: "AI-maandbudget overschreden", omschrijving: `Verbruik $${budget.verbruikUsd.toFixed(2)} van $${budget.budgetUsd.toFixed(0)}. Geplande verrijkingsrondes zijn gepauzeerd; interactieve functies (zoeken, chat, matchen) gaan voor.`, link: "/beheer" });
-  else if (budget.waarschuwing) signalen.push({ id: "ai-budget-80", soort: "budget", ernst: "waarschuwing", titel: "AI-verbruik boven 80% van het maandbudget", omschrijving: `Verbruik $${budget.verbruikUsd.toFixed(2)} van $${budget.budgetUsd.toFixed(0)} (${Math.round(budget.pct)}%).`, link: "/beheer" });
+  const verbruik = `${budget.bewerkingen} van ${budget.budgetBewerkingen} bewerkingen (${Math.round(budget.pct)}%), € ${budget.kostenEur.toFixed(2)} van € ${budget.tokenbudgetEur.toFixed(0)} tokenbudget`;
+  if (budget.boven125) signalen.push({ id: "ai-budget-125", soort: "budget", ernst: "kritiek", titel: "AI-verbruik boven 125% van het maandbudget", omschrijving: `${verbruik}. Volgens art. 8 aanleiding voor overleg over nacalculatie met AI-Group.`, link: "/beheer/verbruik" });
+  if (budget.kwartaalBoven110) signalen.push({ id: "ai-budget-kwartaal", soort: "budget", ernst: "kritiek", titel: "Gemiddeld AI-verbruik dit kwartaal boven 110%", omschrijving: `Gemiddeld ${Math.round(budget.kwartaalGemPct)}% van het maandbudget per maand in het lopende kwartaal.`, link: "/beheer/verbruik" });
+  if (budget.overschreden && !budget.boven125) signalen.push({ id: "ai-budget-op", soort: "budget", ernst: "kritiek", titel: "AI-maandbudget bereikt", omschrijving: `${verbruik}. Geplande verrijkingsrondes starten niet; interactieve functies (zoeken, chat, matchen) gaan voor.`, link: "/beheer/verbruik" });
+  else if (budget.waarschuwing && !budget.overschreden) signalen.push({ id: "ai-budget-80", soort: "budget", ernst: "waarschuwing", titel: "AI-verbruik boven 80% van het maandbudget", omschrijving: verbruik, link: "/beheer/verbruik" });
+  const schema = db.instellingen.verrijkingsschema;
+  if (schema?.overgeslagen && (!schema.laatsteGeplandeRonde || schema.overgeslagen.op > schema.laatsteGeplandeRonde))
+    signalen.push({ id: "schema-overgeslagen", soort: "budget", ernst: "waarschuwing", titel: "Geplande verrijkingsronde niet gestart", omschrijving: `${schema.overgeslagen.reden} (gepland ${new Date(schema.overgeslagen.gepland).toLocaleString("nl-NL")}).`, link: "/verrijking" });
 
   db.partners.forEach((p: Partner) => {
     p.certificaten.forEach((c) => {

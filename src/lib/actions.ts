@@ -21,10 +21,12 @@ import { huidigeHerkomst, optieVanVoorstel, veldenZonderBron, verwerkVoorstellen
 import { gezochteVelden } from "./domain/goudstandaard";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiChat, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, zetAanroepDoel } from "./ai";
+import { aiBeschikbaar, aiChat, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
+import { zichtbaar } from "./domain/zichtbaarheid";
 import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
 import { chatContext } from "./domain/chat";
 import { budgetStatus, schatVerrijkingsronde } from "./domain/kosten";
+import { schemaVan, selecteerPartners } from "./domain/schema";
 import type { BronConnector } from "./domain/discovery";
 import { slaNuOp } from "./store";
 import { matchProject, valideerGewichten } from "./domain/matching";
@@ -53,7 +55,8 @@ import type {
   Project,
   ProjectRequirement,
   RequirementFactor,
-  Rol
+  Rol,
+  VerrijkingsSchema
 } from "./domain/types";
 import { BRON_BETROUWBAARHEID, KWALIFICATIE_ITEMS } from "./domain/types";
 import { getDb, muteer, nieuwId, resetNaarSeed } from "./store";
@@ -501,7 +504,7 @@ export async function extraheerProject(tekst: string) {
     const ai = await alsAIBewerking("projectextractie", g.naam, "projectprofiel uit document", () => {
       zetAanroepDoel("projectextractie");
       return aiProjectExtractie(tekst);
-    });
+    }, "extractie");
     if (!ai) return regels;
     const types = ["grondgebonden", "appartementen", "hoogbouw", "transformatie", "zorgwonen", "gebiedsontwikkeling"];
     const stijlen = ["traditioneel", "modern", "industrieel", "dorps", "hoogstedelijk"];
@@ -520,7 +523,7 @@ export async function extraheerProject(tekst: string) {
         omschrijving: ai.omschrijving ?? regels.velden.omschrijving
       },
       herkomst: ai.herkomst.length ? ai.herkomst : regels.herkomst,
-      provider: "Claude (claude-opus-5)"
+      provider: await providerLabel("extractie")
     };
   });
 }
@@ -675,7 +678,7 @@ export async function registreerPartnerViaAI(invoer: RegistratieInvoer) {
     const ai = await alsAIBewerking("partnerregistratie", g.naam, `registratie ${naamHint ?? websiteHint ?? "uit tekst"}`, () => {
       zetAanroepDoel("partnerregistratie");
       return aiPartnerRegistratie({ naam: naamHint, website: web?.website ?? websiteHint }, bronTekst);
-    });
+    }, "extractie");
     const concept: RegistratieConcept = ai
       ? {
           velden: {
@@ -796,7 +799,7 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
         const samenvatting = aiBeschikbaar() && tekst ? await aiSamenvatting({ ...k, id: "", status: "nieuw", opgehaaldOp: "" }, project, tekst) : null;
         return { ...k, locatie, samenvatting: samenvatting ?? undefined };
       })
-    ));
+    ), "aandragen");
     const nu = new Date().toISOString();
     const uitkomst = await muteer(g, { entiteit: "discovery", entiteitId: projectId ?? "algemeen", actie: "zoekopdracht gestart", details: `${rollen.join(", ")}; ${trefwoorden}${regio ? `; regio ${regio}` : ""}` }, (db) => {
       const u: DiscoveryUitkomst = { gevonden: gevonden.length, nieuw: 0, alInWachtrij: 0, mogelijkeDubbelen: 0, bronnen: connectors.map((c) => c.naam), regio: regio || undefined };
@@ -875,7 +878,7 @@ export async function stelChatVraag(vraag: string, historie: Array<{ vraag: stri
       const r = await alsAIBewerking("chat", g.naam, vraag.slice(0, 120), () => {
         zetAanroepDoel("chatvraag");
         return aiChat(vraag, JSON.stringify(records), historie.slice(-4));
-      });
+      }, "chat");
       if (r) {
         const genoemd = r.partnerIds.map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p));
         return { antwoord: r.antwoord, partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), viaAI: true };
@@ -1095,21 +1098,32 @@ export type VerrijkingUitkomst = { partners: number; voorstellen: number; nieuw:
  * per aanroep maximaal `maxPerRonde` partners (nog niet in deze ronde verwerkt) en houdt een verschillenoverzicht bij:
  * nieuw / gewijzigd / niet langer bevestigd / ongewijzigd overgeslagen (delta-selectie).
  */
-export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20, gestartDoor?: string) {
+export type RondeOpties = {
+  /** US-56: partners volgens de omvang van het schema (of een handmatige keuze); ontbreekt = het hele bestand. */
+  selectie?: string[];
+  omvang?: VerrijkingsSchema["omvang"];
+  alleenGewijzigd?: boolean;
+  gepland?: boolean;
+  verwachteBewerkingen?: number;
+};
+
+export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20, gestartDoor?: string, opties: RondeOpties = {}) {
   return veilig(async (): Promise<VerrijkingUitkomst> => {
     const g = gestartDoor === "systeem" ? { id: "systeem", naam: "systeem", rol: "beheerder" as const } : await vereisRecht("bewerken");
     const db = await getDb();
-    // Eis 2: boven budget krijgen interactieve functies voorrang; een ronde over het hele bestand start dan niet.
-    if (!partnerId && budgetStatus(db).overschreden) throw new Error("Het AI-maandbudget is overschreden. Geplande verrijkingsrondes zijn gepauzeerd; verrijking van één partner en zoeken/chat blijven mogelijk. Pas het budget aan onder Beheer.");
+    // US-58: boven het maandbudget krijgen interactieve functies voorrang; een ronde over (een deel van) het bestand start dan niet.
+    if (!partnerId && budgetStatus(db).overschreden) throw new Error("Het AI-maandbudget (bewerkingen of tokenbudget) is bereikt. Verrijkingsrondes zijn gepauzeerd; verrijking van één partner en zoeken/chat blijven mogelijk. Pas het budget aan onder Beheer → AI-verbruik.");
     // Hervatbare ronde-administratie (alleen bij een ronde over het bestand).
     let ronde = partnerId ? undefined : db.verrijkingsrondes.find((r) => !r.klaarOp);
     if (!partnerId && !ronde) {
-      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept").length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
-      await muteer(g, { entiteit: "verrijking", entiteitId: ronde.id, actie: "verrijkingsronde gestart", details: `${ronde.totaal} partners` }, (d) => d.verrijkingsrondes.unshift(ronde!));
+      const doel = opties.selectie ?? db.partners.filter((p) => p.status !== "geblokkeerd" && zichtbaar(p)).map((p) => p.id);
+      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: doel.length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0, doelIds: opties.selectie, omvang: opties.omvang, gepland: opties.gepland, alleenGewijzigd: opties.alleenGewijzigd, verwachteBewerkingen: opties.verwachteBewerkingen };
+      await muteer(g, { entiteit: "verrijking", entiteitId: ronde.id, actie: opties.gepland ? "geplande verrijkingsronde gestart" : "verrijkingsronde gestart", details: `${ronde.totaal} partners${opties.omvang ? ` (${opties.omvang})` : ""}${opties.verwachteBewerkingen !== undefined ? `; verwacht ${opties.verwachteBewerkingen} AI-bewerkingen` : ""}` }, (d) => d.verrijkingsrondes.unshift(ronde!));
     }
+    const doelSet = ronde?.doelIds ? new Set(ronde.doelIds) : null;
     const kandidaten = partnerId
       ? db.partners.filter((p) => p.id === partnerId)
-      : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept" && !ronde!.partnerIdsVerwerkt.includes(p.id));
+      : db.partners.filter((p) => p.status !== "geblokkeerd" && zichtbaar(p) && (!doelSet || doelSet.has(p.id)) && !ronde!.partnerIdsVerwerkt.includes(p.id));
     const doelen = partnerId ? kandidaten : kandidaten.slice(0, maxPerRonde);
     if (partnerId && !doelen.length) throw new Error("Partner niet gevonden.");
     const extraBronnen = await haalExtraBronnen(db);
@@ -1118,28 +1132,42 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     let websitesGevonden = 0;
     // Beperkte parallelliteit: vriendelijk voor de bronnen, snel genoeg voor een ronde.
     const wachtrij = [...doelen];
-    await alsAIBewerking(partnerId ? "verrijking" : "verrijkingsronde", gestartDoor === "systeem" ? "systeem" : g.naam, partnerId ? `verrijking ${doelen[0]?.naam ?? partnerId}` : `verrijkingsronde (${doelen.length} partners)`, () =>
-      Promise.all(
+    const door = gestartDoor === "systeem" ? "systeem" : g.naam;
+    // US-58: één verrijking van één partner is één AI-bewerking, ook binnen een ronde (niet de hele ronde als één).
+    await Promise.all(
         Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
           for (let p = wachtrij.shift(); p; p = wachtrij.shift()) {
+            const partner = p;
             try {
-              zetAanroepDoel(`factorextractie ${p.naam}`);
-              const r = await verzamelVoorstellen(p, db, tekst, extraBronnen);
+              const r = await alsAIBewerking("verrijking", door, `verrijking ${partner.naam}${ronde ? " (ronde)" : ""}`, () => {
+                zetAanroepDoel(`factorextractie ${partner.naam}`);
+                return verzamelVoorstellen(partner, db, tekst, extraBronnen, ronde?.alleenGewijzigd ?? false);
+              }, "extractie");
               nieuweVoorstellen.push(...r.voorstellen);
               if (r.websiteGevonden) websitesGevonden++;
               geraadpleegd.push({ partnerId: p.id, paginas: r.paginas, webHash: r.webHash, overgeslagen: r.overgeslagen, geenBron: r.geenBron, doorzocht: r.doorzocht });
             } catch (e) {
-              console.warn("Verrijking overgeslagen voor", p.naam, e instanceof Error ? e.message : e);
+              console.warn("Verrijking overgeslagen voor", partner.naam, e instanceof Error ? e.message : e);
             }
           }
         })
-      ));
+      );
     const nogTeGaan = partnerId ? 0 : Math.max(0, kandidaten.length - doelen.length);
     const nieuw = await bewaarVoorstellen(g, partnerId ?? ronde?.id ?? "alle", nieuweVoorstellen, geraadpleegd, ronde?.id, !partnerId && nogTeGaan === 0);
     revalidatePath("/verrijking");
     if (partnerId) revalidatePath(`/partners/${partnerId}`);
     return { partners: doelen.length, voorstellen: nieuweVoorstellen.length, nieuw, websitesGevonden, overgeslagen: geraadpleegd.filter((x) => x.overgeslagen).length, nogTeGaan, rondeId: ronde?.id };
   });
+}
+
+/** US-56/57: handmatige ronde met een omvang uit het schema (hervat een lopende ronde als die er is). */
+export async function startRonde(omvang: VerrijkingsSchema["omvang"] = "alles") {
+  const db = await getDb();
+  if (db.verrijkingsrondes.some((r) => !r.klaarOp)) return startVerrijking();
+  const schema = schemaVan(db);
+  const selectie = selecteerPartners(db, { ...schema, omvang });
+  const schatting = schatVerrijkingsronde(selectie, db, aiBeschikbaar(), { alleenGewijzigd: omvang === "gewijzigde_website" });
+  return startVerrijking(undefined, undefined, 20, undefined, { selectie: omvang === "alles" ? undefined : selectie.map((p) => p.id), omvang, alleenGewijzigd: omvang === "gewijzigde_website", verwachteBewerkingen: schatting.bewerkingen });
 }
 
 export async function beoordeelVoorstel(id: string, accepteer: boolean) {
@@ -1211,7 +1239,7 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
 }
 
 /** B3: extra verrijkingsbronnen beheren (toevoegen/aan-uit/verwijderen) zonder codewijziging. */
-export async function slaVerrijkingsBronOp(bron: { id?: string; naam: string; url: string; actief: boolean } | { verwijderId: string }) {
+export async function slaVerrijkingsBronOp(bron: { id?: string; naam: string; url: string; actief: boolean; categorie?: "eigen_uitgave" | "web" } | { verwijderId: string }) {
   return veilig(async () => {
     const g = await vereisRecht("beheer");
     await muteer(g, { entiteit: "instellingen", entiteitId: "verrijkingsbronnen", actie: "verwijderId" in bron ? "bron verwijderd" : "bron opgeslagen", details: "verwijderId" in bron ? bron.verwijderId : `${bron.naam} (${bron.url})` }, (db) => {
@@ -1222,8 +1250,8 @@ export async function slaVerrijkingsBronOp(bron: { id?: string; naam: string; ur
       }
       if (!/^https?:\/\//.test(bron.url)) throw new Error("Bron-URL moet met http(s) beginnen.");
       const idx = db.instellingen.verrijkingsbronnen.findIndex((b) => b.id === bron.id);
-      if (idx >= 0) db.instellingen.verrijkingsbronnen[idx] = { ...db.instellingen.verrijkingsbronnen[idx], naam: bron.naam, url: bron.url, actief: bron.actief };
-      else db.instellingen.verrijkingsbronnen.push({ id: nieuwId("vb"), naam: bron.naam, url: bron.url, actief: bron.actief });
+      if (idx >= 0) db.instellingen.verrijkingsbronnen[idx] = { ...db.instellingen.verrijkingsbronnen[idx], naam: bron.naam, url: bron.url, actief: bron.actief, categorie: bron.categorie ?? db.instellingen.verrijkingsbronnen[idx].categorie };
+      else db.instellingen.verrijkingsbronnen.push({ id: nieuwId("vb"), naam: bron.naam, url: bron.url, actief: bron.actief, categorie: bron.categorie ?? "web" });
     });
     revalidatePath("/verrijking");
   });
@@ -1336,12 +1364,11 @@ export async function draaiGewichtsprofielTerug(id: string, versie: number) {
   });
 }
 
-export async function zetInstelling(sleutel: "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving" | "aiBudgetUsdPerMaand", waarde: string | boolean | number) {
+export async function zetInstelling(sleutel: "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving", waarde: string | boolean | number) {
   return veilig(async () => {
     const g = await vereisRecht("beheer");
     await muteer(g, { entiteit: "instellingen", entiteitId: sleutel, actie: `gewijzigd naar ${waarde}` }, (db) => {
       if (sleutel === "aiProvider") db.instellingen.aiProvider = waarde === "anthropic" ? "anthropic" : "uit";
-      else if (sleutel === "aiBudgetUsdPerMaand") db.instellingen.aiBudgetUsdPerMaand = Math.max(0, Number(waarde) || 0);
       else db.instellingen[sleutel] = Boolean(waarde);
     });
     revalidatePath("/beheer");

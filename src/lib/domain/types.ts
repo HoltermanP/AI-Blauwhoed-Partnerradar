@@ -627,6 +627,15 @@ export type VerrijkingsRonde = {
   nieuw: number;
   gewijzigd: number;
   nietBevestigd: number;
+  /** US-56: partners die deze ronde bestrijkt (volgens de omvang); ontbreekt = het hele bestand. */
+  doelIds?: string[];
+  omvang?: VerrijkingsSchema["omvang"];
+  /** Gestart door het verrijkingsschema (cron) in plaats van handmatig. */
+  gepland?: boolean;
+  /** Alleen partners met een gewijzigde website verrijken (delta via webHash). */
+  alleenGewijzigd?: boolean;
+  /** US-57: vooraf verwachte AI-bewerkingen. */
+  verwachteBewerkingen?: number;
 };
 
 /** Configureerbare extra verrijkingsbron (openbare URL, bijv. Conceptenboulevard of een brochurepagina). Toevoegbaar zonder codewijziging. */
@@ -639,20 +648,31 @@ export type VerrijkingsBron = {
   categorie?: "eigen_uitgave" | "web";
 };
 
-/** Eis 2: één modelaanroep binnen een bewerking. */
+/** US-59: functies waarvoor per functie een model wordt ingesteld (lichtste passende model, art. 8.9). */
+export type AIFunctie = "extractie" | "chat" | "match" | "verband" | "aandragen";
+
+/** US-62: openbaar register waarin een certificaat verifieerbaar is. `url` mag {naam} en {kvk} bevatten. */
+export type RegisterBron = { id: string; naam: string; url: string; certificaat: CertificaatType; actief: boolean };
+
+/** Eis 2 / US-58: één modelaanroep binnen een bewerking. Kosten in euro tegen de rekenprijzen uit de instellingen. */
 export type AIAanroep = {
   model: string;
   doel: string;
   invoerTokens: number;
   uitvoerTokens: number;
-  kostenUsd: number;
+  kostenEur: number;
   op: string;
 };
 
-/** Eis 2: één gebruikershandeling = één bewerking, ook als die uit meerdere modelaanroepen bestaat. */
+/**
+ * US-58 (art. 8): één AI-bewerking = één handeling die tot verwerking door een extern taalmodel leidt, inclusief alle
+ * onderliggende aanroepen. Eén verrijking van één partner is één bewerking (ook binnen een ronde); een chatvraag, matchvraag,
+ * verbandanalyse en AI-voorstelronde zijn elk één bewerking. Onderhoudsprocessen tellen niet mee.
+ */
 export type AIBewerking = {
   id: string;
-  soort: "verrijking" | "verrijkingsronde" | "discovery" | "projectextractie" | "partnerregistratie" | "chat" | "samenvatting" | "overig";
+  soort: "verrijking" | "verrijkingsronde" | "discovery" | "aandraag" | "projectextractie" | "partnerregistratie" | "chat" | "match" | "verband" | "samenvatting" | "overig";
+  functie?: AIFunctie;
   omschrijving?: string;
   /** Gebruikersnaam, of "systeem" voor geplande rondes. */
   door: string;
@@ -660,7 +680,35 @@ export type AIBewerking = {
   aanroepen: AIAanroep[];
   invoerTokens: number;
   uitvoerTokens: number;
-  kostenUsd: number;
+  kostenEur: number;
+};
+
+/** US-58: budget in bewerkingen en tokens (euro), met de rekenprijzen per miljoen tokens. */
+export type AIBudget = {
+  bewerkingenPerMaand: number;
+  tokenbudgetEur: number;
+  prijsInvoerPerMTok: number;
+  prijsUitvoerPerMTok: number;
+};
+
+/** US-56: instelbaar schema voor de periodieke verrijking. */
+export type VerrijkingsSchema = {
+  frequentie: "uit" | "wekelijks" | "tweewekelijks" | "maandelijks" | "kwartaal";
+  /** Wekelijks/tweewekelijks: 1 = maandag … 7 = zondag. Maandelijks/kwartaal: dag van de maand (1–28). */
+  dag: number;
+  /** Tijd in Nederlandse tijd, "HH:MM". */
+  tijd: string;
+  omvang: "alles" | "partnertype" | "niet_verrijkt_sinds" | "gewijzigde_website";
+  rollen: Rol[];
+  maanden: number;
+  ingesteldOp: string;
+  ingesteldDoor?: string;
+  /** Geplande moment van de laatst gestarte ronde. */
+  laatsteGeplandeRonde?: string;
+  /** Laatste keer dat de dagelijkse controle (cron) liep. */
+  laatsteControle?: string;
+  /** Laatste reden waarom een geplande ronde niet startte (bijv. budget). */
+  overgeslagen?: { op: string; reden: string; gepland: string };
 };
 
 /** US-65: twee rollen conform de overeenkomst. Het aantal gebruikers is onbeperkt. */
@@ -748,8 +796,14 @@ export type Database = {
     afgeschermdeOmgeving: boolean;
     externeBronnenToegestaan: boolean;
     laatsteVerrijking?: string;
-    /** Eis 2: maandbudget voor AI-kosten in USD; bij 80% een melding, daarboven krijgen interactieve functies voorrang op geplande rondes. */
-    aiBudgetUsdPerMaand: number;
+    /** US-58: maandbudget in AI-bewerkingen (standaard 750) en tokenbudget in euro (standaard € 30) met rekenprijzen. */
+    aiBudget: AIBudget;
+    /** US-59: model per functie. */
+    modellen: Record<AIFunctie, string>;
+    /** US-56: verrijkingsschema. */
+    verrijkingsschema: VerrijkingsSchema;
+    /** US-62: openbare keurmerk- en brancheregisters (geen login of betaling). */
+    registerbronnen: RegisterBron[];
     /** Extra openbare verrijkingsbronnen (beheerbaar, geen codewijziging nodig). */
     verrijkingsbronnen: VerrijkingsBron[];
   };

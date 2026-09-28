@@ -23,7 +23,9 @@ import { naamGelijkenis } from "../src/lib/domain/fuzzy";
 import { naarCsv, partnersCsv } from "../src/lib/domain/export";
 import { veldKwaliteit } from "../src/lib/domain/datakwaliteit";
 import { geldigeRollen, normaliseerWebsite, raadRollen, regelConcept, vrijgaveBlokkades } from "../src/lib/domain/registratie";
-import { budgetStatus, kostenUsd, maandVerbruik, schatVerrijkingsronde } from "../src/lib/domain/kosten";
+import { aiBudget, budgetStatus, kostenEur, maandVerbruik, modelVoor, schatVerrijkingsronde, verbruikPerPeriode, verbruikSpecificatie } from "../src/lib/domain/kosten";
+import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
+import type { AIBewerking } from "../src/lib/domain/types";
 import { betrouwbaarheidNiveau, bronRang, bronTekst, markeerGeenBron, registreerHandmatigeBasisvelden, zetBasisveldHerkomst } from "../src/lib/domain/herkomst";
 import { verwerkVoorstellen, veldenZonderBron } from "../src/lib/domain/voorstellen";
 import { goudstandaardVoorPartner, gezochteVelden } from "../src/lib/domain/goudstandaard";
@@ -144,26 +146,81 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   check("Eis 1: herkomst verwijderbaar (AVG)", n > 0 && kopie.bronnen.length === 0 && kopie.factoren.every((f) => !f.bewijs && !f.toelichting) && kopie.factoren.length === p.factoren.length);
 }
 
-// Eis 2: kosten per AI-bewerking — bewerking -> aanroepen, maandverbruik, budget, schatting vooraf
+// Eis 2 / US-58: AI-verbruik in bewerkingen en euro — bewerking -> aanroepen, maand/kwartaal, budget, signalen
 {
-  const nu = new Date();
-  const bewerking = { id: "aib-1", soort: "verrijkingsronde" as const, door: "systeem", op: nu.toISOString(), aanroepen: [
-    { model: "claude-opus-5", doel: "factorextractie A", invoerTokens: 7000, uitvoerTokens: 800, kostenUsd: kostenUsd("claude-opus-5", 7000, 800), op: nu.toISOString() },
-    { model: "claude-opus-5", doel: "factorextractie B", invoerTokens: 6000, uitvoerTokens: 700, kostenUsd: kostenUsd("claude-opus-5", 6000, 700), op: nu.toISOString() }
-  ], invoerTokens: 13000, uitvoerTokens: 1500, kostenUsd: kostenUsd("claude-opus-5", 13000, 1500) };
-  check("Eis 2: één bewerking, meerdere aanroepen", bewerking.aanroepen.length === 2 && Math.abs(bewerking.kostenUsd - (bewerking.aanroepen[0].kostenUsd + bewerking.aanroepen[1].kostenUsd)) < 1e-9);
-  check("Eis 2: prijstabel klopt (opus-5 $5/$25 per MTok)", Math.abs(kostenUsd("claude-opus-5", 1_000_000, 1_000_000) - 30) < 1e-9);
-  const verbruik = maandVerbruik([bewerking], nu);
-  check("Eis 2: maandverbruik aggregeert", verbruik.bewerkingen === 1 && verbruik.aanroepen === 2 && verbruik.invoerTokens === 13000);
-  db.aiBewerkingen = [{ ...bewerking, kostenUsd: 85 }];
-  db.instellingen.aiBudgetUsdPerMaand = 100;
-  const b = budgetStatus(db, nu);
-  check("Eis 2: 80%-melding", b.waarschuwing && !b.overschreden && Math.round(b.pct) === 85);
-  db.aiBewerkingen = [{ ...bewerking, kostenUsd: 120 }];
-  check("Eis 2: budget overschreden blokkeert geplande rondes", budgetStatus(db, nu).overschreden);
-  db.aiBewerkingen = [];
-  const schatting = schatVerrijkingsronde(20);
-  check("Eis 2: schatting vooraf", schatting.bewerkingen === 20 && schatting.geschatteKostenUsd > 0);
+  const nu = new Date("2026-09-15T10:00:00Z");
+  const aanroep = (inT: number, uitT: number) => ({ model: "claude-haiku-4-5", doel: "extractie", invoerTokens: inT, uitvoerTokens: uitT, kostenEur: kostenEur(inT, uitT), op: nu.toISOString() });
+  const bewerking = (soort: AIBewerking["soort"], op = nu.toISOString()): AIBewerking => ({ id: `b-${Math.random()}`, soort, door: "t", op, aanroepen: [aanroep(7000, 800), aanroep(6000, 700)], invoerTokens: 13000, uitvoerTokens: 1500, kostenEur: kostenEur(13000, 1500) });
+  check("US-58 rekenprijs € 2,50 in / € 10,00 uit per miljoen tokens", Math.abs(kostenEur(1_000_000, 1_000_000) - 12.5) < 1e-9);
+  const b1 = bewerking("verrijking");
+  check("US-58 één bewerking met meerdere aanroepen", b1.aanroepen.length === 2 && Math.abs(b1.kostenEur - b1.aanroepen[0].kostenEur - b1.aanroepen[1].kostenEur) < 1e-9);
+  const v = maandVerbruik([b1, bewerking("chat"), bewerking("match"), bewerking("aandraag"), bewerking("verrijking", "2026-08-01T00:00:00Z")], nu);
+  check("US-58 maandverbruik per categorie", v.bewerkingen === 4 && v.perCategorie.verrijking === 1 && v.perCategorie.chat === 1 && v.perCategorie["match/verband"] === 1 && v.perCategorie["AI-voorstellen"] === 1, v.perCategorie);
+  const kw = verbruikPerPeriode([b1, bewerking("chat", "2026-08-01T00:00:00Z"), bewerking("chat", "2026-03-01T00:00:00Z")], "kwartaal");
+  check("US-58 verbruik per kwartaal", kw.length === 2 && kw[0].periode === "2026-K3" && kw[0].bewerkingen === 2);
+  const dbK = maakLegeDatabase();
+  check("US-58 standaardbudget 750 bewerkingen en € 30", aiBudget(dbK).bewerkingenPerMaand === 750 && aiBudget(dbK).tokenbudgetEur === 30);
+  dbK.instellingen.aiBudget = { ...aiBudget(dbK), bewerkingenPerMaand: 10 };
+  dbK.aiBewerkingen = Array.from({ length: 8 }, () => bewerking("chat"));
+  const bs = budgetStatus(dbK, nu);
+  check("US-58 signaal bij 80% van het budget in bewerkingen", bs.waarschuwing && !bs.overschreden && Math.round(bs.pct) === 80);
+  dbK.aiBewerkingen = Array.from({ length: 13 }, () => bewerking("chat"));
+  check("US-58 apart signaal boven 125% in een maand", budgetStatus(dbK, nu).boven125 && signalenVoor(dbK, nu).some((x) => x.id === "ai-budget-125"));
+  dbK.aiBewerkingen = [...Array.from({ length: 12 }, () => bewerking("chat", "2026-07-10T00:00:00Z")), ...Array.from({ length: 12 }, () => bewerking("chat", "2026-08-10T00:00:00Z")), ...Array.from({ length: 11 }, () => bewerking("chat"))];
+  check("US-58 signaal gemiddeld > 110% over het kwartaal", budgetStatus(dbK, nu).kwartaalBoven110 && signalenVoor(dbK, nu).some((x) => x.id === "ai-budget-kwartaal"));
+  const spec = verbruikSpecificatie({ ...dbK, aiBewerkingen: [b1] });
+  check("US-58 specificatie met bewerkingen, tokens en providerkosten", spec.regels.length === 1 && spec.regels[0]["Invoertokens"] === 13000 && spec.perMaand[0].Bewerkingen === 1);
+  // US-59: model per functie
+  check("US-59 licht model voor extractie, zwaarder voor chat", modelVoor(dbK, "extractie") === "claude-haiku-4-5" && modelVoor(dbK, "chat") === "claude-sonnet-5");
+  dbK.instellingen.modellen = { ...dbK.instellingen.modellen, chat: "claude-opus-5" };
+  check("US-59 modelkeuze instelbaar", modelVoor(dbK, "chat") === "claude-opus-5");
+  // US-57: schatting in bewerkingen
+  dbK.aiBewerkingen = [];
+  dbK.instellingen.aiBudget.bewerkingenPerMaand = 750;
+  dbK.verrijkingsrondes = [{ id: "r", gestartOp: "", bijgewerktOp: "", door: "", totaal: 20, partnerIdsVerwerkt: Array.from({ length: 20 }, (_, i) => `p${i}`), ongewijzigd: 15, nieuw: 0, gewijzigd: 0, nietBevestigd: 0 }];
+  const partnersS = [...Array.from({ length: 4 }, () => ({ webHash: undefined, website: "x" })), ...Array.from({ length: 8 }, () => ({ webHash: "h", website: "x" }))];
+  const sch = schatVerrijkingsronde(partnersS, dbK, true);
+  check("US-57 verwachte bewerkingen = partners die echt verrijkt worden", sch.bewerkingen === 6 && sch.overgeslagen === 6 && sch.resterendNa === 744, sch);
+  check("US-57 zonder AI geen bewerkingen", schatVerrijkingsronde(partnersS, dbK, false).bewerkingen === 0);
+  dbK.instellingen.aiBudget.bewerkingenPerMaand = 5;
+  check("US-57 ronde die het budget zou overschrijden wordt herkend", schatVerrijkingsronde(partnersS, dbK, true).overschrijdtBudget);
+}
+
+// Migratie v11: budget in euro/bewerkingen, modellen, schema en registers; kosten herrekend
+{
+  const oud = maakLegeDatabase() as ReturnType<typeof maakLegeDatabase> & { instellingen: { aiBudgetUsdPerMaand?: number } };
+  oud.versie = 10;
+  delete (oud.instellingen as Partial<typeof oud.instellingen>).aiBudget;
+  delete (oud.instellingen as Partial<typeof oud.instellingen>).modellen;
+  delete (oud.instellingen as Partial<typeof oud.instellingen>).verrijkingsschema;
+  delete (oud.instellingen as Partial<typeof oud.instellingen>).registerbronnen;
+  oud.instellingen.aiBudgetUsdPerMaand = 100;
+  oud.aiBewerkingen = [{ id: "x", soort: "verrijkingsronde", door: "s", op: "2026-08-01T00:00:00Z", aanroepen: [{ model: "claude-opus-5", doel: "d", invoerTokens: 1_000_000, uitvoerTokens: 0, kostenUsd: 5, op: "" } as unknown as AIBewerking["aanroepen"][number]], invoerTokens: 1_000_000, uitvoerTokens: 0, kostenUsd: 5 } as unknown as AIBewerking];
+  migreerDatabase(oud, new Map());
+  const i = oud.instellingen;
+  check("Migratie v11: budget, modellen, schema, registers en kosten in euro", i.aiBudget?.bewerkingenPerMaand === 750 && i.modellen?.extractie === "claude-haiku-4-5" && i.verrijkingsschema?.frequentie === "uit" && i.registerbronnen?.length === 3 && oud.aiBewerkingen[0].kostenEur === 2.5 && !("aiBudgetUsdPerMaand" in i));
+}
+
+// US-56: verrijkingsschema — volgende ronde (Nederlandse tijd), omvang
+{
+  const basis = { ...standaardSchema(new Date("2026-09-01T00:00:00Z")), frequentie: "wekelijks" as const, dag: 3, tijd: "06:00" };
+  const volgende = volgendeRonde(basis, new Date("2026-09-01T00:00:00Z"))!;
+  check("US-56 wekelijks op woensdag 06:00 NL-tijd", volgende.toISOString() === "2026-09-02T04:00:00.000Z", volgende.toISOString());
+  const winter = volgendeRonde({ ...basis, frequentie: "maandelijks", dag: 5 }, new Date("2026-11-10T00:00:00Z"))!;
+  check("US-56 maandelijks, wintertijd", winter.toISOString() === "2026-12-05T05:00:00.000Z", winter.toISOString());
+  const kwartaal = volgendeRonde({ ...basis, frequentie: "kwartaal", dag: 1 }, new Date("2026-09-15T00:00:00Z"))!;
+  check("US-56 per kwartaal (1 oktober)", kwartaal.toISOString().startsWith("2026-10-01"), kwartaal.toISOString());
+  const twee = { ...basis, frequentie: "tweewekelijks" as const, laatsteGeplandeRonde: "2026-09-02T04:00:00.000Z" };
+  check("US-56 tweewekelijks slaat een week over", volgendeRonde(twee, new Date("2026-09-02T04:00:00.000Z"))!.toISOString() === "2026-09-16T04:00:00.000Z");
+  check("US-56 te draaien zodra het moment verstreken is", teDraaienRonde(basis, new Date("2026-09-02T05:00:00Z"))?.toISOString() === "2026-09-02T04:00:00.000Z" && teDraaienRonde(basis, new Date("2026-09-01T12:00:00Z")) === null && teDraaienRonde({ ...basis, frequentie: "uit" }, new Date("2027-01-01")) === null);
+  const dbS = maakSeedDatabase();
+  const oud = dbS.partners[0];
+  oud.laatstVerrijktOp = "2025-01-01T00:00:00Z";
+  dbS.partners[1].laatstVerrijktOp = new Date().toISOString();
+  const sel = selecteerPartners(dbS, { omvang: "niet_verrijkt_sinds", rollen: [], maanden: 6 });
+  check("US-56 omvang: niet verrijkt sinds X maanden", sel.some((p) => p.id === oud.id) && !sel.some((p) => p.id === dbS.partners[1].id));
+  check("US-56 omvang: per partnertype", selecteerPartners(dbS, { omvang: "partnertype", rollen: ["architect"], maanden: 6 }).every((p) => p.rollen.includes("architect")));
+  check("US-56 omvang: gewijzigde website = partners met website", selecteerPartners(dbS, { omvang: "gewijzigde_website", rollen: [], maanden: 6 }).every((p) => p.website));
 }
 
 // B3: delta-hash en 'niet langer bevestigd'

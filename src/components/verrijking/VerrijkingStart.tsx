@@ -2,12 +2,25 @@
 // US-29/US-31: verrijkingsronde starten (alle partners via internet, of één partner met geplakte openbare tekst).
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { startVerrijking } from "@/lib/actions";
+import { startRonde, startVerrijking } from "@/lib/actions";
+import type { RondeSchatting } from "@/lib/domain/kosten";
+import type { VerrijkingsSchema } from "@/lib/domain/types";
 import { Melding } from "@/components/ui";
 
-export type RondeSchatting = { batch: number; batchUsd: number; totaal: number; totaalUsd: number; aiActief: boolean; budgetOverschreden: boolean };
+export type SchattingPerOmvang = Record<VerrijkingsSchema["omvang"], RondeSchatting>;
 
-export default function VerrijkingStart({ partners, magBewerken, externeBronnen, schatting }: { partners: Array<{ id: string; naam: string }>; magBewerken: boolean; externeBronnen: boolean; schatting: RondeSchatting }) {
+const OMVANGEN: Array<{ id: VerrijkingsSchema["omvang"]; label: string }> = [
+  { id: "alles", label: "Hele bestand" },
+  { id: "gewijzigde_website", label: "Alleen gewijzigde websites" },
+  { id: "niet_verrijkt_sinds", label: "Langer dan X maanden niet verrijkt (zie schema)" },
+  { id: "partnertype", label: "Partnertypen uit het schema" }
+];
+
+const euro = (n: number) => `€ ${n.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+export default function VerrijkingStart({ partners, magBewerken, externeBronnen, schattingen, budgetOverschreden, openRonde }: { partners: Array<{ id: string; naam: string }>; magBewerken: boolean; externeBronnen: boolean; schattingen: SchattingPerOmvang; budgetOverschreden: boolean; openRonde: string | null }) {
+  const [omvang, setOmvang] = useState<VerrijkingsSchema["omvang"]>("alles");
+  const schatting = schattingen[omvang];
   const router = useRouter();
   const [bezig, start] = useTransition();
   const [partnerId, setPartnerId] = useState("");
@@ -19,7 +32,7 @@ export default function VerrijkingStart({ partners, magBewerken, externeBronnen,
     setFout(null);
     setSucces(null);
     start(async () => {
-      const r = await startVerrijking(id, t);
+      const r = id ? await startVerrijking(id, t) : await startRonde(omvang);
       if (!r.ok) return setFout(r.fout);
       const u = r.data!;
       setSucces(`${u.partners} partner(s) geraadpleegd (${u.overgeslagen} ongewijzigd overgeslagen), ${u.voorstellen} voorstel(len) gevonden waarvan ${u.nieuw} nieuw in de wachtrij${u.websitesGevonden ? `; ${u.websitesGevonden} website(s) gevonden` : ""}${u.nogTeGaan ? `. Nog ${u.nogTeGaan} partner(s) te gaan in deze ronde — klik opnieuw om te hervatten.` : ". Ronde afgerond; bekijk het verschillenoverzicht hieronder."}`);
@@ -36,13 +49,41 @@ export default function VerrijkingStart({ partners, magBewerken, externeBronnen,
           ? "Per ronde worden maximaal 20 partners via internet verrijkt (minst recent geraadpleegde eerst): website opzoeken als die ontbreekt, home/over ons/projecten/duurzaamheid lezen, en voorstellen doen voor website, KVK, plaats, omschrijving, referenties en factorwaarden."
           : "Externe bronnen staan uit: alleen de vastgelegde profieltekst of geplakte tekst wordt gebruikt."}
       </p>
-      <p className="muted klein-tekst">
-        Verwacht voor de volgende ronde: <b>{schatting.batch} AI-bewerking(en)</b>{schatting.aiActief ? <>, geschat <b>${schatting.batchUsd.toFixed(2)}</b></> : " (AI staat uit: alleen regelextractie, geen kosten)"}. Heel het bestand: {schatting.totaal} bewerkingen{schatting.aiActief ? ` (≈ $${schatting.totaalUsd.toFixed(2)})` : ""}.
-      </p>
-      {schatting.budgetOverschreden ? <Melding soort="waarschuwing">AI-maandbudget overschreden: rondes over het hele bestand zijn gepauzeerd. Eén partner verrijken kan nog.</Melding> : null}
+      {openRonde ? (
+        <p className="klein-tekst">Er loopt een ronde ({openRonde}); de knop hervat die ronde met de volgende 20 partners.</p>
+      ) : (
+        <label>
+          Omvang van de ronde
+          <select value={omvang} onChange={(e) => setOmvang(e.target.value as VerrijkingsSchema["omvang"])}>
+            {OMVANGEN.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label} ({schattingen[o.id].partners} partners)
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {/* US-57: verwachte AI-bewerkingen en het effect op het maandbudget, vóór de start. */}
+      <div className="schatting">
+        <p>
+          Verwacht: <b>{schatting.bewerkingen} AI-bewerking(en)</b> voor {schatting.partners} partner(s)
+          {schatting.aiActief ? (
+            <>
+              {" "}
+              — {schatting.overgeslagen} naar verwachting ongewijzigd en overgeslagen; geschat <b>{euro(schatting.geschatteKostenEur)}</b>.
+            </>
+          ) : (
+            " — AI staat uit: alleen regelextractie, geen bewerkingen."
+          )}
+        </p>
+        <p className="muted klein-tekst">
+          Maandbudget: {schatting.verbruiktDezeMaand} van {schatting.budgetBewerkingen} bewerkingen gebruikt. Resterend na deze ronde: <b className={schatting.overschrijdtBudget ? "tekst-rood" : ""}>{schatting.resterendNa} bewerkingen</b> ({Math.round(schatting.pctNa)}% van het budget).
+        </p>
+      </div>
+      {budgetOverschreden ? <Melding soort="waarschuwing">AI-maandbudget bereikt: rondes zijn gepauzeerd. Eén partner verrijken kan nog.</Melding> : schatting.overschrijdtBudget ? <Melding soort="waarschuwing">Deze ronde zou het maandbudget overschrijden. Een geplande ronde start in dat geval niet automatisch; handmatig starten verwerkt 20 partners per klik.</Melding> : null}
       <div className="formulierActies">
-        <button type="button" className="knop" disabled={bezig || !magBewerken || schatting.budgetOverschreden} onClick={() => draai()}>
-          {bezig ? "Bezig…" : externeBronnen ? "Volgende 20 partners verrijken via internet" : "Alle partners verrijken"}
+        <button type="button" className="knop" disabled={bezig || !magBewerken || budgetOverschreden || (!openRonde && !schatting.partners)} onClick={() => draai()}>
+          {bezig ? "Bezig…" : openRonde ? "Ronde hervatten (volgende 20)" : "Ronde starten (per 20 partners)"}
         </button>
         {!magBewerken ? <span className="muted">Recht &lsquo;bewerken&rsquo; vereist.</span> : null}
       </div>
