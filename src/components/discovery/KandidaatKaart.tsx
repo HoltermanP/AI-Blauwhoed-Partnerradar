@@ -117,6 +117,7 @@ export default function KandidaatKaart({ kandidaat, projectNaam, dubbelNaam, rec
             </ul>
           </div>
           <p className="muted samenvattingVoet">
+            Voorstel, geen vastgesteld gegeven. 
             Samenvatting door: {k.samenvatting.provider} · {datumTijd(k.samenvatting.gegenereerdOp)}
           </p>
         </div>

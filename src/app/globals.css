@@ -917,8 +917,8 @@ h1 {
     padding: 0 20px;
   }
 
-  .brandMark span,
-  nav {
+  /* US-70: alleen het merklabel verbergen; menu en tabbladen blijven op telefoons bruikbaar. */
+  .brandMark span {
     display: none;
   }
 
@@ -1343,3 +1343,30 @@ a:not(.knop):not(.chip):not(.badge) { color: var(--blue); }
 .beheerTegels { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .inlogPagina { margin: 48px auto; max-width: 520px; }
 .gebruikerMenu { align-items: center; display: flex; gap: 8px; font-size: 13px; white-space: nowrap; }
+
+/* US-70: responsiviteit tablet (768px) en telefoon (375px) */
+.raster > *, .raster-2 > *, .raster-3 > *, .raster-zij > * { min-width: 0; }
+.kaart a:not(.knop), .citaatCel, .lijst li, .samenvatting p, .breekWoord, .definities dd { overflow-wrap: anywhere; }
+.schatting { background: var(--soft); border-radius: var(--radius); padding: 10px 12px; margin: 8px 0; }
+.schatting p { margin: 4px 0; }
+.onderbouwingRol h3 { font-size: 15px; margin: 12px 0 4px; }
+@media (max-width: 720px) {
+  .topbar { flex-wrap: wrap; gap: 4px 12px; min-height: 0; padding: 10px 16px 0; }
+  .brandMark { order: 1; }
+  .brandMark img { height: 16px; }
+  .rolWisselaar, .gebruikerMenu { order: 2; margin-left: auto; min-width: 0; }
+  .rolWisselaar svg { display: none; }
+  .rolWisselaar select { max-width: 160px; }
+  .gebruikerMenu span { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+  .hoofdNav { order: 3; flex: 1 0 100%; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; margin: 0 -16px; padding: 0 8px; scrollbar-width: none; }
+  .hoofdNav a { padding: 10px 9px; }
+  .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+  .tabs a { white-space: nowrap; }
+  .paginaActies { flex-wrap: wrap; }
+  .formulierActies { flex-wrap: wrap; }
+  .formulierActies select, .formulierActies input { max-width: 100% !important; }
+  .rij { grid-template-columns: 1fr !important; }
+  .kwaliteitRaster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metriekRij { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .badge { white-space: normal; max-width: 100%; }
+}

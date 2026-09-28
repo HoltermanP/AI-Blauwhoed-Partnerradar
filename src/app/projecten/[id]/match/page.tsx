@@ -5,7 +5,9 @@ import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { getDb } from "@/lib/store";
 import type { Kandidaat, MatchRun } from "@/lib/domain/types";
 import { ROL_LABEL, datumTijd } from "@/lib/format";
-import { Kaart, Knop, Leeg, PaginaKop } from "@/components/ui";
+import { Disclaimer, Kaart, Knop, Leeg, PaginaKop } from "@/components/ui";
+import MatchOnderbouwing from "@/components/projecten/MatchOnderbouwing";
+import { MATCH_DISCLAIMER } from "@/lib/domain/export";
 import MatchRunFormulier from "@/components/projecten/MatchRunFormulier";
 import RolResultaatWeergave, { type Verschil } from "@/components/projecten/RolResultaatWeergave";
 
@@ -101,6 +103,11 @@ export default async function MatchPagina({ params, searchParams }: { params: Pr
               {vorige ? ` · vergeleken met „${vorige.naam}” (${datumTijd(vorige.gestartOp)})` : ""}
             </p>
             {!magFeedback ? <p className="muted klein-tekst">Feedback op de ranking (US-42) vereist recht &apos;bewerken&apos;.</p> : null}
+            <Disclaimer>{MATCH_DISCLAIMER}</Disclaimer>
+          </Kaart>
+          <Kaart titel="Onderbouwing in gewone taal">
+            <Disclaimer>{MATCH_DISCLAIMER}</Disclaimer>
+            <MatchOnderbouwing run={run} namen={Object.fromEntries(run.resultaat.flatMap((r) => [...r.kandidaten, ...r.prospects].map((k) => [k.partnerId, k.partnerNaam])))} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} />
           </Kaart>
           {run.resultaat.map((r) => (
             <RolResultaatWeergave key={r.rol} resultaat={r} runId={run.id} projectId={p.id} feedback={feedback} magFeedback={magFeedback} verschil={vorige ? diff[r.rol] : undefined} />

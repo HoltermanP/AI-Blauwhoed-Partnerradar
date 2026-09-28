@@ -45,6 +45,7 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
           <GoudstandaardEditor key={rol} rol={rol} profiel={profiel} opties={opties} magBeheren={magBeheren} />
         </Kaart>
         <Kaart titel="Vulling per partnertype">
+          <div className="tabelWrap">
           <table className="tabel">
             <thead>
               <tr>
@@ -67,6 +68,7 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
               ))}
             </tbody>
           </table>
+          </div>
           <p className="muted klein-tekst">Goudstandaardwaarden per partner leg je vast op het partnerdossier (tab Factoren, bron &ldquo;Goudstandaard Blauwhoed&rdquo;) of via een import met bron goudstandaard of eigen uitgave.</p>
         </Kaart>
       </div>

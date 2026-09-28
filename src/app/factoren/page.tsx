@@ -6,9 +6,10 @@ import { CATEGORIEEN } from "@/lib/domain/factors";
 import { DEKKING_WAARSCHUWING } from "@/lib/domain/matching";
 import type { Factor, Gewichtsprofiel, Rol } from "@/lib/domain/types";
 import { BRON_BETROUWBAARHEID, ROLLEN } from "@/lib/domain/types";
+import { bronRang, RANG_LABEL } from "@/lib/domain/herkomst";
 import { ROL_LABEL, waardeTekst } from "@/lib/format";
 import { getDb } from "@/lib/store";
-import { Badge, Definities, Kaart, Knop, PaginaKop } from "@/components/ui";
+import { Badge, BronLabel, Definities, Kaart, Knop, PaginaKop } from "@/components/ui";
 
 function schaalTekst(f: Factor) {
   const s = f.schaal;
@@ -82,28 +83,30 @@ export default async function FactorenPagina() {
           />
         </Kaart>
         <Kaart titel="Betrouwbaarheid per bron (bewijs boven zelfbeeld)">
-          <table className="tabel">
+          <div className="tabelWrap"><table className="tabel">
             <thead>
               <tr>
                 <th>Bron</th>
+                <th>Rang (art. 11.2)</th>
                 <th className="num">Standaard betrouwbaarheid</th>
                 <th>Effect op de score</th>
               </tr>
             </thead>
             <tbody>
               {(Object.entries(BRON_BETROUWBAARHEID) as Array<[string, number]>)
-                .sort((a, b) => b[1] - a[1])
+                .sort((a, b) => bronRang(a[0]) - bronRang(b[0]) || b[1] - a[1])
                 .map(([bron, b]) => (
                   <tr key={bron}>
                     <td>
-                      <b>{bron}</b>
+                      <BronLabel bron={bron} />
                     </td>
+                    <td className="klein-tekst">{bronRang(bron)} · {RANG_LABEL[bronRang(bron)]}</td>
                     <td className="num">{Math.round(b * 100)}%</td>
                     <td className="muted klein-tekst">Fit wordt gedempt richting neutraal (50%) met factor {(0.5 + 0.5 * b).toFixed(2)}</td>
                   </tr>
                 ))}
             </tbody>
-          </table>
+          </table></div>
           <p className="muted klein-tekst" style={{ marginTop: 12 }}>
             Afgeleide waarden uit projecthistorie en evaluaties winnen van een opgave, tenzij een beheerder de waarde expliciet overschrijft. Risicoklasse volgt uit kerncijfers: omzetdaling &gt; 20%, solvabiliteit &lt; 20/30%, deponering ouder dan 400 dagen, betalingsgedrag en negatief eigen vermogen tellen punten; ≥ 4 punten = hoog, ≥ 2 = midden.
           </p>

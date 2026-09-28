@@ -46,7 +46,7 @@ export default function ChatPaneel({ aiActief }: { aiActief: boolean }) {
                 ))}
               </p>
             ) : null}
-            {b.viaAI ? <p className="muted klein-tekst" style={{ marginTop: 4 }}>Antwoord op basis van uitsluitend databaserecords; geregistreerd als AI-bewerking.</p> : null}
+            {b.viaAI ? <p className="muted klein-tekst" style={{ marginTop: 4 }}>AI-antwoord op basis van uitsluitend databaserecords (geregistreerd als AI-bewerking). Een samenvatting, geen vastgesteld gegeven: controleer het partnerdossier.</p> : null}
           </div>
         </div>
       ))}

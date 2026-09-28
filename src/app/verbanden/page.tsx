@@ -4,7 +4,10 @@ import { filterOpRollen, leidVerbandenAf } from "@/lib/domain/verbanden";
 import { ROLLEN, type Rol } from "@/lib/domain/types";
 import { ROL_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
-import { Badge, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
+import { Badge, Disclaimer, Kaart, Leeg, PaginaKop } from "@/components/ui";
+import VerbandAnalyse from "@/components/verbanden/VerbandAnalyse";
+
+const VERBAND_DISCLAIMER = "Verbanden zijn uit bronnen afgeleide signalen: een gedeeld project uit de eigen historie of een naamsvermelding op een openbare bron. Ze bevestigen geen samenwerking of exclusiviteit en zijn niet bedoeld voor extern gebruik (art. 11.4). Bij elk verband staat de bron.";
 
 export default async function VerbandenPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -36,8 +39,12 @@ export default async function VerbandenPagina({ searchParams }: { searchParams: 
           {rolA || rolB ? <Link href="/verbanden">Wissen</Link> : null}
         </form>
       </Kaart>
+      <Kaart titel="Patronen (analyse)">
+        <Disclaimer>{VERBAND_DISCLAIMER}</Disclaimer>
+        <VerbandAnalyse rolA={rolA} rolB={rolB} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} />
+      </Kaart>
       <Kaart>
-        <Melding soort="info">Elk verband is automatisch afgeleid (signaal) en toont de bron: een gedeeld project uit de eigen historie, of een naamsvermelding op een openbare bron. Beoordeel het zelf voordat je er conclusies aan verbindt.</Melding>
+        <Disclaimer>{VERBAND_DISCLAIMER}</Disclaimer>
         {verbanden.length === 0 ? (
           <Leeg titel="Geen verbanden gevonden" tekst="Leg projecthistorie vast of verrijk partners; verbanden worden daaruit afgeleid." />
         ) : (

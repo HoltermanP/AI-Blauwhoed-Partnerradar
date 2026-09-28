@@ -546,6 +546,8 @@ export type MatchRun = {
   input: { eisen: ProjectRequirement[]; vrijeOmschrijving?: string; gewichtsversieId?: string };
   resultaat: RolResultaat[];
   vorigeRunId?: string;
+  /** US-59/US-70: onderbouwing in gewone taal per rol (AI of regels); een onderbouwde eerste selectie, geen oordeel. */
+  onderbouwing?: { provider: string; op: string; door: string; perRol: Array<{ rol: Rol; samenvatting: string; perKandidaat: Array<{ partnerId: string; onderbouwing: string; aandachtspunten: string[] }> }> };
 };
 
 export type MatchFeedback = {

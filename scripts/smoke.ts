@@ -27,7 +27,8 @@ import { aiBudget, budgetStatus, kostenEur, maandVerbruik, modelVoor, schatVerri
 import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
 import type { AIBewerking } from "../src/lib/domain/types";
 import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
-import { matchRijen, waardenRijen } from "../src/lib/domain/export";
+import { MATCH_DISCLAIMER, matchRijen, waardenRijen } from "../src/lib/domain/export";
+import { regelOnderbouwingRol, regelVerbandAnalyse } from "../src/lib/domain/onderbouwing";
 import { controleerVerwijderen, verwijderPartnerDefinitief, VERWIJDERD } from "../src/lib/domain/verwijderen";
 import { volledigeExportJson, volledigeExportTabellen } from "../src/lib/domain/volledigeExport";
 import { naarXlsx } from "../src/lib/xlsx";
@@ -484,6 +485,17 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   check("US-69 partner, historie, beoordelingen, voorstellen en kandidaat weg", !dbV.partners.some((x) => x.id === p.id) && u.engagements === engVoor && engVoor > 0 && u.evaluaties > 0 && u.kandidaten === 1 && !dbV.evaluaties.some((e) => e.partnerId === p.id), u);
   check("US-69 matchruns opgeschoond, team geanonimiseerd, blob opgeruimd", u.matchruns === 1 && dbV.teams[0].leden[0].partnerNaam === VERWIJDERD && u.blobs[0] === "https://blob.example/x.pdf");
   check("US-69 geen naam of id meer in de gegevens (behalve de verwijderregel)", !json.includes("Woudbouw Groep") && !json.includes('"p-woudbouw"'));
+}
+
+// ---------- US-70: onderbouwing en verbandanalyse (regels), disclaimers ----------
+{
+  const dbO = maakSeedDatabase();
+  const res = matchProject({ db: dbO, project: dbO.projecten.find((p) => p.id === "proj-groene-loper")! });
+  const r = regelOnderbouwingRol(res.find((x) => x.rol === "aannemer")!);
+  check("US-70 onderbouwing per kandidaat met score, dekking en aandachtspunten", r.perKandidaat.length > 0 && r.perKandidaat[0].onderbouwing.includes("dekkingsgraad") && typeof r.samenvatting === "string");
+  const va = regelVerbandAnalyse(leidVerbandenAf(dbO));
+  check("US-70 verbandanalyse met bronnen en kanttekening (art. 11.4)", va.patronen.length > 0 && va.patronen.every((p) => p.bronnen.length > 0) && va.kanttekeningen.some((k) => k.includes("geen bevestiging")));
+  check("US-70 disclaimer matchscore (art. 11.3)", MATCH_DISCLAIMER.includes("geen oordeel over geschiktheid, betrouwbaarheid of financiële gezondheid"));
 }
 
 // ---------- US-67/US-68: exports ----------
