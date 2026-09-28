@@ -29,12 +29,14 @@ export function importeerEngagements(csv: string, db: Pick<Database, "partners" 
     const kvk = kolom(r, "kvk", "kvk-nummer", "kvknummer");
     const crediteur = kolom(r, "crediteurnummer", "crediteur", "crediteurnr");
     const partner = db.partners.find((p) => (kvk && p.kvk === kvk) || (crediteur && db.engagements.some((e) => e.partnerId === p.id && e.crediteurnummer === crediteur)) || (crediteur && p.tags.includes(`crediteur:${crediteur}`)));
-    const projectNaam = kolom(r, "project", "projectnaam", "projectnummer");
-    const project = db.projecten.find((p) => p.naam.toLowerCase() === projectNaam.toLowerCase() || p.id === projectNaam);
+    // US-63: koppeling op projectnummer gaat voor; anders op projectnaam of id.
+    const projectnummer = kolom(r, "projectnummer", "projectnr", "project nr", "project-nr");
+    const projectNaam = kolom(r, "project", "projectnaam") || projectnummer;
+    const project = (projectnummer ? db.projecten.find((p) => p.projectnummer && p.projectnummer.toLowerCase() === projectnummer.toLowerCase()) : undefined) ?? db.projecten.find((p) => p.naam.toLowerCase() === projectNaam.toLowerCase() || p.id === projectNaam);
     const rol = kolom(r, "rol").toLowerCase() as Rol;
     const contractwaarde = Number(kolom(r, "contractwaarde", "bedrag").replace(/[^0-9.,-]/g, "").replace(",", "."));
     if (!partner) return resultaat.wachtrij.push({ regel: r, reden: kvk || crediteur ? `Geen partner met KVK ${kvk || "-"} of crediteurnummer ${crediteur || "-"}` : "KVK en crediteurnummer ontbreken" });
-    if (!project) return resultaat.wachtrij.push({ regel: r, reden: `Project '${projectNaam}' niet gevonden` });
+    if (!project) return resultaat.wachtrij.push({ regel: r, reden: projectnummer ? `Projectnummer '${projectnummer}' niet gevonden` : `Project '${projectNaam}' niet gevonden` });
     if (!ROLLEN.includes(rol)) return resultaat.wachtrij.push({ regel: r, reden: `Rol '${rol}' onbekend` });
     if (!Number.isFinite(contractwaarde)) return resultaat.wachtrij.push({ regel: r, reden: "Contractwaarde niet leesbaar" });
     resultaat.engagements.push({

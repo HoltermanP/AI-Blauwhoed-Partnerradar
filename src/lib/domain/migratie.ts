@@ -5,7 +5,7 @@ import { standaardAanvullingInstellingen } from "./instellingen";
 import { kostenEur } from "./kosten";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 11;
+export const HUIDIGE_VERSIE = 12;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -185,6 +185,21 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
         y.kostenEur = kostenEur(a.invoerTokens, a.uitvoerTokens, db.instellingen.aiBudget);
         delete y.kostenUsd;
       });
+    });
+  }
+  if (van < 12) {
+    // US-63: projectnummer (uniek) en totale tevredenheidsscore per evaluatie. Bestaande projectnummers worden opgeschoond;
+    // een dubbel nummer wordt bij het latere project leeggemaakt zodat de uniciteit gegarandeerd is.
+    const gezien = new Set<string>();
+    db.projecten.forEach((p) => {
+      const n = p.projectnummer?.trim();
+      if (!n) return void delete p.projectnummer;
+      if (gezien.has(n.toLowerCase())) return void delete p.projectnummer;
+      gezien.add(n.toLowerCase());
+      p.projectnummer = n;
+    });
+    db.evaluaties.forEach((e) => {
+      if (e.totaalscore !== undefined && !(e.totaalscore >= 1 && e.totaalscore <= 5)) delete e.totaalscore;
     });
   }
   db.versie = HUIDIGE_VERSIE;

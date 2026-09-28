@@ -2,6 +2,7 @@
 // Afgeleide waarden krijgen bron `projecthistorie`/`evaluatie` en een hogere betrouwbaarheid dan opgave of web.
 import type { Database, Engagement, Evaluatie, Partner, PartnerFactor, Project, Rol } from "./types";
 import { BRON_BETROUWBAARHEID } from "./types";
+import { totaalscore } from "./tevredenheid";
 
 const JAAR_MS = 365.25 * 24 * 3600 * 1000;
 
@@ -169,8 +170,9 @@ export function leidFactorenAf(partner: Partner, db: Pick<Database, "engagements
   }
 
   // Evaluatiescore (US-21): gemiddelde van vier scores, gewogen naar recentheid
+  // US-63: de totale tevredenheidsscore (gemiddelde van de vijf deelscores of handmatig bijgesteld) weegt mee in de matchscore.
   const evals = evaluaties.map((ev) => ({
-    waarde: (ev.kwaliteit + ev.planning + ev.budget + ev.samenwerking) / 4,
+    waarde: totaalscore(ev),
     gewicht: recentheidsgewicht(ev.datum, nu)
   }));
   const evaluatiescore = gewogenGemiddelde(evals);

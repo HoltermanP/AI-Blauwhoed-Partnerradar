@@ -400,6 +400,8 @@ export type Herkomst = { veld: string; citaat: string; betrouwbaarheid: number }
 
 export type Project = {
   id: string;
+  /** US-63: Blauwhoed-projectnummer (uniek, doorzoekbaar, importeerbaar via de historie-CSV). */
+  projectnummer?: string;
   naam: string;
   type: Projecttype;
   locatie: Geo & { plaats: string; adres?: string };
@@ -446,6 +448,10 @@ export type Evaluatie = {
   samenwerking: number;
   duurzaamheid: number;
   toelichting: string;
+  /** US-63: handmatig bijgestelde totale tevredenheidsscore (1–5); standaard het gemiddelde van de vijf deelscores. */
+  totaalscore?: number;
+  /** Verplicht als de totaalscore handmatig is bijgesteld. */
+  totaalToelichting?: string;
 };
 
 export type DiscoveryStatus = "nieuw" | "geaccepteerd" | "afgewezen" | "geparkeerd";

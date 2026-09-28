@@ -58,6 +58,7 @@ export default async function ProjectenPagina() {
                         <Link href={`/projecten/${p.id}`}>
                           <b>{p.naam}</b>
                         </Link>
+                        {p.projectnummer ? <div className="muted klein-tekst">nr. {p.projectnummer}</div> : null}
                       </td>
                       <td>{hoofdletter(p.type)}</td>
                       <td>{p.locatie.plaats}</td>

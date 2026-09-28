@@ -1,6 +1,7 @@
 // B8: export naar CSV (opent direct in Excel; puntkomma + BOM voor NL-instellingen).
 import { basisveldWaarde, BASISVELDEN_LIJST, betrouwbaarheidNiveau, bronTekst, effectieveStatus, geenBronVeldnaam } from "./herkomst";
 import { BASISVELD_LABEL } from "./types";
+import { totaalscore } from "./tevredenheid";
 import { STATUS_LABEL } from "../format";
 import type { Database } from "./types";
 
@@ -63,8 +64,9 @@ export function historieCsv(db: Database) {
       const p = db.partners.find((x) => x.id === e.partnerId);
       const proj = db.projecten.find((x) => x.id === e.projectId);
       const ev = db.evaluaties.filter((x) => x.engagementId === e.id || (x.partnerId === e.partnerId && x.projectId === e.projectId));
-      const gem = ev.length ? Math.round((ev.reduce((s, x) => s + (x.kwaliteit + x.planning + x.budget + x.samenwerking + x.duurzaamheid) / 5, 0) / ev.length) * 10) / 10 : "";
+      const gem = ev.length ? Math.round((ev.reduce((s, x) => s + totaalscore(x), 0) / ev.length) * 10) / 10 : "";
       return {
+        Projectnummer: proj?.projectnummer ?? "",
         Partner: p?.naam ?? e.partnerId,
         Project: proj?.naam ?? e.projectId,
         Rol: e.rol,
@@ -74,7 +76,8 @@ export function historieCsv(db: Database) {
         "Geplande oplevering": e.geplandeOplevering ?? "",
         "Werkelijke oplevering": e.werkelijkeOplevering ?? "",
         Bouwsysteem: e.bouwsysteem ?? "",
-        "Evaluatie (gem.)": gem,
+        "Tevredenheid (totaal, organisatieniveau)": gem,
+        "Toelichting evaluatie": ev.map((x) => [x.toelichting, x.totaalToelichting ? `bijgesteld: ${x.totaalToelichting}` : ""].filter(Boolean).join(" ")).join(" | "),
         Bron: e.bron
       };
     })

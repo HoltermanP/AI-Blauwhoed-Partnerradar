@@ -5,8 +5,9 @@ import { useState, useTransition } from "react";
 import { importeerCsv } from "@/lib/actions";
 import { Melding } from "@/components/ui";
 
-export const CSV_KOP = "kvk;crediteurnummer;project;rol;van;tot;contractwaarde;raming;eindafrekening;geplande oplevering;werkelijke oplevering;bouwsysteem";
-export const CSV_VOORBEELD = "34123456;CR-1001;Houtwijk Vathorst;aannemer;2023-03-01;2025-02-28;18500000;18200000;18650000;2025-02-15;2025-02-28;CLT";
+// US-63: projectnummer is de voorkeurskoppeling met het project (anders projectnaam).
+export const CSV_KOP = "kvk;crediteurnummer;projectnummer;project;rol;van;tot;contractwaarde;raming;eindafrekening;geplande oplevering;werkelijke oplevering;bouwsysteem";
+export const CSV_VOORBEELD = "34123456;CR-1001;2023-004;Houtwijk Vathorst;aannemer;2023-03-01;2025-02-28;18500000;18200000;18650000;2025-02-15;2025-02-28;CLT";
 
 export default function CsvImport({ magBewerken }: { magBewerken: boolean }) {
   const router = useRouter();

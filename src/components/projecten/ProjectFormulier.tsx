@@ -14,6 +14,7 @@ const STIJLEN: Bouwstijl[] = ["traditioneel", "modern", "industrieel", "dorps", 
 const FASEN: Projectfase[] = ["initiatief", "planvorming", "realisatie", "opgeleverd", "nazorg"];
 
 export type ProjectFormWaarden = {
+  projectnummer?: string;
   naam: string;
   type: Projecttype;
   plaats: string;
@@ -109,6 +110,7 @@ export default function ProjectFormulier({ id, initieel, plaatsen, herkomstBesta
     if (!w.start || !w.eind) return setFout("Planning start en eind zijn verplicht.");
     if (w.eind < w.start) return setFout("Einddatum ligt vóór de startdatum.");
     const invoer: ProjectInvoer = {
+      projectnummer: w.projectnummer?.trim() || undefined,
       naam: w.naam.trim(),
       type: w.type,
       plaats: w.plaats,
@@ -211,6 +213,10 @@ export default function ProjectFormulier({ id, initieel, plaatsen, herkomstBesta
         </header>
         {fout ? <Melding soort="fout">{fout}</Melding> : null}
         <div className="rij">
+          <label>
+            Projectnummer (Blauwhoed)
+            <input value={w.projectnummer ?? ""} onChange={(e) => zet("projectnummer", e.target.value)} placeholder="bijv. 2024-017" />
+          </label>
           <label>
             Naam
             <input value={w.naam} onChange={(e) => zet("naam", e.target.value)} required />

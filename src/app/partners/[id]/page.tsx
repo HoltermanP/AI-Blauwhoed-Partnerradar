@@ -12,6 +12,7 @@ import BasisveldBevestigen from "@/components/partners/BasisveldBevestigen";
 import { basisveldHerkomst, basisveldWaarde, BASISVELDEN_LIJST } from "@/lib/domain/herkomst";
 import { goudstandaardVolledigheid } from "@/lib/domain/goudstandaard";
 import { BASISVELD_LABEL } from "@/lib/domain/types";
+import { isBijgesteld, totaalscore, TEVREDENHEID_UITLEG } from "@/lib/domain/tevredenheid";
 import CapaciteitBeheer from "@/components/partners/CapaciteitBeheer";
 import CertificatenBeheer from "@/components/partners/CertificatenBeheer";
 import { certificaatStatus } from "@/components/partners/certificaten";
@@ -470,6 +471,7 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
             <table className="tabel">
               <thead>
                 <tr>
+                  <th>Projectnr.</th>
                   <th>Project</th>
                   <th>Rol</th>
                   <th>Periode</th>
@@ -489,6 +491,7 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
                   const teLaat = e.geplandeOplevering && e.werkelijkeOplevering ? (new Date(e.werkelijkeOplevering).getTime() - new Date(e.geplandeOplevering).getTime()) / 86_400_000 > 30 : false;
                   return (
                     <tr key={e.id}>
+                      <td>{db.projecten.find((x) => x.id === e.projectId)?.projectnummer ?? "–"}</td>
                       <td>
                         <Link href={`/projecten/${e.projectId}`}>{projectNaam(e.projectId)}</Link>
                       </td>
@@ -515,7 +518,8 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
         )}
       </Kaart>
       <div className="raster raster-2">
-        <Kaart titel="Evaluaties">
+        <Kaart titel="Evaluaties en tevredenheid (US-63)">
+          <p className="muted klein-tekst">{TEVREDENHEID_UITLEG}</p>
           {evaluaties.length ? (
             <div className="tabelWrap">
               <table className="tabel">
@@ -528,6 +532,7 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
                     <th className="num">Budget</th>
                     <th className="num">Samenw.</th>
                     <th className="num">Duurz.</th>
+                    <th className="num">Totaal</th>
                     <th>Toelichting</th>
                   </tr>
                 </thead>
@@ -547,7 +552,14 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
                       <td className="num">{ev.budget}</td>
                       <td className="num">{ev.samenwerking}</td>
                       <td className="num">{ev.duurzaamheid}</td>
-                      <td className="klein-tekst">{ev.toelichting}</td>
+                      <td className="num">
+                        <b>{totaalscore(ev).toLocaleString("nl-NL")}</b>
+                        {isBijgesteld(ev) ? <Badge kleur="geel" titel={ev.totaalToelichting}>bijgesteld</Badge> : null}
+                      </td>
+                      <td className="klein-tekst">
+                        {ev.toelichting}
+                        {ev.totaalToelichting ? <div className="muted">Bijstelling: {ev.totaalToelichting}</div> : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -27,6 +27,7 @@ import { aiBudget, budgetStatus, kostenEur, maandVerbruik, modelVoor, schatVerri
 import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
 import type { AIBewerking } from "../src/lib/domain/types";
 import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
+import { afgeleideTotaalscore, controleerTotaal, historieTreft } from "../src/lib/domain/tevredenheid";
 import { aanbiedersUitOverzicht, ontdubbel, regelOnderbouwing, regelZoekvragen } from "../src/lib/domain/aandragen";
 import { leesSbi } from "../src/lib/domain/webverrijking";
 import { leesZipBestand, maakZip } from "../src/lib/zip";
@@ -434,6 +435,31 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   check("US-55 onderbouwing: waarom past het, bron, wat is onzeker", ob.waaromPastHet.includes("Houtbouw Noord") && ob.watIsOnzeker.some((o) => o.includes("nog niet vastgesteld")));
   const c = kandidaatNaarConcept({ ...od.nieuw[0], id: "a1", status: "geaccepteerd", opgehaaldOp: "2026-09-20T10:00:00Z", samenvatting: ob }, "Beheerder", new Date(), "ai-aandraag");
   check("US-55 aangedragen partij wordt concept met bron-URL en ophaaldatum", c.status === "concept" && c.registratie?.herkomstSoort === "ai-aandraag" && c.registratie.onderbouwing?.bronUrl === od.nieuw[0].bronUrl && c.registratie.onderbouwing?.opgehaaldOp === "2026-09-20T10:00:00Z");
+}
+
+// ---------- US-63: projectnummer en tevredenheid per project ----------
+{
+  const dbP = maakSeedDatabase();
+  const proj = dbP.projecten.find((p) => p.id === "proj-groene-loper")!;
+  proj.projectnummer = "2024-017";
+  const imp = importeerEngagements("kvk;projectnummer;rol;van;contractwaarde\n34123456;2024-017;aannemer;2024-02-01;1000\n34123456;9999-999;aannemer;2024-01-01;1", dbP);
+  check("US-63 historie-CSV koppelt op projectnummer", imp.engagements.length === 1 && imp.engagements[0].projectId === proj.id && imp.wachtrij[0].reden.includes("Projectnummer '9999-999'"), imp.wachtrij);
+  const ev = { kwaliteit: 5, planning: 4, budget: 4, samenwerking: 5, duurzaamheid: 2 };
+  check("US-63 totaalscore standaard afgeleid uit 5 deelscores", afgeleideTotaalscore(ev) === 4);
+  check("US-63 bijstellen vraagt toelichting", controleerTotaal({ ...ev, totaalscore: 3 }) !== null && controleerTotaal({ ...ev, totaalscore: 3, totaalToelichting: "Oplevering kwam te laat voor de bewoners" }) === null && controleerTotaal({ ...ev, totaalscore: 7, totaalToelichting: "x" }) !== null);
+  const evWoud = dbP.evaluaties.filter((e) => e.partnerId === "p-woudbouw");
+  const voor = leidFactorenAf(dbP.partners.find((p) => p.id === "p-woudbouw")!, dbP).statistieken.evaluatiescore;
+  evWoud.forEach((e) => {
+    e.totaalscore = 1;
+    e.totaalToelichting = "test";
+  });
+  const na = leidFactorenAf(dbP.partners.find((p) => p.id === "p-woudbouw")!, dbP).statistieken.evaluatiescore;
+  check("US-63 totale score weegt mee in de matchscore (evaluatiescore)", voor !== null && na === 1 && voor > 1, { voor, na });
+  check("US-63 historie doorzoekbaar op projectnummer en toelichting", historieTreft("2024-017 aannemer", ["2024-017", "Groene Loper", "aannemer"]) && !historieTreft("2025", ["2024-017"]));
+  const eem = dbP.projecten.find((p) => p.id === "proj-eemkwartier")!;
+  eem.projectnummer = "2021-003";
+  const ctx = chatContext(dbP, "Welke partners werkten op project 2021-003?");
+  check("US-63 chat vindt partners op projectnummer", ctx.partners.some((p) => dbP.engagements.some((e) => e.partnerId === p.id && e.projectId === eem.id)) && ctx.records.some((r) => r.projecten.some((x) => x.projectnummer === "2021-003")));
 }
 
 const groepD = (async () => {

@@ -24,7 +24,7 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
   return (
     <>
       <PaginaKop
-        eyebrow="Project"
+        eyebrow={p.projectnummer ? `Project ${p.projectnummer}` : "Project"}
         titel={p.naam}
         intro={p.omschrijving}
         acties={

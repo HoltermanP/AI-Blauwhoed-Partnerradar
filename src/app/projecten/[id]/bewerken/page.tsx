@@ -31,7 +31,7 @@ export default async function ProjectBewerkenPagina({ params }: { params: Promis
           toonExtractie
           plaatsen={plaatsen}
           herkomstBestaand={p.herkomst}
-          initieel={{ naam: p.naam, type: p.type, plaats, woningen: p.woningen, prijssegment: p.prijssegment, bouwstijl: p.bouwstijl, ambitieDuurzaamheid: p.ambitieDuurzaamheid, start: p.planning.start, eind: p.planning.eind, fase: p.fase, omschrijving: p.omschrijving }}
+          initieel={{ projectnummer: p.projectnummer, naam: p.naam, type: p.type, plaats, woningen: p.woningen, prijssegment: p.prijssegment, bouwstijl: p.bouwstijl, ambitieDuurzaamheid: p.ambitieDuurzaamheid, start: p.planning.start, eind: p.planning.eind, fase: p.fase, omschrijving: p.omschrijving }}
         />
       )}
     </>

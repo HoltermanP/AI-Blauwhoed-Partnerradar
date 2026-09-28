@@ -8,6 +8,7 @@ import { collaborationEdges, leidFactorenAf } from "@/lib/domain/derive";
 import { ROLLEN, type Rol } from "@/lib/domain/types";
 import { datum, euro, getal, ROL_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
+import { historieTreft, isBijgesteld, totaalscore, TEVREDENHEID_UITLEG } from "@/lib/domain/tevredenheid";
 
 export default async function HistoriePagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
@@ -18,9 +19,18 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
   const filterPartner = sp.partner ?? "";
   const filterProject = sp.project ?? "";
   const filterRol = ROLLEN.includes(sp.rol as Rol) ? (sp.rol as Rol) : "";
+  const q = (sp.q ?? "").trim();
+  const evaluatieVan = (partnerId: string, projectId: string, engagementId: string) => db.evaluaties.find((x) => x.engagementId === engagementId) ?? db.evaluaties.find((x) => x.partnerId === partnerId && x.projectId === projectId);
 
+  // US-63: doorzoekbaar op projectnummer, projectnaam, rol, periode en toelichting (evaluatie).
   const engagements = db.engagements
     .filter((e) => (!filterPartner || e.partnerId === filterPartner) && (!filterProject || e.projectId === filterProject) && (!filterRol || e.rol === filterRol))
+    .filter((e) => {
+      if (!q) return true;
+      const proj = projectVan(e.projectId);
+      const ev = evaluatieVan(e.partnerId, e.projectId, e.id);
+      return historieTreft(q, [proj?.projectnummer, proj?.naam, partnerVan(e.partnerId)?.naam, e.rol, ROL_LABEL[e.rol], e.periode.van, e.periode.tot, ev?.toelichting, ev?.totaalToelichting]);
+    })
     .sort((a, b) => b.periode.van.localeCompare(a.periode.van));
 
   const afwijking = (raming?: number, eind?: number) => (raming && eind ? ((eind - raming) / raming) * 100 : null);
@@ -38,6 +48,10 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
 
       <Kaart titel={`Engagements (${engagements.length})`}>
         <form className="formulier historieFilters" method="get">
+          <label>
+            Zoeken
+            <input name="q" defaultValue={q} placeholder="Projectnummer, projectnaam, partner, rol, jaar of toelichting" />
+          </label>
           <div className="rij">
             <label>
               Partner
@@ -87,6 +101,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
             <table className="tabel">
               <thead>
                 <tr>
+                  <th>Projectnr.</th>
                   <th>Project</th>
                   <th>Partner</th>
                   <th>Rol</th>
@@ -96,14 +111,17 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
                   <th className="num">Eindafrekening</th>
                   <th className="num">Afwijking</th>
                   <th>Oplevering gepland / werkelijk</th>
+                  <th className="num" title={TEVREDENHEID_UITLEG}>Tevredenheid</th>
                   <th>Bron</th>
                 </tr>
               </thead>
               <tbody>
                 {engagements.map((e) => {
                   const afw = afwijking(e.ramingBijStart, e.eindafrekening);
+                  const ev = evaluatieVan(e.partnerId, e.projectId, e.id);
                   return (
                     <tr key={e.id}>
+                      <td>{projectVan(e.projectId)?.projectnummer ?? "–"}</td>
                       <td>
                         <Link href={`/projecten/${e.projectId}`}>{projectVan(e.projectId)?.naam ?? e.projectId}</Link>
                       </td>
@@ -120,6 +138,10 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
                       <td className="num">{afw === null ? "–" : <span className={afw > 5 ? "negatief" : afw < 0 ? "positief" : ""}>{afw > 0 ? "+" : ""}{getal(afw, 1)}%</span>}</td>
                       <td>
                         {datum(e.geplandeOplevering)} / {datum(e.werkelijkeOplevering)}
+                      </td>
+                      <td className="num" title={[ev?.toelichting, ev?.totaalToelichting].filter(Boolean).join(" · ")}>
+                        {ev ? <b>{totaalscore(ev).toLocaleString("nl-NL")}</b> : <span className="muted">–</span>}
+                        {ev && isBijgesteld(ev) ? <Badge kleur="geel">bijgesteld</Badge> : null}
                       </td>
                       <td>
                         <Badge kleur={e.bron === "csv-import" ? "blauw" : "grijs"}>{e.bron}</Badge>

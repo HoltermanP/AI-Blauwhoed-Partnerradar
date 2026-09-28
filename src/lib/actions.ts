@@ -33,6 +33,7 @@ import type { BronConnector } from "./domain/discovery";
 import { slaNuOp } from "./store";
 import { matchProject, valideerGewichten } from "./domain/matching";
 import { risicoklasse } from "./domain/signalen";
+import { afgeleideTotaalscore, controleerTotaal } from "./domain/tevredenheid";
 import { stelTeamSamen } from "./domain/team";
 import type {
   BasisVeld,
@@ -458,6 +459,13 @@ export type ProjectInvoer = Omit<Project, "id" | "locatie" | "aangemaaktOp" | "b
 export async function slaProjectOp(id: string | null, invoer: ProjectInvoer) {
   return veilig(async () => {
     const g = await vereisRecht("bewerken");
+    // US-63: projectnummer is uniek.
+    const nummer = invoer.projectnummer?.trim() || undefined;
+    invoer = { ...invoer, projectnummer: nummer };
+    if (nummer) {
+      const bestaand = (await getDb()).projecten.find((p) => p.projectnummer?.toLowerCase() === nummer.toLowerCase() && p.id !== id);
+      if (bestaand) throw new Error(`Projectnummer ${nummer} is al in gebruik bij ${bestaand.naam}.`);
+    }
     const gevonden = await geocodeer(invoer.plaats);
     if (!gevonden) throw new Error(`Plaats '${invoer.plaats}' kon niet worden gevonden (PDOK Locatieserver).`);
     const geo = gevonden.locatie;
@@ -641,7 +649,10 @@ export async function verwijderUitImportWachtrij(id: string) {
 export async function slaEvaluatieOp(ev: Omit<Evaluatie, "id" | "door" | "datum"> & { datum?: string }) {
   return veilig(async () => {
     const g = await vereisRecht("evalueren");
-    await muteer(g, { entiteit: "evaluatie", entiteitId: ev.engagementId, actie: "beoordeling vastgelegd", details: `${ev.partnerId}: k${ev.kwaliteit} p${ev.planning} b${ev.budget} s${ev.samenwerking} d${ev.duurzaamheid}` }, (db) => {
+    const controle = controleerTotaal(ev);
+    if (controle) throw new Error(controle);
+    if (ev.totaalscore !== undefined && Math.abs(ev.totaalscore - afgeleideTotaalscore(ev)) <= 0.049) ev = { ...ev, totaalscore: undefined, totaalToelichting: undefined };
+    await muteer(g, { entiteit: "evaluatie", entiteitId: ev.engagementId, actie: "beoordeling vastgelegd", details: `${ev.partnerId}: k${ev.kwaliteit} p${ev.planning} b${ev.budget} s${ev.samenwerking} d${ev.duurzaamheid}${ev.totaalscore !== undefined ? `; totaal bijgesteld naar ${ev.totaalscore}` : ""}` }, (db) => {
       db.evaluaties = db.evaluaties.filter((x) => x.engagementId !== ev.engagementId);
       db.evaluaties.push({ ...ev, id: nieuwId("ev"), door: g.naam, datum: ev.datum ?? new Date().toISOString().slice(0, 10) });
     });
