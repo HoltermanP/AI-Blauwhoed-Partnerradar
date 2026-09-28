@@ -8,6 +8,10 @@ import { datumTijd, ROL_LABEL, STATUS_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { Badge, Kaart, Knop, Leeg, Melding, Metriek, PaginaKop } from "@/components/ui";
 import { SignaalLijst } from "@/components/dashboard/SignaalLijst";
+import { zichtbaar } from "@/lib/domain/zichtbaarheid";
+import { goudstandaardPerRol } from "@/lib/domain/goudstandaard";
+import { statusVerdeling } from "@/lib/domain/datakwaliteit";
+import { budgetStatus } from "@/lib/domain/kosten";
 
 const SOORTEN: Array<{ id: Signaal["soort"] | "alle"; label: string }> = [
   { id: "alle", label: "Alle" },
@@ -15,7 +19,8 @@ const SOORTEN: Array<{ id: Signaal["soort"] | "alle"; label: string }> = [
   { id: "afhankelijkheid", label: "Afhankelijkheid" },
   { id: "evaluatie", label: "Evaluaties" },
   { id: "prospect", label: "Prospects" },
-  { id: "dekking", label: "Dekking" }
+  { id: "dekking", label: "Dekking" },
+  { id: "budget", label: "AI-budget" }
 ];
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -41,6 +46,16 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     return { rol, totaal: g.length, top3: t };
   }).filter((r) => r.totaal > 0);
   const runsZonderFeedback = db.matchRuns.filter((r) => !db.feedback.some((f) => f.matchRunId === r.id)).length;
+
+  // US-66: datakwaliteit op het overzichtsscherm (alleen zichtbare partners: geen concepten of gearchiveerde).
+  const zichtbarePartners = db.partners.filter(zichtbaar);
+  const gsPerRol = goudstandaardPerRol(db, zichtbarePartners);
+  const verdeling = statusVerdeling(zichtbarePartners, db.factoren);
+  const pctVan = (n: number) => (verdeling.totaal ? Math.round((n / verdeling.totaal) * 100) : 0);
+  const geenBronVelden = zichtbarePartners.reduce((s, p) => s + Object.keys(p.geenBron ?? {}).length, 0);
+  const geenBronPartners = zichtbarePartners.filter((p) => Object.keys(p.geenBron ?? {}).length).length;
+  const openConcepten = db.partners.filter((p) => p.status === "concept").length;
+  const verbruik = budgetStatus(db);
 
   const recenteRuns = [...db.matchRuns].sort((a, b) => b.gestartOp.localeCompare(a.gestartOp)).slice(0, 6);
   const recenteAudit = db.audit.slice(0, 5);
@@ -76,6 +91,54 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Metriek waarde={openVoorstellen} label="Open verrijkingsvoorstellen" sub={<Link href="/verrijking">Beoordelen</Link>} />
         <Metriek waarde={<span style={{ color: kritiek ? "var(--red)" : undefined }}>{kritiek}</span>} label="Kritieke signalen" sub={<a href="#signalen">Bekijk</a>} />
       </div>
+
+      <Kaart titel="Datakwaliteit (US-66)" acties={<Link href="/beheer">Details per veld</Link>}>
+        <div className="kwaliteitRaster">
+          <Metriek waarde={`${pctVan(verdeling.gevalideerd)}%`} label="Gevalideerd" sub={<Link href="/partners?waardestatus=gevalideerd">{verdeling.gevalideerd} waarden</Link>} />
+          <Metriek waarde={`${pctVan(verdeling.voorgesteld)}%`} label="Voorgesteld" sub={<Link href="/partners?waardestatus=voorgesteld">{verdeling.voorgesteld} waarden</Link>} />
+          <Metriek waarde={`${pctVan(verdeling.verouderd)}%`} label="Verouderd" sub={<Link href="/partners?waardestatus=verouderd">{verdeling.verouderd} waarden</Link>} />
+          <Metriek waarde={geenBronVelden} label="Velden zonder betrouwbare bron" sub={<Link href="/partners?geenbron=1">{geenBronPartners} partner(s)</Link>} />
+          <Metriek waarde={openConcepten} label="Open concepten (AI-voorstellen)" sub={<Link href="/vrijgave">Vrijgavewachtrij</Link>} />
+          <Metriek waarde={openVoorstellen} label="Open verrijkingsvoorstellen" sub={<Link href="/verrijking">Beoordelen</Link>} />
+          <Metriek waarde={`${verbruik.bewerkingen} / ${verbruik.budgetBewerkingen}`} label="AI-bewerkingen deze maand" sub={<Link href="/beheer/verbruik">{Math.round(verbruik.pct)}% van het budget</Link>} />
+        </div>
+        <h3>Gevulde goudstandaardvelden per partnertype</h3>
+        {gsPerRol.length ? (
+          <div className="tabelWrap">
+            <table className="tabel">
+              <thead>
+                <tr>
+                  <th>Partnertype</th>
+                  <th className="num">Partners</th>
+                  <th>Gevuld</th>
+                  <th className="num">Verplicht onvolledig</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gsPerRol.map((r) => (
+                  <tr key={r.rol}>
+                    <td>
+                      <Link href={`/partners?rol=${r.rol}`}>{ROL_LABEL[r.rol]}</Link>
+                    </td>
+                    <td className="num">{r.partners}</td>
+                    <td>
+                      <div className="voortgang" aria-label={`${r.pct ?? 0}% gevuld`}>
+                        <span style={{ width: `${r.pct ?? 0}%` }} />
+                      </div>
+                      <small className="muted">{r.pct ?? 0}%</small>
+                    </td>
+                    <td className="num">
+                      <Link href={`/partners?rol=${r.rol}&gs=onvolledig`}>{r.onvolledig}</Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted">Nog geen partners.</p>
+        )}
+      </Kaart>
 
       <div className="raster raster-zij">
         <div>
