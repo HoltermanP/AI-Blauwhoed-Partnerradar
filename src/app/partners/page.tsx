@@ -14,6 +14,7 @@ import { parseKenmerken, type KenmerkEis } from "@/components/partners/kenmerken
 import { leidEisenAf } from "@/lib/domain/projectfactoren";
 import { goudstandaardVolledigheid } from "@/lib/domain/goudstandaard";
 import { heeftWaardeStatus } from "@/lib/domain/datakwaliteit";
+import { zichtbaar } from "@/lib/domain/zichtbaarheid";
 
 
 // US-54: concepten zijn uitgesloten van filteren; ze staan in de vrijgavewachtrij (/vrijgave).
@@ -82,7 +83,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
     })
     .sort((a, b) => a.p.naam.localeCompare(b.p.naam));
 
-  const telling = kenmerken.map((k, i) => db.partners.filter((p) => effectieveFactoren(p, db, nu).some((f) => f.factorId === k.factorId && voldoetAan(f, k, kenmerkFactorenActief[i]))).length);
+  const telling = kenmerken.map((k, i) => db.partners.filter((p) => zichtbaar(p) && effectieveFactoren(p, db, nu).some((f) => f.factorId === k.factorId && voldoetAan(f, k, kenmerkFactorenActief[i]))).length);
   const kenmerkFactoren = db.factoren.filter((f) => f.actief && (f.schaal.soort === "niveau" || f.schaal.soort === "getal" || f.schaal.soort === "percentage"));
   const gefilterd = !!(q || rol || status || cert || plaats || factorId || project || sp.gs || waardeStatus || sp.geenbron);
   // B5: kolomkeuze via de querystring (checkboxes in het filterformulier).

@@ -60,7 +60,6 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   const stats = afgeleid.statistieken;
   const signalen = signalenVoor(db, nu).filter((s) => s.partnerId === p.id);
   const engagements = db.engagements.filter((e) => e.partnerId === p.id);
-  const evaluaties = db.evaluaties.filter((e) => e.partnerId === p.id);
   const openVoorstellen = db.verrijkingsvoorstellen.filter((v) => v.partnerId === p.id && v.status === "open");
 
   const tabItems = TABS.map((t) => ({

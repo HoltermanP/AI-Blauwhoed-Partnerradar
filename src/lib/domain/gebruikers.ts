@@ -52,7 +52,11 @@ export function vindOfRegistreer(gebruikers: Gebruiker[], email: string, naam: s
     if (isEerste) bestaand.rol = "beheerder"; // de eerste beheerder kan zichzelf niet buitensluiten
     return { gebruiker: bestaand, nieuw: false };
   }
-  const gebruiker: Gebruiker = { id: `u-${e.replace(/[^a-z0-9]+/g, "-")}`, naam: naam?.trim() || e, email: e, rol: isEerste ? "beheerder" : "gebruiker", actief: true, aangemaaktOp: nu.toISOString() };
+  // Uniek ID: jan.de.vries@ en jan-de-vries@ mogen niet samenvallen.
+  const basis = `u-${e.replace(/[^a-z0-9]+/g, "-")}`;
+  let id = basis;
+  for (let n = 2; gebruikers.some((g) => g.id === id); n++) id = `${basis}-${n}`;
+  const gebruiker: Gebruiker = { id, naam: naam?.trim() || e, email: e, rol: isEerste ? "beheerder" : "gebruiker", actief: true, aangemaaktOp: nu.toISOString() };
   gebruikers.push(gebruiker);
   return { gebruiker, nieuw: true };
 }

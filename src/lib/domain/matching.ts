@@ -2,6 +2,7 @@
 import { effectieveFactoren, huidigeBelasting } from "./derive";
 import { semantischeGelijkenis } from "./embedding";
 import { afstandKm } from "./geo";
+import { zichtbaar } from "./zichtbaarheid";
 import type {
   CriteriumScore,
   Database,
@@ -258,6 +259,8 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
 
   db.partners.forEach((partner) => {
     if (!partner.rollen.includes(eis.rol)) return; // stil: rol-mismatch is geen 'afgevallen goede partij'
+    // US-54: concepten en gearchiveerde partners tellen nergens mee, ook niet als (zichtbare, exporteerbare) uitsluiting.
+    if (!zichtbaar(partner)) return;
     const factoren = effectieveFactoren(partner, db, nu);
     const uitsluiting = hardeFilters(partner, eis, ctx, factoren);
     if (uitsluiting) {

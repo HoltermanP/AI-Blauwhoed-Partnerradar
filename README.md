@@ -44,7 +44,7 @@ Auth.js (next-auth v5) met Microsoft Entra ID. Zet in Vercel (en lokaal indien g
 | `EERSTE_BEHEERDER_EMAIL` | e-mailadres dat altijd beheerder is |
 | `AUTH_DEMO_MODUS` | alleen voor demo's: `1` opent de app zonder inloggen met de rolwisselaar (nooit in productie) |
 
-Redirect-URI in Entra ID: `https://<domein>/api/auth/callback/microsoft-entra-id`. Zonder deze configuratie is de app in productie **dicht** (alleen de inlogpagina); in ontwikkelmodus werkt de rolwisselaar (gebruiker/beheerder). Accounts ontstaan bij de eerste inlog; de beheerder kent rollen toe onder Beheer → Gebruikers.
+De issuer met de tenant-ID van Blauwhoed is verplicht; accounts uit andere tenants worden geweigerd (controle op `tid`). Redirect-URI in Entra ID: `https://<domein>/api/auth/callback/microsoft-entra-id`. Zonder deze configuratie is de app in productie **dicht** (alleen de inlogpagina); in ontwikkelmodus werkt de rolwisselaar (gebruiker/beheerder). Accounts ontstaan bij de eerste inlog; de beheerder kent rollen toe onder Beheer → Gebruikers.
 
 ## Nieuw in deze fase (acht onderdelen + twee dwarsdoorsnijdende eisen)
 

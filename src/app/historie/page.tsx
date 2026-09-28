@@ -57,7 +57,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
               Partner
               <select name="partner" defaultValue={filterPartner}>
                 <option value="">Alle</option>
-                {db.partners.map((p) => (
+                {db.partners.filter((p) => p.status !== "concept").map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.naam}
                   </option>

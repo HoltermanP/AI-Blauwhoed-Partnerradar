@@ -130,7 +130,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
             <h4>Certificaat</h4>
             {CERTIFICATEN.map((c) => (
               <Link key={c} href={`/partners?certificaat=${encodeURIComponent(c)}`} className="chip">
-                {c} <b>{db.partners.filter((p) => p.certificaten.some((x) => x.type === c)).length}</b>
+                {c} <b>{db.partners.filter((p) => zichtbaar(p) && p.certificaten.some((x) => x.type === c)).length}</b>
               </Link>
             ))}
           </div>

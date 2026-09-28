@@ -1,9 +1,15 @@
 // US-69: definitief verwijderen op verzoek van Blauwhoed (AVG). Alleen een gearchiveerde partner; de partner verdwijnt met
 // contactpersonen, documenten en herkomst, en ook uit engagements, evaluaties, verbanden (afgeleid), matchruns en
 // discovery-kandidaten. Teamvoorstellen worden geanonimiseerd. De auditlog bewaart alleen dát er verwijderd is.
+import { inhoudsHash } from "./enrichment";
 import type { Database, Partner } from "./types";
 
 export const VERWIJDERD = "[verwijderde partner]";
+
+/** Partner-ID's zijn naam-gebaseerd (p-giesbers-wijchen); in de auditlog blijft alleen een pseudoniem over. */
+export function pseudoniem(partnerId: string) {
+  return `verwijderd-${inhoudsHash(partnerId)}`;
+}
 
 export type VerwijderUitkomst = { blobs: string[]; engagements: number; evaluaties: number; matchruns: number; kandidaten: number; voorstellen: number; auditGeanonimiseerd: number };
 
@@ -39,6 +45,13 @@ export function verwijderPartnerDefinitief(db: Database, partnerId: string): Ver
       r.uitsluitingen = r.uitsluitingen.filter((k) => k.partnerId !== partnerId);
       if (voor !== r.kandidaten.length + r.prospects.length + r.uitsluitingen.length) geraakt = true;
     });
+    if (run.onderbouwing) {
+      run.onderbouwing.perRol.forEach((r) => {
+        const voor = r.perKandidaat.length;
+        r.perKandidaat = r.perKandidaat.filter((k) => k.partnerId !== partnerId);
+        if (voor !== r.perKandidaat.length) geraakt = true;
+      });
+    }
     if (geraakt) u.matchruns++;
   });
   db.feedback = db.feedback.filter((f) => f.partnerId !== partnerId);
@@ -68,13 +81,21 @@ export function verwijderPartnerDefinitief(db: Database, partnerId: string): Ver
     if (r.doelIds) r.doelIds = r.doelIds.filter((id) => id !== partnerId);
   });
   // Naam uit vrije teksten (auditdetails, AI-administratie, afwijsredenen): alleen vastleggen dát er iets gebeurde.
-  const wis = (t: string | undefined) => (t && naam.length >= 3 && t.includes(naam) ? t.split(naam).join(VERWIJDERD) : t);
+  const escape = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const patronen = [naam, p.kvk, partnerId].filter((x) => x && x.length >= 3).map((x) => new RegExp(escape(x), "gi"));
+  const wis = (t: string | undefined) => (t ? patronen.reduce((s, re) => s.replace(re, VERWIJDERD), t) : t);
+  const alias = pseudoniem(partnerId);
   db.audit.forEach((a) => {
-    const oud = `${a.details ?? ""}|${a.actie}`;
-    if (a.entiteitId === partnerId) a.details = undefined;
-    else a.details = wis(a.details);
+    const oud = `${a.details ?? ""}|${a.actie}|${a.entiteitId}`;
+    if (a.entiteitId === partnerId) {
+      a.details = undefined;
+      a.entiteitId = alias;
+    } else {
+      a.details = wis(a.details);
+      a.entiteitId = wis(a.entiteitId) ?? a.entiteitId;
+    }
     a.actie = wis(a.actie) ?? a.actie;
-    if (oud !== `${a.details ?? ""}|${a.actie}`) u.auditGeanonimiseerd++;
+    if (oud !== `${a.details ?? ""}|${a.actie}|${a.entiteitId}`) u.auditGeanonimiseerd++;
   });
   db.aiBewerkingen.forEach((b) => {
     b.omschrijving = wis(b.omschrijving);

@@ -23,13 +23,13 @@ import { naamGelijkenis } from "../src/lib/domain/fuzzy";
 import { naarCsv, partnersCsv } from "../src/lib/domain/export";
 import { veldKwaliteit } from "../src/lib/domain/datakwaliteit";
 import { geldigeRollen, normaliseerWebsite, raadRollen, regelConcept, vrijgaveBlokkades } from "../src/lib/domain/registratie";
-import { aiBudget, budgetStatus, kostenEur, maandVerbruik, modelVoor, schatVerrijkingsronde, verbruikPerPeriode, verbruikSpecificatie } from "../src/lib/domain/kosten";
+import { aiBudget, budgetStatus, kostenEur, kwartaalVan, maandVan, maandVerbruik, modelVoor, schatVerrijkingsronde, verbruikPerPeriode, verbruikSpecificatie } from "../src/lib/domain/kosten";
 import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
 import type { AIBewerking } from "../src/lib/domain/types";
 import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
 import { MATCH_DISCLAIMER, matchRijen, waardenRijen } from "../src/lib/domain/export";
 import { regelOnderbouwingRol, regelVerbandAnalyse } from "../src/lib/domain/onderbouwing";
-import { controleerVerwijderen, verwijderPartnerDefinitief, VERWIJDERD } from "../src/lib/domain/verwijderen";
+import { controleerVerwijderen, pseudoniem, verwijderPartnerDefinitief, VERWIJDERD } from "../src/lib/domain/verwijderen";
 import { volledigeExportJson, volledigeExportTabellen } from "../src/lib/domain/volledigeExport";
 import { naarXlsx } from "../src/lib/xlsx";
 import leesExcel, { readSheetNames } from "read-excel-file/node";
@@ -38,7 +38,7 @@ import { aanbiedersUitOverzicht, ontdubbel, regelOnderbouwing, regelZoekvragen }
 import { leesSbi } from "../src/lib/domain/webverrijking";
 import { leesZipBestand, maakZip } from "../src/lib/zip";
 import { docxTekst, leesTekstUitBestand } from "../src/lib/documenttekst";
-import { controleerRegisters, registerUrl, verwerkRegisterUitkomsten } from "../src/lib/domain/registers";
+import { controleerRegisters, partnerInRegister, registerUrl, verwerkRegisterUitkomsten } from "../src/lib/domain/registers";
 import { certificaatStatus } from "../src/components/partners/certificaten";
 import { jsPDF } from "jspdf";
 import { BRON_LABEL } from "../src/lib/domain/types";
@@ -200,6 +200,9 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   check("US-57 zonder AI geen bewerkingen", schatVerrijkingsronde(partnersS, dbK, false).bewerkingen === 0);
   dbK.instellingen.aiBudget.bewerkingenPerMaand = 5;
   check("US-57 ronde die het budget zou overschrijden wordt herkend", schatVerrijkingsronde(partnersS, dbK, true).overschrijdtBudget);
+  dbK.instellingen.aiBudget = { ...dbK.instellingen.aiBudget, bewerkingenPerMaand: 750, tokenbudgetEur: 0.05 };
+  check("US-58 ook het tokenbudget in euro blokkeert een ronde", schatVerrijkingsronde(partnersS, dbK, true).overschrijdtBudget);
+  check("US-58 maandindeling in Nederlandse tijd", maandVan("2026-09-30T22:30:00Z") === "2026-10" && kwartaalVan("2026-09-30T22:30:00Z") === "2026-K4" && maandVan("2026-01-31T12:00:00Z") === "2026-01");
 }
 
 // Migratie v11: budget in euro/bewerkingen, modellen, schema en registers; kosten herrekend
@@ -222,6 +225,8 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   const basis = { ...standaardSchema(new Date("2026-09-01T00:00:00Z")), frequentie: "wekelijks" as const, dag: 3, tijd: "06:00" };
   const volgende = volgendeRonde(basis, new Date("2026-09-01T00:00:00Z"))!;
   check("US-56 wekelijks op woensdag 06:00 NL-tijd", volgende.toISOString() === "2026-09-02T04:00:00.000Z", volgende.toISOString());
+  const wissel = volgendeRonde({ ...basis, frequentie: "maandelijks", dag: 25, tijd: "02:30" }, new Date("2026-10-01T00:00:00Z"))!;
+  check("US-56 tijd rond de wintertijdwissel (25 okt 2026)", wissel.toISOString() === "2026-10-25T01:30:00.000Z" || wissel.toISOString() === "2026-10-25T00:30:00.000Z", wissel.toISOString());
   const winter = volgendeRonde({ ...basis, frequentie: "maandelijks", dag: 5 }, new Date("2026-11-10T00:00:00Z"))!;
   check("US-56 maandelijks, wintertijd", winter.toISOString() === "2026-12-05T05:00:00.000Z", winter.toISOString());
   const kwartaal = volgendeRonde({ ...basis, frequentie: "kwartaal", dag: 1 }, new Date("2026-09-15T00:00:00Z"))!;
@@ -399,6 +404,8 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   const lijst: Gebruiker[] = [];
   const eerste = vindOfRegistreer(lijst, "baas@blauwhoed.nl", "Baas");
   const tweede = vindOfRegistreer(lijst, "collega@blauwhoed.nl", "Collega");
+  check("US-64 unieke gebruikers-ID's", vindOfRegistreer(lijst, "jan.de.vries@blauwhoed.nl", "a").gebruiker.id !== vindOfRegistreer(lijst, "jan-de-vries@blauwhoed.nl", "b").gebruiker.id);
+  lijst.splice(2);
   check("US-64 eerste beheerder uit env, overige medewerkers gebruiker, onbeperkt", eerste.gebruiker.rol === "beheerder" && tweede.gebruiker.rol === "gebruiker" && lijst.length === 2 && !vindOfRegistreer(lijst, "COLLEGA@blauwhoed.nl", "x").nieuw);
   const dbB = maakSeedDatabase();
   const kand = { id: "k1", naam: "Nieuwbouw Test B.V.", rollen: ["aannemer" as const], bron: "Webzoek", bronUrl: "https://example.org", opgehaaldOp: "2026-09-01T10:00:00Z", ruweData: { profiel: "Bouwer" }, status: "geaccepteerd" as const, vestigingsplaats: "Utrecht", samenvatting: { watDoetHetBedrijf: "x", referentieprojecten: [], waaromPastHet: "Past bij houtbouw", watIsOnzeker: ["KVK onbekend"], gegenereerdOp: "", provider: "regels" } };
@@ -477,14 +484,16 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   dbV.teams.push({ id: "t1", projectId: proj.id, matchRunId: "run-v", variant: "voorkeur", leden: [{ rol: "aannemer", partnerId: p.id, partnerNaam: p.naam, score: 80 }], teamScore: 80, onderdelen: { gemiddeldeKwaliteit: 0, samenwerkingshistorie: 0, nabijheid: 0, beschikbaarheid: 0 }, onderbouwing: [], gemaaktOp: "" });
   dbV.kandidaten.push({ id: "k-v", naam: p.naam, rollen: ["aannemer"], bron: "x", bronUrl: "https://x", opgehaaldOp: "", ruweData: {}, status: "geaccepteerd", gepromoveerdTot: p.id });
   p.documenten = [{ id: "d", naam: "brochure", soort: "brochure", bestandUrl: "https://blob.example/x.pdf", toegevoegdDoor: "t", op: "" }];
-  dbV.audit.push({ id: "a1", op: "", door: "t", gebruikersrol: "gebruiker", entiteit: "partner", entiteitId: "ander", actie: "x", details: `vergeleken met ${p.naam}` });
+  dbV.audit.push({ id: "a1", op: "", door: "t", gebruikersrol: "gebruiker", entiteit: "partner", entiteitId: "ander", actie: "x", details: `vergeleken met ${p.naam.toUpperCase()} (kvk ${p.kvk})` });
+  dbV.audit.push({ id: "a2", op: "", door: "t", gebruikersrol: "gebruiker", entiteit: "partner", entiteitId: p.id, actie: "status gearchiveerd", details: "reden" });
+  dbV.matchRuns[0].onderbouwing = { provider: "x", op: "", door: "", perRol: [{ rol: "aannemer", samenvatting: "", perKandidaat: [{ partnerId: p.id, onderbouwing: "x", aandachtspunten: [] }] }] };
   check("US-69 alleen gearchiveerd, met reden en exacte naam", controleerVerwijderen(p, "verzoek", p.naam) !== null && (p.status = "gearchiveerd") && controleerVerwijderen(p, "", p.naam) !== null && controleerVerwijderen(p, "verzoek", "Woudbouw") !== null && controleerVerwijderen(p, "verzoek Blauwhoed", p.naam) === null);
   const engVoor = dbV.engagements.filter((e) => e.partnerId === p.id).length;
   const u = verwijderPartnerDefinitief(dbV, p.id);
   const json = JSON.stringify(dbV);
   check("US-69 partner, historie, beoordelingen, voorstellen en kandidaat weg", !dbV.partners.some((x) => x.id === p.id) && u.engagements === engVoor && engVoor > 0 && u.evaluaties > 0 && u.kandidaten === 1 && !dbV.evaluaties.some((e) => e.partnerId === p.id), u);
   check("US-69 matchruns opgeschoond, team geanonimiseerd, blob opgeruimd", u.matchruns === 1 && dbV.teams[0].leden[0].partnerNaam === VERWIJDERD && u.blobs[0] === "https://blob.example/x.pdf");
-  check("US-69 geen naam of id meer in de gegevens (behalve de verwijderregel)", !json.includes("Woudbouw Groep") && !json.includes('"p-woudbouw"'));
+  check("US-69 geen naam, KVK of id meer in de gegevens (ook niet in audit of onderbouwing)", !json.toLowerCase().includes("woudbouw groep") && !json.includes("p-woudbouw") && !json.includes("34123456") && dbV.audit.find((a) => a.id === "a2")?.entiteitId === pseudoniem("p-woudbouw"));
 }
 
 // ---------- US-70: onderbouwing en verbandanalyse (regels), disclaimers ----------
@@ -541,13 +550,13 @@ const groepD = (async () => {
   check("US-62 zoekpatroon met {naam}", registerUrl(reg, { naam: "Bouw & Co", kvk: "" }) === "https://example.org/zoek?q=Bouw%20%26%20Co");
   const pr = JSON.parse(JSON.stringify(pw)) as typeof pw;
   pr.certificaten = [{ id: "c1", type: "VCA", nummer: "1", geldigTot: "2027-01-01" }, { id: "c2", type: "FSC", nummer: "2", geldigTot: "2027-01-01" }];
-  const uitk = await controleerRegisters(pr, [reg, { ...reg, id: "r2", naam: "FSC", certificaat: "FSC" }, { ...reg, id: "r3", naam: "CO2", certificaat: "CO2-prestatieladder" }], async (url) => (url.includes("FSC") ? "geen resultaten" : `Resultaten: ${pr.naam} te Utrecht`));
-  const ontbrekend = verwerkRegisterUitkomsten(pr, uitk.map((u) => (u.registerId === "r2" ? { ...u, gevonden: false } : u)));
+  check("US-62 echo van de zoekterm telt niet als vondst", !partnerInRegister(`Resultaten voor ${pr.naam}: geen certificaathouders`, pr, true) && partnerInRegister(`Resultaten voor ${pr.naam}: ${pr.naam} te Utrecht, geldig`, pr, true));
+  const uitk = await controleerRegisters(pr, [reg, { ...reg, id: "r2", naam: "FSC", url: "https://example.org/fsc?q={naam}", certificaat: "FSC" }, { ...reg, id: "r3", naam: "CO2", certificaat: "CO2-prestatieladder" }], async (url) => (url.includes("/fsc") ? `Zoekresultaten voor ${pr.naam}: geen resultaten` : `Zoekresultaten voor ${pr.naam}: ${pr.naam} te Utrecht`));
+  const bevestigen = verwerkRegisterUitkomsten(pr, uitk);
   const vca = pr.certificaten.find((c) => c.type === "VCA")!;
   const fsc = pr.certificaten.find((c) => c.type === "FSC")!;
-  check("US-62 gevonden in register = geverifieerd met bron en datum", vca.verificatie === "geverifieerd" && Boolean(vca.geverifieerdOp) && Boolean(vca.bronUrl?.startsWith("https://example.org")));
+  check("US-62 vondst wordt een voorstel, nooit automatisch geverifieerd", vca.verificatie !== "geverifieerd" && vca.registerControle?.gevonden === true && bevestigen.map((u) => u.certificaat).sort().join() === "CO2-prestatieladder,VCA");
   check("US-62 niet gevonden = blijft geclaimd", fsc.verificatie === "geclaimd" && fsc.registerControle?.gevonden === false);
-  check("US-62 gevonden maar niet vastgelegd = voorstel", ontbrekend.length === 1 && ontbrekend[0].certificaat === "CO2-prestatieladder");
   check("US-62 certificaat zonder geldigheid", certificaatStatus("").label === "geldigheid onbekend");
 })();
 

@@ -29,7 +29,7 @@ export default function RegisterBeheer({ registers, certificaten, magBeheren }: 
     <div className="formulier">
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
       <p className="muted klein-tekst">
-        Bij elke verrijking zoekt de applicatie in actieve registers op bedrijfsnaam of KVK-nummer. Gevonden: het certificaat krijgt het register als bron met datum (geverifieerd). Niet gevonden: het certificaat blijft <b>geclaimd</b>. Controleer het zoekpatroon voordat u een register activeert.
+        Bij elke verrijking zoekt de applicatie in actieve registers op bedrijfsnaam of KVK-nummer. Gevonden: een voorstel in de verrijkingswachtrij; na bevestiging door een mens krijgt het certificaat het register als bron met datum (geverifieerd). Niet gevonden: het certificaat blijft <b>geclaimd</b>. Controleer het zoekpatroon voordat u een register activeert.
       </p>
       <ul className="lijst">
         {registers.map((r) => (

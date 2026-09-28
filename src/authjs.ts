@@ -5,8 +5,16 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
+/** Tenant-ID uit de issuer (https://login.microsoftonline.com/<tenant-id>/v2.0/). Zonder vaste tenant geen inloggen. */
+export function tenantId() {
+  const m = (process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER ?? "").match(/login\.microsoftonline\.com\/([0-9a-f-]{36})\//i);
+  return m ? m[1].toLowerCase() : null;
+}
+
 export function authGeconfigureerd() {
-  return Boolean(process.env.AUTH_SECRET && process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET);
+  // De issuer met een echte tenant-ID is verplicht: zonder valt Entra terug op /common/ en kunnen accounts uit andere
+  // tenants (met een zelfgekozen e-mailclaim) inloggen.
+  return Boolean(process.env.AUTH_SECRET && process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET && tenantId());
 }
 
 /** Demo-rolwisselaar zonder inloggen: alleen in ontwikkelmodus, of expliciet met AUTH_DEMO_MODUS=1 (nooit standaard in productie). */
@@ -39,8 +47,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: { signIn: "/inloggen", error: "/inloggen" },
   trustHost: true,
   callbacks: {
-    // Alleen eigen medewerkers: e-mail moet uit een toegestaan domein komen.
+    // Alleen eigen medewerkers: het account moet uit de Blauwhoed-tenant komen én een e-mailadres uit een toegestaan domein hebben.
     signIn({ user, profile }) {
+      const tid = String(profile?.tid ?? "").toLowerCase();
+      if (!tid || tid !== tenantId()) return false;
       const email = user.email ?? (profile?.email as string | undefined) ?? (profile?.preferred_username as string | undefined);
       return emailToegestaan(email);
     },

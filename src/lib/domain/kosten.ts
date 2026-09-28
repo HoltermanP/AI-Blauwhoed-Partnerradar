@@ -52,9 +52,18 @@ export function categorieVan(soort: AIBewerking["soort"]): VerbruikCategorie {
   return "overig";
 }
 
-export const maandVan = (iso: string) => iso.slice(0, 7);
+const AMS = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Amsterdam", year: "numeric", month: "2-digit" });
+
+/** Kalendermaand in Nederlandse tijd (een bewerking om 00:30 op de 1e hoort bij de nieuwe maand). */
+export function maandVan(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 7);
+  const delen = Object.fromEntries(AMS.formatToParts(d).map((x) => [x.type, x.value]));
+  return `${delen.year}-${delen.month}`;
+}
 export function kwartaalVan(iso: string) {
-  return `${iso.slice(0, 4)}-K${Math.floor((Number(iso.slice(5, 7)) - 1) / 3) + 1}`;
+  const m = maandVan(iso);
+  return `${m.slice(0, 4)}-K${Math.floor((Number(m.slice(5, 7)) - 1) / 3) + 1}`;
 }
 
 /** Kosten van een bewerking; oude bewerkingen (vóór v3.1, in USD) worden herrekend uit de tokens. */
@@ -124,7 +133,7 @@ export function budgetStatus(db: Pick<Database, "aiBewerkingen" | "instellingen"
   // Kwartaal: gemiddelde van de verstreken maanden in het lopende kwartaal.
   const kw = kwartaalVan(nu.toISOString());
   const maanden = Array.from(new Set((db.aiBewerkingen ?? []).filter((b) => kwartaalVan(b.op) === kw).map((b) => maandVan(b.op))));
-  const verstreken = ((nu.getUTCMonth() % 3) + 1);
+  const verstreken = ((Number(maandVan(nu.toISOString()).slice(5, 7)) - 1) % 3) + 1;
   const inKwartaal = (db.aiBewerkingen ?? []).filter((b) => kwartaalVan(b.op) === kw).length;
   const kwartaalGemPct = budget.bewerkingenPerMaand > 0 && maanden.length ? (inKwartaal / verstreken / budget.bewerkingenPerMaand) * 100 : 0;
   const hoogste = Math.max(pct, pctEur);
@@ -157,6 +166,8 @@ export type RondeSchatting = {
   bewerkingen: number;
   overgeslagen: number;
   geschatteKostenEur: number;
+  /** Resterend tokenbudget (euro) na deze ronde. */
+  resterendEurNa: number;
   perBewerkingEur: number;
   aiActief: boolean;
   verbruiktDezeMaand: number;
@@ -180,18 +191,22 @@ export function schatVerrijkingsronde(partners: Pick<Partner, "webHash" | "websi
   const perBewerkingEur = kostenEur(7000, 800, budget);
   const status = budgetStatus(db, opties.nu);
   const resterendNa = budget.bewerkingenPerMaand - status.bewerkingen - verwacht;
+  const geschatteKostenEur = verwacht * perBewerkingEur;
+  const resterendEurNa = budget.tokenbudgetEur - status.kostenEur - geschatteKostenEur;
   return {
     partners: partners.length,
     bewerkingen: verwacht,
     overgeslagen: partners.length - verwacht,
-    geschatteKostenEur: verwacht * perBewerkingEur,
+    geschatteKostenEur,
+    resterendEurNa,
     perBewerkingEur,
     aiActief,
     verbruiktDezeMaand: status.bewerkingen,
     budgetBewerkingen: budget.bewerkingenPerMaand,
     resterendNa,
     pctNa: budget.bewerkingenPerMaand > 0 ? ((status.bewerkingen + verwacht) / budget.bewerkingenPerMaand) * 100 : 0,
-    overschrijdtBudget: budget.bewerkingenPerMaand > 0 && resterendNa < 0
+    // Zowel het budget in bewerkingen als het tokenbudget in euro telt.
+    overschrijdtBudget: (budget.bewerkingenPerMaand > 0 && resterendNa < 0) || (budget.tokenbudgetEur > 0 && resterendEurNa < 0)
   };
 }
 

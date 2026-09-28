@@ -48,6 +48,7 @@ export default function SchemaBeheer({ schema, magBeheren }: { schema: Verrijkin
             <label>
               Tijd (Nederlandse tijd)
               <input type="time" value={w.tijd} disabled={!magBeheren} onChange={(e) => zet({ tijd: e.target.value })} />
+              <small className="muted">De dagelijkse controle draait om 06:00 (winter) of 07:00 (zomer); kies een tijd daarvoor, anders start de ronde een dag later.</small>
             </label>
           </>
         ) : null}

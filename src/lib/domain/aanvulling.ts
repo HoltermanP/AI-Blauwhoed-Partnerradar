@@ -5,7 +5,7 @@ import aanvulling from "@/data/aanvulling-seed.json";
 import { geocode } from "./geo";
 import { normaliseerNaam } from "./discovery";
 import { vulOntbrekendeHerkomst } from "./herkomst";
-import type { Bouwstijl, Database, Engagement, Geo, Partner, PartnerFactor, Prijssegment, Project, Projectfase, Projecttype, Rol } from "./types";
+import type { Bouwstijl, Database, Engagement, Geo, Partner, PartnerFactor, Prijssegment, Projectfase, Projecttype, Rol } from "./types";
 
 type AanvullingPartner = {
   naam: string;

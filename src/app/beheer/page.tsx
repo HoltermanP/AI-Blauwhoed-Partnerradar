@@ -11,7 +11,6 @@ import { budgetStatus, maandVerbruik } from "@/lib/domain/kosten";
 import { basisVeldKwaliteit, veldKwaliteit } from "@/lib/domain/datakwaliteit";
 import { ROLLEN, type Rol } from "@/lib/domain/types";
 import { ROL_LABEL } from "@/lib/format";
-import { datumTijd } from "@/lib/format";
 
 // US-45: lokale kopie van de RECHTEN-matrix uit src/lib/auth.ts (die exporteert de tabel niet; auth.ts wordt niet gewijzigd).
 // Houd deze tabel gelijk aan auth.ts; de weergave hieronder controleert dat via heeftRecht().

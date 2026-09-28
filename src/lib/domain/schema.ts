@@ -39,7 +39,9 @@ function amsterdamOffset(moment: Date) {
 export function amsterdam(jaar: number, maand0: number, dag: number, tijd: string) {
   const [u, m] = tijd.split(":").map(Number);
   const gok = new Date(Date.UTC(jaar, maand0, dag, u || 0, m || 0));
-  return new Date(gok.getTime() - amsterdamOffset(gok));
+  // Twee stappen: de offset op het gecorrigeerde moment kan verschillen rond de zomer-/wintertijdwissel.
+  const eerste = new Date(gok.getTime() - amsterdamOffset(gok));
+  return new Date(gok.getTime() - amsterdamOffset(eerste));
 }
 
 /** Amsterdamse kalenderdatum van een moment. */

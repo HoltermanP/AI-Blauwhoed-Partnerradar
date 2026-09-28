@@ -9,7 +9,7 @@ import { getDb, registreerAIBewerking } from "./store";
 import type { AIBewerking, AIBudget, AIFunctie, AISamenvatting, Bron, DiscoveryCandidate, Factor, Project } from "./domain/types";
 
 // ---------- Kostenregistratie: één gebruikershandeling = één bewerking, met daaronder de losse modelaanroepen. ----------
-type Context = { bewerking: AIBewerking; budget: AIBudget; modellen: Record<AIFunctie, string> };
+type Context = { bewerking: AIBewerking; budget: AIBudget; modellen: Record<AIFunctie, string>; doel?: string };
 const bewerkingContext = new AsyncLocalStorage<Context>();
 let doelContext = "";
 
@@ -32,13 +32,16 @@ export async function alsAIBewerking<T>(soort: AIBewerking["soort"], door: strin
 
 /** Benoem het doel van de eerstvolgende aanroep(en) binnen de lopende bewerking (voor de administratie). */
 export function zetAanroepDoel(doel: string) {
-  doelContext = doel;
+  // Per bewerking (AsyncLocalStorage), zodat gelijktijdige verzoeken elkaars label niet overschrijven.
+  const ctx = bewerkingContext.getStore();
+  if (ctx) ctx.doel = doel;
+  else doelContext = doel;
 }
 
 function registreerAanroep(model: string, invoerTokens: number, uitvoerTokens: number) {
   const ctx = bewerkingContext.getStore();
   const budget = ctx?.budget ?? STANDAARD_BUDGET;
-  const aanroep = { model, doel: doelContext || "aanroep", invoerTokens, uitvoerTokens, kostenEur: kostenEur(invoerTokens, uitvoerTokens, budget), op: new Date().toISOString() };
+  const aanroep = { model, doel: ctx?.doel || doelContext || "aanroep", invoerTokens, uitvoerTokens, kostenEur: kostenEur(invoerTokens, uitvoerTokens, budget), op: new Date().toISOString() };
   if (!ctx) {
     // Losse aanroep buiten een handeling: registreer als eigen bewerking zodat niets buiten de administratie valt.
     void registreerAIBewerking({ id: `aib-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`, soort: "overig", omschrijving: aanroep.doel, door: "systeem", op: aanroep.op, aanroepen: [aanroep], invoerTokens, uitvoerTokens, kostenEur: aanroep.kostenEur });

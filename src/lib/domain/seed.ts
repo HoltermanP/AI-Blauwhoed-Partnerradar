@@ -3,6 +3,7 @@ import { FACTOREN } from "./factors";
 import { geocode } from "./geo";
 import { GEWICHTSPROFIELEN } from "./gewichten";
 import { standaardAanvullingInstellingen } from "./instellingen";
+import { HUIDIGE_VERSIE } from "./migratie";
 import type { Bron, Certificaat, Database, Engagement, Evaluatie, Partner, PartnerFactor, Project, Rol } from "./types";
 import { BRON_BETROUWBAARHEID } from "./types";
 
@@ -554,7 +555,9 @@ export function maakLegeDatabase(): Database {
 
 export function maakSeedDatabase(): Database {
   return {
-    versie: 2,
+    // Nieuwe databases zijn meteen actueel: oude migraties (bijv. v3, die waarden als gevalideerd markeerde) mogen na een
+    // reset niet opnieuw lopen.
+    versie: HUIDIGE_VERSIE,
     goudstandaard: {},
     factoren: FACTOREN.map((x) => ({ ...x })),
     // Diepe kopieën: elke database (demo-reset, tests) krijgt eigen objecten.

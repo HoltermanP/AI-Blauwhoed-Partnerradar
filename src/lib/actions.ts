@@ -10,7 +10,7 @@ import { afwijsPenalty, demoConnector, kandidaatNaarConcept, normaliseerNaam, sa
 import { extraheerVoorstellen, factorNogBevestigd, inhoudsHash, striptHtml } from "./domain/enrichment";
 import { extraheerProjectprofiel } from "./domain/extractie";
 import { haalBasisprofiel, kvkConnector, kvkKoppelingActief, sbiTekst, type KvkBasisprofiel } from "./domain/kvk";
-import { controleerRegisters, verwerkRegisterUitkomsten, type RegisterUitkomst } from "./domain/registers";
+import { controleerRegisters, teBevestigen, verwerkRegisterUitkomsten, type RegisterUitkomst } from "./domain/registers";
 import { haalDocumentTekst } from "./documenttekst";
 import { leidEisenAf } from "./domain/projectfactoren";
 import { importeerEngagements } from "./domain/csv";
@@ -25,6 +25,7 @@ import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
 import { aiBeschikbaar, aiChat, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
 import { zichtbaar } from "./domain/zichtbaarheid";
+import { SYSTEEM_SLEUTEL, type SysteemSleutel } from "./systeem";
 import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
 import { chatContext } from "./domain/chat";
 import { budgetStatus, schatVerrijkingsronde } from "./domain/kosten";
@@ -34,7 +35,7 @@ import { slaNuOp } from "./store";
 import { matchProject, valideerGewichten } from "./domain/matching";
 import { risicoklasse } from "./domain/signalen";
 import { afgeleideTotaalscore, controleerTotaal } from "./domain/tevredenheid";
-import { controleerVerwijderen, verwijderPartnerDefinitief } from "./domain/verwijderen";
+import { controleerVerwijderen, pseudoniem, verwijderPartnerDefinitief } from "./domain/verwijderen";
 import { stelTeamSamen } from "./domain/team";
 import type {
   BasisVeld,
@@ -161,7 +162,7 @@ export async function slaPartnerOp(id: string | null, invoer: PartnerInvoer) {
   }).then((r) => {
     revalidatePath("/partners");
     // B3: verrijking bij aanmaken — na de response, zodat de gebruiker niet wacht op internetbronnen.
-    if (!id && r) after(() => startVerrijking(String(r)).catch(() => undefined));
+    if (!id && r.ok && r.data) after(() => startVerrijking(String(r.data)).catch(() => undefined));
     return r;
   });
 }
@@ -848,13 +849,14 @@ export async function beoordeelKandidaat(id: string, beslissing: "geaccepteerd" 
     await muteer(g, { entiteit: "discovery", entiteitId: id, actie: beslissing, details: reden }, (db) => {
       const k = db.kandidaten.find((x) => x.id === id);
       if (!k) throw new Error("Kandidaat niet gevonden.");
+      // Eerst controleren, dan muteren: een mogelijke dubbel mag de kandidaat niet half-geaccepteerd achterlaten.
+      if (beslissing === "geaccepteerd" && k.mogelijkeDubbelVan) throw new Error("Mogelijke dubbel: koppel eerst aan de bestaande partner of markeer als geen dubbel.");
       k.status = beslissing;
       k.reden = reden;
       k.beoordeeldOp = new Date().toISOString();
       k.beoordeeldDoor = g.naam;
       if (beslissing === "afgewezen") db.afwijsredenen.push({ reden: reden!, op: k.beoordeeldOp, kandidaatNaam: k.naam });
       if (beslissing === "geaccepteerd") {
-        if (k.mogelijkeDubbelVan) throw new Error("Mogelijke dubbel: koppel eerst aan de bestaande partner of markeer als geen dubbel.");
         const p = kandidaatNaarConcept(k, g.naam);
         db.partners.push(p);
         k.gepromoveerdTot = p.id;
@@ -894,7 +896,7 @@ export async function stelChatVraag(vraag: string, historie: Array<{ vraag: stri
         return aiChat(vraag, JSON.stringify(records), historie.slice(-4));
       }, "chat");
       if (r) {
-        const genoemd = r.partnerIds.map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p));
+        const genoemd = r.partnerIds.map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p) && zichtbaar(p!) && records.some((x) => x.id === p!.id));
         return { antwoord: r.antwoord, partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), viaAI: true };
       }
     }
@@ -1044,10 +1046,10 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
   }
   // US-62: openbare keurmerk- en brancheregisters.
   const registers = db.instellingen.externeBronnenToegestaan ? await controleerRegisters(p, db.instellingen.registerbronnen ?? [], haalPlatteTekst) : [];
-  registers.forEach((u) => {
-    extraDoorzocht.push(u.url);
-    if (u.gevonden && !p.certificaten.some((c) => c.type === u.certificaat))
-      voorstellen.push({ id: nieuwId("ev-reg"), partnerId: p.id, veld: `Certificaat: ${u.certificaat}`, huidig: null, voorgesteld: `${u.certificaat} (gevonden in ${u.register})`, bron: "register", bronUrl: u.url, betrouwbaarheid: 0.9, soort: "aantoonbaar", citaat: `${p.naam} komt voor in ${u.register} (${u.op}). Accepteren voegt het certificaat toe als geverifieerd; nummer en geldigheid nog aanvullen.`, status: "open", gevondenOp: new Date().toISOString() });
+  registers.forEach((u) => extraDoorzocht.push(u.url));
+  teBevestigen(p, registers).forEach((u) => {
+    const bestaat = p.certificaten.some((c) => c.type === u.certificaat);
+    voorstellen.push({ id: nieuwId("ev-reg"), partnerId: p.id, veld: `Certificaat: ${u.certificaat}`, huidig: bestaat ? "geclaimd" : null, voorgesteld: `${u.certificaat} (gevonden in ${u.register})`, bron: "register", bronUrl: u.url, betrouwbaarheid: 0.9, soort: "aantoonbaar", citaat: `${p.naam} lijkt voor te komen in ${u.register} (${u.op}); controleer de registerpagina. Accepteren zet het certificaat op geverifieerd met dit register als bron${bestaat ? "" : "; nummer en geldigheid nog aanvullen"}.`, status: "open", gevondenOp: new Date().toISOString() });
   });
   // Extra geconfigureerde bronwebsites (Conceptenboulevard, Woningconceptenbrochure, …): zoek de partnernaam in de
   // overzichtstekst en volg waar mogelijk de detailpagina van de partner (bijv. /aanbieders/<naam>/).
@@ -1181,9 +1183,16 @@ export type RondeOpties = {
   verwachteBewerkingen?: number;
 };
 
-export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20, gestartDoor?: string, opties: RondeOpties = {}) {
+export async function startVerrijking(partnerId?: string, tekst?: string, maxPerRonde = 20, gestartDoor?: SysteemSleutel, opties: RondeOpties = {}) {
   return veilig(async (): Promise<VerrijkingUitkomst> => {
-    const g = gestartDoor === "systeem" ? { id: "systeem", naam: "systeem", rol: "beheerder" as const } : await vereisRecht("bewerken");
+    // Alleen de server (cron) kan als 'systeem' handelen: de sleutel is een Symbol dat niet via een aanroep vanuit de browser
+    // kan worden meegestuurd. Iedere andere aanroep vraagt een ingelogde gebruiker met recht bewerken.
+    const systeem = gestartDoor === SYSTEEM_SLEUTEL;
+    const g = systeem ? { id: "systeem", naam: "systeem", rol: "beheerder" as const } : await vereisRecht("bewerken");
+    if (!systeem) {
+      maxPerRonde = Math.min(20, Math.max(1, Math.round(Number(maxPerRonde) || 20)));
+      opties = { ...opties, gepland: false };
+    }
     const db = await getDb();
     // US-58: boven het maandbudget krijgen interactieve functies voorrang; een ronde over (een deel van) het bestand start dan niet.
     if (!partnerId && budgetStatus(db).overschreden) throw new Error("Het AI-maandbudget (bewerkingen of tokenbudget) is bereikt. Verrijkingsrondes zijn gepauzeerd; verrijking van één partner en zoeken/chat blijven mogelijk. Pas het budget aan onder Beheer → AI-verbruik.");
@@ -1191,7 +1200,7 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     let ronde = partnerId ? undefined : db.verrijkingsrondes.find((r) => !r.klaarOp);
     if (!partnerId && !ronde) {
       const doel = opties.selectie ?? db.partners.filter((p) => p.status !== "geblokkeerd" && zichtbaar(p)).map((p) => p.id);
-      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: gestartDoor === "systeem" ? "systeem" : g.naam, totaal: doel.length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0, doelIds: opties.selectie, omvang: opties.omvang, gepland: opties.gepland, alleenGewijzigd: opties.alleenGewijzigd, verwachteBewerkingen: opties.verwachteBewerkingen };
+      ronde = { id: nieuwId("ronde"), gestartOp: new Date().toISOString(), bijgewerktOp: new Date().toISOString(), door: systeem ? "systeem" : g.naam, totaal: doel.length, partnerIdsVerwerkt: [], ongewijzigd: 0, nieuw: 0, gewijzigd: 0, nietBevestigd: 0, doelIds: opties.selectie, omvang: opties.omvang, gepland: opties.gepland, alleenGewijzigd: opties.alleenGewijzigd, verwachteBewerkingen: opties.verwachteBewerkingen };
       await muteer(g, { entiteit: "verrijking", entiteitId: ronde.id, actie: opties.gepland ? "geplande verrijkingsronde gestart" : "verrijkingsronde gestart", details: `${ronde.totaal} partners${opties.omvang ? ` (${opties.omvang})` : ""}${opties.verwachteBewerkingen !== undefined ? `; verwacht ${opties.verwachteBewerkingen} AI-bewerkingen` : ""}` }, (d) => d.verrijkingsrondes.unshift(ronde!));
     }
     const doelSet = ronde?.doelIds ? new Set(ronde.doelIds) : null;
@@ -1206,7 +1215,7 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     let websitesGevonden = 0;
     // Beperkte parallelliteit: vriendelijk voor de bronnen, snel genoeg voor een ronde.
     const wachtrij = [...doelen];
-    const door = gestartDoor === "systeem" ? "systeem" : g.naam;
+    const door = systeem ? "systeem" : g.naam;
     // US-58: één verrijking van één partner is één AI-bewerking, ook binnen een ronde (niet de hele ronde als één).
     await Promise.all(
         Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
@@ -1273,6 +1282,8 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
         if (v.veld.startsWith("Certificaat: ")) {
           // US-62: certificaat gevonden in een openbaar register; nummer en geldigheid vult een mens aan.
           const type = v.veld.slice(13) as Certificaat["type"];
+          const controle = { register: v.bronUrl ?? "register", url: v.bronUrl ?? "", op: v.gevondenOp.slice(0, 10), gevonden: true };
+          p.certificaten.filter((c) => c.type === type).forEach((c) => Object.assign(c, { verificatie: "geverifieerd", geverifieerdOp: v.gevondenOp.slice(0, 10), bronUrl: v.bronUrl, registerControle: controle }));
           if (!p.certificaten.some((c) => c.type === type)) p.certificaten.push({ id: nieuwId("cert"), type, nummer: "aanvullen (uit register)", geldigTot: "", verificatie: "geverifieerd", geverifieerdOp: v.gevondenOp.slice(0, 10), bronUrl: v.bronUrl, registerControle: { register: v.bronUrl ?? "register", url: v.bronUrl ?? "", op: v.gevondenOp.slice(0, 10), gevonden: true } });
           p.bijgewerktOp = nu;
           return;
@@ -1419,7 +1430,7 @@ export async function verwijderPartnerDefinitiefActie(partnerId: string, reden: 
     const db = await getDb();
     const fout = controleerVerwijderen(db.partners.find((x) => x.id === partnerId), reden, bevestiging);
     if (fout) throw new Error(fout);
-    const u = await muteer(g, { entiteit: "partner", entiteitId: partnerId, actie: "definitief verwijderd (AVG)", details: `reden: ${reden.trim().slice(0, 300)}` }, (db) => verwijderPartnerDefinitief(db, partnerId));
+    const u = await muteer(g, { entiteit: "partner", entiteitId: pseudoniem(partnerId), actie: "definitief verwijderd (AVG)", details: `reden: ${reden.trim().slice(0, 300)}` }, (db) => verwijderPartnerDefinitief(db, partnerId));
     // Bestanden in Vercel Blob opruimen (na de mutatie; falen blokkeert de verwijdering niet).
     if (u.blobs.length && process.env.BLOB_READ_WRITE_TOKEN) {
       try {

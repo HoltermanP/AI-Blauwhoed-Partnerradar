@@ -257,7 +257,7 @@ Bij partners met KVK-nummer: statutaire naam, rechtsvorm, SBI-activiteiten, vest
 Tekst uit PDF, Word (.docx) en tekstbestanden wordt direct na upload gelezen (en is opnieuw te lezen) en telt bij verrijking als bron "aangeleverd document" (rang 2) met verwijzing naar het document. Scans en oude .doc-bestanden krijgen een melding.
 
 **US-62 – Keurmerk- en brancheregisters** — *gebouwd*
-Beheerbare lijst openbare registers (naam, zoekpatroon met `{naam}`/`{kvk}`, certificaat). Gevonden: certificaat geverifieerd met bron en datum; niet gevonden: blijft geclaimd; gevonden maar niet vastgelegd: voorstel. Drie voorbeeldregisters staan standaard uit.
+Beheerbare lijst openbare registers (naam, zoekpatroon met `{naam}`/`{kvk}`, certificaat). Gevonden: een voorstel dat een mens bevestigt, waarna het certificaat geverifieerd is met het register als bron en datum (ook voor nog niet vastgelegde certificaten); niet gevonden: blijft geclaimd. De echo van de zoekterm op een resultatenpagina telt niet als vondst. Drie voorbeeldregisters staan standaard uit.
 
 ### E. Projecthistorie en tevredenheid
 
@@ -267,7 +267,7 @@ Uniek projectnummer (zichtbaar, doorzoekbaar, koppeling in de historie-CSV). Tot
 ### F. Toegang, overzicht en export
 
 **US-64 – Echte authenticatie** — *gebouwd*
-Auth.js (next-auth v5) met Microsoft Entra ID; alleen toegestane e-maildomeinen (`AUTH_TOEGESTANE_DOMEINEN`, standaard blauwhoed.nl). `src/proxy.ts` schermt alle pagina's en API's af; in productie is de app dicht zolang inloggen niet is geconfigureerd (tenzij expliciet `AUTH_DEMO_MODUS=1`). Eerste beheerder uit `EERSTE_BEHEERDER_EMAIL`; gebruikersbeheer onder `/beheer/gebruikers`. De rolwisselaar werkt alleen in ontwikkel-/demomodus. Elke auditregel legt naam, id en e-mail vast. Magic-link als terugval is niet gebouwd (zie openstaande wensen).
+Auth.js (next-auth v5) met Microsoft Entra ID; alleen accounts uit de eigen tenant (issuer met tenant-ID verplicht, controle op `tid`) met een toegestaan e-maildomein (`AUTH_TOEGESTANE_DOMEINEN`, standaard blauwhoed.nl). `src/proxy.ts` schermt alle pagina's en API's af; in productie is de app dicht zolang inloggen niet is geconfigureerd (tenzij expliciet `AUTH_DEMO_MODUS=1`). Eerste beheerder uit `EERSTE_BEHEERDER_EMAIL`; gebruikersbeheer onder `/beheer/gebruikers`. De rolwisselaar werkt alleen in ontwikkel-/demomodus. Elke auditregel legt naam, id en e-mail vast. Magic-link als terugval is niet gebouwd (zie openstaande wensen).
 
 **US-65 – Twee rollen** — *aangevuld*
 Lezer, bewerker en inkoper zijn samengevoegd tot gebruiker (migratie v10, ook in de auditlog). Alleen de beheerder: AI-voorstellen vrijgeven, weging, verrijkingsschema, goudstandaard, bronnen/budget/modellen, definitief verwijderen, volledige export en gebruikersbeheer.

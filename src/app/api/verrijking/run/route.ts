@@ -8,6 +8,7 @@ import { aiBeschikbaar } from "@/lib/ai";
 import { budgetStatus, schatVerrijkingsronde } from "@/lib/domain/kosten";
 import { schemaVan, selecteerPartners, teDraaienRonde, volgendeGeplandeRonde } from "@/lib/domain/schema";
 import { getDb, muteer } from "@/lib/store";
+import { SYSTEEM_SLEUTEL } from "@/lib/systeem";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -36,7 +37,7 @@ async function verwerk(request: Request) {
     const selectie = selecteerPartners(db, schema, nu);
     const schatting = schatVerrijkingsronde(selectie, db, aiBeschikbaar(), { alleenGewijzigd: schema.omvang === "gewijzigde_website", nu });
     const budget = budgetStatus(db, nu);
-    const reden = budget.overschreden ? "het AI-maandbudget is al bereikt" : schatting.overschrijdtBudget ? `de ronde vraagt naar verwachting ${schatting.bewerkingen} AI-bewerkingen en zou het maandbudget overschrijden (resterend ${schatting.resterendNa + schatting.bewerkingen})` : null;
+    const reden = budget.overschreden ? "het AI-maandbudget is al bereikt" : schatting.overschrijdtBudget ? `de ronde vraagt naar verwachting ${schatting.bewerkingen} AI-bewerkingen (≈ € ${schatting.geschatteKostenEur.toFixed(2)}) en zou het maandbudget overschrijden (resterend ${schatting.resterendNa + schatting.bewerkingen} bewerkingen, € ${(schatting.resterendEurNa + schatting.geschatteKostenEur).toFixed(2)} tokenbudget)` : null;
     if (reden) {
       await muteer(SYSTEEM, { entiteit: "verrijking", entiteitId: "schema", actie: "geplande ronde niet gestart", details: reden }, (d) => {
         d.instellingen.verrijkingsschema = { ...schemaVan(d), overgeslagen: { op: nu.toISOString(), reden: `Geplande ronde niet gestart: ${reden}. Pas het budget of de omvang aan, of start handmatig.`, gepland: gepland.toISOString() }, laatsteGeplandeRonde: gepland.toISOString() };
@@ -49,7 +50,7 @@ async function verwerk(request: Request) {
     // Een eventuele handmatige, nog lopende ronde wordt eerst afgesloten zodat de geplande ronde een eigen verschillenoverzicht krijgt.
     const handmatig = db.verrijkingsrondes.find((r) => !r.klaarOp);
     if (handmatig) handmatig.klaarOp = nu.toISOString();
-    const eerste = await startVerrijking(undefined, undefined, 20, "systeem", { selectie: selectie.map((p) => p.id), omvang: schema.omvang, alleenGewijzigd: schema.omvang === "gewijzigde_website", gepland: true, verwachteBewerkingen: schatting.bewerkingen });
+    const eerste = await startVerrijking(undefined, undefined, 20, SYSTEEM_SLEUTEL, { selectie: selectie.map((p) => p.id), omvang: schema.omvang, alleenGewijzigd: schema.omvang === "gewijzigde_website", gepland: true, verwachteBewerkingen: schatting.bewerkingen });
     if (!eerste.ok) return NextResponse.json({ ok: false, fout: eerste.fout }, { status: 429 });
     return doorlopen(eerste.data!.partners, eerste.data!.nieuw, eerste.data!.nogTeGaan, Date.now());
   }
@@ -59,7 +60,7 @@ async function verwerk(request: Request) {
 /** Hervatbaar: batches tot de ronde klaar is of het tijdsbudget van de functie bijna om is. */
 async function doorlopen(partners: number, nieuw: number, nogTeGaan: number, begonnen: number) {
   while (nogTeGaan > 0 && Date.now() - begonnen < 240_000) {
-    const r = await startVerrijking(undefined, undefined, 20, "systeem");
+    const r = await startVerrijking(undefined, undefined, 20, SYSTEEM_SLEUTEL);
     if (!r.ok) return NextResponse.json({ ok: false, fout: r.fout, partners, nieuwInWachtrij: nieuw }, { status: 429 });
     partners += r.data!.partners;
     nieuw += r.data!.nieuw;
