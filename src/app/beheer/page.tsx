@@ -17,15 +17,15 @@ import { ROL_LABEL } from "@/lib/format";
 const RECHTEN: Array<{ id: Parameters<typeof heeftRecht>[1]; label: string; uitleg: string }> = [
   { id: "lezen", label: "Lezen", uitleg: "Partners, projecten, matches en historie inzien." },
   { id: "bewerken", label: "Bewerken", uitleg: "Partner- en projectgegevens, factorwaarden en certificaten wijzigen." },
-  { id: "evalueren", label: "Evalueren", uitleg: "Partners na oplevering beoordelen (US-21)." },
-  { id: "discovery_goedkeuren", label: "Discovery goedkeuren", uitleg: "Discovery-kandidaten accepteren, parkeren of afwijzen (US-25)." },
+  { id: "evalueren", label: "Evalueren", uitleg: "Partners na oplevering beoordelen." },
+  { id: "discovery_goedkeuren", label: "Discovery goedkeuren", uitleg: "Discovery-kandidaten accepteren, parkeren of afwijzen." },
   { id: "prospect_promoveren", label: "Status preferred/geblokkeerd", uitleg: "Partner op preferred of geblokkeerd zetten (na kwalificatie)." },
   { id: "kwalificeren", label: "Kwalificeren", uitleg: "Kwalificatiechecklist en financiële toets afvinken." },
   { id: "beheer", label: "Beheer", uitleg: "Weging (gewichtsprofielen), goudstandaard, verrijkingsschema, bronnen, budget en modellen, factoren en instellingen." },
-  { id: "partners_vrijgeven", label: "AI-voorstellen vrijgeven", uitleg: "Concepten (AI-registratie, discovery, AI-aandraag) vrijgeven of afwijzen (US-54)." },
-  { id: "gebruikers_beheren", label: "Gebruikers beheren", uitleg: "Rollen toekennen en accounts blokkeren (US-64)." },
-  { id: "definitief_verwijderen", label: "Definitief verwijderen", uitleg: "Gearchiveerde partner op verzoek wissen (AVG, US-69)." },
-  { id: "volledige_export", label: "Volledige data-export", uitleg: "Het complete bestand exporteren als CSV en JSON (US-68)." }
+  { id: "partners_vrijgeven", label: "AI-voorstellen vrijgeven", uitleg: "Concepten (AI-registratie, discovery, AI-aandraag) vrijgeven of afwijzen." },
+  { id: "gebruikers_beheren", label: "Gebruikers beheren", uitleg: "Rollen toekennen en accounts blokkeren." },
+  { id: "definitief_verwijderen", label: "Definitief verwijderen", uitleg: "Gearchiveerde partner op verzoek wissen (AVG)." },
+  { id: "volledige_export", label: "Volledige data-export", uitleg: "Het complete bestand exporteren als CSV en JSON." }
 ];
 const ROLLEN_GEBRUIKER: Gebruikersrol[] = ["gebruiker", "beheerder"];
 
@@ -54,23 +54,23 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
 
       <div className="raster raster-3 beheerTegels">
         <Kaart titel="Factoren">
-          <p className="muted">{actieveFactoren} actieve factoren, {db.factoren.length - actieveFactoren} gearchiveerd. Toevoegen, hernoemen, samenvoegen, archiveren (US-04).</p>
+          <p className="muted">{actieveFactoren} actieve factoren, {db.factoren.length - actieveFactoren} gearchiveerd. Toevoegen, hernoemen, samenvoegen, archiveren.</p>
           <Link href="/beheer/factoren" className="knop knop-secundair klein">Factoren beheren</Link>
         </Kaart>
         <Kaart titel="Gewichtsprofielen">
-          <p className="muted">{db.gewichtsprofielen.length} profielen met versiehistorie. Gewichten en gevraagde waarden per rol (US-10, US-44).</p>
+          <p className="muted">{db.gewichtsprofielen.length} profielen met versiehistorie. Gewichten en gevraagde waarden per rol.</p>
           <Link href="/beheer/gewichten" className="knop knop-secundair klein">Gewichten beheren</Link>
         </Kaart>
         <Kaart titel="Goudstandaard">
-          <p className="muted">Per partnertype de verplichte en gewenste velden en de beoordelingscriteria (US-49). Goudstandaardwaarden gaan altijd voor op AI.</p>
+          <p className="muted">Per partnertype de verplichte en gewenste velden en de beoordelingscriteria. Goudstandaardwaarden gaan altijd voor op AI.</p>
           <Link href="/beheer/goudstandaard" className="knop knop-secundair klein">Goudstandaard beheren</Link>
         </Kaart>
         <Kaart titel="Gebruikers">
-          <p className="muted">{db.gebruikers.length} account(s). Rollen gebruiker en beheerder toekennen, blokkeren en vooraf aanmelden (US-64/65).</p>
+          <p className="muted">{db.gebruikers.length} account(s). Rollen gebruiker en beheerder toekennen, blokkeren en vooraf aanmelden.</p>
           <Link href="/beheer/gebruikers" className="knop knop-secundair klein">Gebruikers beheren</Link>
         </Kaart>
         <Kaart titel="Auditlog">
-          <p className="muted">{db.audit.length} regels. Elke wijziging aan partnergegevens en scoringsregels (US-46).</p>
+          <p className="muted">{db.audit.length} regels. Elke wijziging aan partnergegevens en scoringsregels.</p>
           <Link href="/beheer/audit" className="knop knop-secundair klein">Audit bekijken</Link>
         </Kaart>
       </div>
@@ -78,7 +78,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
       <div className="raster raster-zij">
         <div>
           {/* US-48 */}
-          <Kaart titel="AI-verrijking en discovery (US-48)">
+          <Kaart titel="AI-verrijking en discovery">
             <Instellingen instellingen={db.instellingen} magBeheren={magBeheren} />
             <details className="uitklap" style={{ marginTop: 14 }}>
               <summary>Hoe werkt de afscherming?</summary>
@@ -91,7 +91,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
           </Kaart>
 
           {/* US-45 */}
-          <Kaart titel="Rollen en rechten (US-45)">
+          <Kaart titel="Rollen en rechten">
             <div className="tabelWrap">
               <table className="tabel rechtenMatrix">
                 <thead>
@@ -117,7 +117,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
                 </tbody>
               </table>
             </div>
-            <p className="muted klein-tekst">Twee rollen conform de overeenkomst (US-65); het aantal gebruikers is onbeperkt. Rollen toekennen: <Link href="/beheer/gebruikers">gebruikersbeheer</Link>.</p>
+            <p className="muted klein-tekst">Twee rollen conform de overeenkomst; het aantal gebruikers is onbeperkt. Rollen toekennen: <Link href="/beheer/gebruikers">gebruikersbeheer</Link>.</p>
           </Kaart>
         </div>
 
@@ -157,7 +157,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
               </table>
             </div>
           </Kaart>
-          <Kaart titel="AI-verbruik (US-58)" acties={<Link href="/beheer/verbruik">Rapportage</Link>}>
+          <Kaart titel="AI-verbruik" acties={<Link href="/beheer/verbruik">Rapportage</Link>}>
             {budget.overschreden ? <Melding soort="fout">Maandbudget bereikt: geplande verrijkingsrondes zijn gepauzeerd; interactieve functies gaan voor.</Melding> : budget.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
             <dl className="definities">
               <div><dt>Maand</dt><dd>{verbruik.periode}</dd></div>
@@ -167,7 +167,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
             </dl>
             <Link href="/beheer/verbruik" className="knop knop-secundair klein">Budget, modellen en specificatie</Link>
           </Kaart>
-          <Kaart titel="Volledige data-export (US-68)">
+          <Kaart titel="Volledige data-export">
             <p className="muted klein-tekst">Het complete bestand met herkomst en status per gegeven: alle partners (ook concepten en gearchiveerde), velden, factoren, projecten, evaluaties, verbanden en het AI-verbruik. Zo beschikt Blauwhoed altijd over alle gegevens (art. 15.4). Het downloaden wordt gelogd.</p>
             {heeftRecht(gebruiker.rol, "volledige_export") ? (
               <div className="formulierActies">

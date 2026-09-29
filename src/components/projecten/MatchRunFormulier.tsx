@@ -33,7 +33,7 @@ export default function MatchRunFormulier({ projectId, heeftEisen }: { projectId
           <input value={naam} onChange={(e) => setNaam(e.target.value)} placeholder="bijv. Eerste selectie architect" />
         </label>
         <label style={{ gridColumn: "span 2" }}>
-          Vrije omschrijving voor semantische vergelijking (optioneel, US-15)
+          Vrije omschrijving voor semantische vergelijking (optioneel)
           <input value={omschrijving} onChange={(e) => setOmschrijving(e.target.value)} placeholder="bijv. architect met ervaring in houtbouw in binnenstedelijke context" />
         </label>
       </div>
@@ -41,7 +41,7 @@ export default function MatchRunFormulier({ projectId, heeftEisen }: { projectId
         <button type="submit" className="knop" disabled={bezig || !heeftEisen}>
           {bezig ? "Matchen…" : "Matchrun uitvoeren"}
         </button>
-        <span className="muted klein-tekst">Elke run wordt opgeslagen (US-16) zodat u later kunt zien of er nieuwe of betere kandidaten zijn.</span>
+        <span className="muted klein-tekst">Elke run wordt opgeslagen zodat u later kunt zien of er nieuwe of betere kandidaten zijn.</span>
       </div>
     </form>
   );

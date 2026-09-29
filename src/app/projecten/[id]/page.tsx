@@ -48,7 +48,7 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
       />
 
       <div className="raster">
-        <Kaart titel="Projectprofiel (US-08)">
+        <Kaart titel="Projectprofiel">
           <Definities
             items={[
               ["Type", hoofdletter(p.type)],
@@ -65,7 +65,7 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
           />
           {p.herkomst?.length ? (
             <details className="uitklap" style={{ marginTop: 12 }}>
-              <summary>Herkomst uit projectdocument ({p.herkomst.length} velden, US-11)</summary>
+              <summary>Herkomst uit projectdocument ({p.herkomst.length} velden)</summary>
               <ul className="lijst klein-tekst">
                 {p.herkomst.map((h, i) => (
                   <li key={i}>
@@ -77,11 +77,11 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
           ) : null}
         </Kaart>
 
-        <Kaart titel="Rollen, eisen en gewichten (US-09, US-10)">
+        <Kaart titel="Rollen, eisen en gewichten">
           <EisenEditor projectId={p.id} eisen={p.eisen} gewichtsprofielId={p.gewichtsprofielId} profielen={db.gewichtsprofielen} factoren={db.factoren} magBewerken={magBewerken} />
         </Kaart>
 
-        <Kaart titel="Betrokken partners (US-18)" acties={magBewerken ? <Link href={`/projecten/${p.id}/evaluaties`} className="knop knop-tekst klein">Naar evaluaties</Link> : undefined}>
+        <Kaart titel="Betrokken partners" acties={magBewerken ? <Link href={`/projecten/${p.id}/evaluaties`} className="knop knop-tekst klein">Naar evaluaties</Link> : undefined}>
           {engagements.length ? (
             <div className="tabelWrap">
               <table className="tabel">

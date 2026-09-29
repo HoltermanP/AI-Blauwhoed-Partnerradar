@@ -82,7 +82,7 @@ export default function StatusBeheer({ partnerId, huidig, reden, geblokkeerdTot,
         </button>
         {!magBewerken ? <span className="muted klein-tekst">Uw rol mag geen partners bewerken.</span> : null}
         {magBewerken && zwaar && !magPromoveren ? <span className="muted klein-tekst">Preferred en geblokkeerd vereisen de rol gebruiker of beheerder.</span> : null}
-        {status === "preferred" ? <span className="muted klein-tekst">Alleen mogelijk na volledige kwalificatie (US-34).</span> : null}
+        {status === "preferred" ? <span className="muted klein-tekst">Alleen mogelijk na volledige kwalificatie.</span> : null}
       </div>
     </form>
   );

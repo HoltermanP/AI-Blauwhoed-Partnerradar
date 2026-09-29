@@ -94,7 +94,7 @@ export default async function VerbruikPagina() {
         <Kaart titel="Budget en rekenprijzen">
           <AIBudgetEditor budget={budget} magBeheren={magBeheren} />
         </Kaart>
-        <Kaart titel="Model per functie (US-59)">
+        <Kaart titel="Model per functie">
           <p className="muted klein-tekst">Het lichtste passende model per functie houdt het verbruik laag (art. 8.9). Eerdere resultaten worden hergebruikt: een partner waarvan de website niet is gewijzigd, wordt niet opnieuw door het model gelezen.</p>
           <ModellenEditor modellen={modellen} functies={(Object.keys(FUNCTIE_LABEL) as AIFunctie[]).map((id) => ({ id, label: FUNCTIE_LABEL[id] }))} opties={BESCHIKBARE_MODELLEN} magBeheren={magBeheren} />
         </Kaart>

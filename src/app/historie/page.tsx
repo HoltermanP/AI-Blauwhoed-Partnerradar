@@ -158,7 +158,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
       </Kaart>
 
       <div className="raster raster-2">
-        <Kaart titel="CSV-import projectadministratie (US-18)">
+        <Kaart titel="CSV-import projectadministratie">
           <CsvImport magBewerken={magBewerken} />
         </Kaart>
         <Kaart titel={`Controlewachtrij (${db.importWachtrij.length})`}>
@@ -175,7 +175,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
       </div>
 
       <div className="raster raster-2">
-        <Kaart titel="Gedrag over projecten (US-20)">
+        <Kaart titel="Gedrag over projecten">
           {gedrag.length ? (
             <div className="tabelWrap">
               <table className="tabel">
@@ -208,7 +208,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
           )}
           <p className="muted">Bron: projecthistorie en evaluaties (betrouwbaarheid 0,9); recente projecten wegen zwaarder. Kostenafwijking = gemiddelde |eindafrekening − raming| / raming; planningsbetrouwbaarheid = aandeel opgeleverd binnen 30 dagen na plan.</p>
         </Kaart>
-        <Kaart titel="Samenwerkingsnetwerk (US-22)">
+        <Kaart titel="Samenwerkingsnetwerk">
           {edges.length ? (
             <div className="tabelWrap">
               <table className="tabel">

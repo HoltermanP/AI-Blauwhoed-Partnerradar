@@ -8,7 +8,7 @@ import type { Gebruiker } from "@/lib/domain/types";
 export default function RolWisselaar({ gebruikers, huidig }: { gebruikers: Gebruiker[]; huidig: Gebruiker }) {
   const [pending, start] = useTransition();
   return (
-    <label className="rolWisselaar" title="Demo: wissel van gebruikersrol (US-45)">
+    <label className="rolWisselaar" title="Demo: wissel van gebruikersrol">
       <UserRound size={16} />
       <select value={huidig.id} disabled={pending} onChange={(e) => start(() => wisselGebruiker(e.target.value))}>
         {gebruikers.map((g) => (

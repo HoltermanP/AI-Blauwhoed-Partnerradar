@@ -67,19 +67,19 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
             </li>
           </ul>
           <Melding soort="info">
-            Alleen bedrijfsgegevens; geen persoonsgegevens (US-24). Elke kandidaat legt bron-URL en ophaaldatum vast.
+            Alleen bedrijfsgegevens; geen persoonsgegevens. Elke kandidaat legt bron-URL en ophaaldatum vast.
           </Melding>
           <p>
             Externe bronnen: {db.instellingen.externeBronnenToegestaan ? <Badge kleur="groen">toegestaan</Badge> : <Badge kleur="geel">uit</Badge>}{" "}
             <span className="muted">— aan/uit via <Link href="/beheer">Beheer</Link>. Zolang externe bronnen uit staan, worden er geen websites of registers geraadpleegd.</span>
           </p>
           <p className="muted">
-            Afgeschermde omgeving: {db.instellingen.afgeschermdeOmgeving ? "ja" : "nee"} · AI-provider: {db.instellingen.aiProvider} (US-48)
+            Afgeschermde omgeving: {db.instellingen.afgeschermdeOmgeving ? "ja" : "nee"} · AI-provider: {db.instellingen.aiProvider}
           </p>
         </Kaart>
       </div>
 
-      <Kaart titel="AI draagt partners aan (US-55)">
+      <Kaart titel="AI draagt partners aan">
         <AandraagPaneel profielen={(db.zoekprofielen ?? []).map((z) => ({ id: z.id, naam: z.naam, trefwoorden: z.trefwoorden }))} magAandragen={heeftRecht(gebruiker.rol, "beheer")} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} />
       </Kaart>
 
@@ -115,7 +115,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
                 ))}
             </ul>
           ) : (
-            <p className="muted">Nog geen afwijsredenen. Elke afwijzing met reden verlaagt de voorlopige score van vergelijkbare kandidaten (US-25).</p>
+            <p className="muted">Nog geen afwijsredenen. Elke afwijzing met reden verlaagt de voorlopige score van vergelijkbare kandidaten.</p>
           )}
         </Kaart>
         <Kaart titel="Prospects die structureel beter scoren">
@@ -132,7 +132,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
               ))}
             </div>
           ) : (
-            <p className="muted">Geen signaal: geen prospect scoort momenteel structureel beter dan de vaste kring (US-28).</p>
+            <p className="muted">Geen signaal: geen prospect scoort momenteel structureel beter dan de vaste kring.</p>
           )}
         </Kaart>
       </div>

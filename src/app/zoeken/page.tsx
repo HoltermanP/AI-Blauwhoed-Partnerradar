@@ -52,7 +52,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
     <>
       <PaginaKop eyebrow="Zoeken" titel="Semantisch zoeken" intro="Zoek partners op een vrije omschrijving. Semantische treffers staan los van harde criteria; gebruik de matching in een project voor het echte advies." />
 
-      <Kaart titel="Vrije omschrijving (US-15)">
+      <Kaart titel="Vrije omschrijving">
         <form className="formulier" method="get">
           <label>
             Waar zoek je naar?
@@ -107,7 +107,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
         ) : null}
       </Kaart>
 
-      <Kaart titel="Snelle filters (US-39)">
+      <Kaart titel="Snelle filters">
         <p className="muted">Gecombineerde filters op rol, regio, kenmerk, certificaat en status staan op de partnerspagina.</p>
         <div className="snelleFilters">
           <div>

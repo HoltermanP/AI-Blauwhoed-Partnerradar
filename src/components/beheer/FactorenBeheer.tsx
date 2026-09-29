@@ -176,7 +176,7 @@ function FactorRij({ factor: f, gebruik: g, magBeheren, bezig, bewerkt, onBewerk
         <td><b>{f.code}</b></td>
         <td>
           {f.naam}
-          {f.afgeleid ? <> <Badge kleur="mint" titel="Afgeleid uit projecthistorie/evaluaties (US-19/20)">afgeleid</Badge></> : null}
+          {f.afgeleid ? <> <Badge kleur="mint" titel="Afgeleid uit projecthistorie/evaluaties">afgeleid</Badge></> : null}
           <div className="muted klein-tekst">{f.omschrijving}</div>
           {f.samengevoegdIn ? <div className="muted klein-tekst">Samengevoegd in: {f.samengevoegdIn}</div> : null}
         </td>

@@ -11,11 +11,11 @@ import TeamPaneel from "@/components/projecten/TeamPaneel";
 function TeamKaart({ team, ander }: { team: TeamVoorstel; ander?: TeamVoorstel }) {
   const verschilt = (rol: string, partnerId: string) => Boolean(ander && ander.leden.find((l) => l.rol === rol)?.partnerId !== partnerId);
   return (
-    <Kaart titel={team.variant === "voorkeur" ? "Voorkeursteam (US-35)" : "Alternatief team (US-37)"} className="teamKaart">
+    <Kaart titel={team.variant === "voorkeur" ? "Voorkeursteam" : "Alternatief team"} className="teamKaart">
       <p className="muted klein-tekst">Gemaakt {datumTijd(team.gemaaktOp)}</p>
       <div className="teamScore">
         <ScoreBalk score={team.teamScore} label="Teamscore" />
-        <span className="muted klein-tekst">Teamscore (US-36): kwaliteit 50%, samenwerkingshistorie 25%, nabijheid 15%, beschikbaarheid 10%</span>
+        <span className="muted klein-tekst">Teamscore: kwaliteit 50%, samenwerkingshistorie 25%, nabijheid 15%, beschikbaarheid 10%</span>
       </div>
       <div className="raster raster-2 teamOnderdelen">
         <div>
@@ -61,7 +61,7 @@ function TeamKaart({ team, ander }: { team: TeamVoorstel; ander?: TeamVoorstel }
           ))}
         </tbody>
       </table>
-      <h4 className="subkop">Onderbouwing per keuze (US-38)</h4>
+      <h4 className="subkop">Onderbouwing per keuze</h4>
       <ul className="lijst klein-tekst">
         {team.onderbouwing.map((o, i) => (
           <li key={i}>{o}</li>

@@ -91,7 +91,7 @@ function Vergelijking({ kandidaten, onSluit }: { kandidaten: Kandidaat[]; onSlui
   return (
     <section className="kaart vergelijking">
       <header className="kaartKop">
-        <h3>Vergelijking (US-17)</h3>
+        <h3>Vergelijking</h3>
         <button type="button" className="knop knop-tekst klein" onClick={onSluit}>
           Sluiten
         </button>
@@ -294,7 +294,7 @@ export default function RolResultaatWeergave({ resultaat, runId, projectId, feed
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
       {verschil && (verschil.nieuw.length || verschil.weg.length || verschil.gewijzigd.length) ? (
         <Melding soort="info">
-          <b>Verschil met vorige run (US-16):</b>{" "}
+          <b>Verschil met vorige run:</b>{" "}
           {verschil.nieuw.length ? <span>nieuw: {verschil.nieuw.join(", ")}. </span> : null}
           {verschil.gewijzigd.length ? <span>gewijzigd: {verschil.gewijzigd.map((g) => `${g.naam} ${g.van}→${g.naar}`).join(", ")}. </span> : null}
           {verschil.weg.length ? <span>weggevallen: {verschil.weg.join(", ")}.</span> : null}
@@ -323,7 +323,7 @@ export default function RolResultaatWeergave({ resultaat, runId, projectId, feed
 
       {resultaat.uitsluitingen.length ? (
         <details className="uitklap">
-          <summary>Uitgesloten door harde filters ({resultaat.uitsluitingen.length}) — US-14</summary>
+          <summary>Uitgesloten door harde filters ({resultaat.uitsluitingen.length})</summary>
           <div className="tabelWrap">
             <table className="tabel klein-tekst">
               <thead>

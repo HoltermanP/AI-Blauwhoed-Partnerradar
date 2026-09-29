@@ -64,17 +64,17 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
               ["Externe bronnen", i.externeBronnenToegestaan ? "toegestaan (website wordt opgehaald)" : "uit (alleen profieltekst of geplakte tekst)"],
               ["Afgeschermde omgeving", i.afgeschermdeOmgeving ? "ja" : "nee"],
               ["AI-provider", i.aiProvider],
-              ["KVK-handelsregister (US-60)", kvkKoppelingActief() ? <Badge kleur="groen">koppeling actief</Badge> : <Badge kleur="grijs">niet actief (KVK_API_KEY ontbreekt)</Badge>],
-              ["Keurmerkregisters (US-62)", `${(i.registerbronnen ?? []).filter((r) => r.actief).length} actief`]
+              ["KVK-handelsregister", kvkKoppelingActief() ? <Badge kleur="groen">koppeling actief</Badge> : <Badge kleur="grijs">niet actief (KVK_API_KEY ontbreekt)</Badge>],
+              ["Keurmerkregisters", `${(i.registerbronnen ?? []).filter((r) => r.actief).length} actief`]
             ]}
           />
           <Melding soort="info">
-            US-48/US-59: zonder ANTHROPIC_API_KEY draait de extractie op regels uit de taxonomie. Met sleutel leest het per functie ingestelde model (zie <Link href="/beheer/verbruik">AI-verbruik</Link>) uitsluitend openbare bedrijfsteksten; nooit contactpersonen. Elke verrijkte partner telt als één AI-bewerking.
+            Zonder ANTHROPIC_API_KEY draait de extractie op regels uit de taxonomie. Met sleutel leest het per functie ingestelde model (zie <Link href="/beheer/verbruik">AI-verbruik</Link>) uitsluitend openbare bedrijfsteksten; nooit contactpersonen. Elke verrijkte partner telt als één AI-bewerking.
           </Melding>
         </Kaart>
       </div>
 
-      <Kaart titel="Verrijkingsschema (US-56)">
+      <Kaart titel="Verrijkingsschema">
         <div className="raster raster-2">
           <SchemaBeheer schema={schema} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
           <div>
@@ -138,7 +138,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
         <BronnenBeheer bronnen={i.verrijkingsbronnen ?? []} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
       </Kaart>
 
-      <Kaart titel="Keurmerk- en brancheregisters (US-62)">
+      <Kaart titel="Keurmerk- en brancheregisters">
         <RegisterBeheer registers={i.registerbronnen ?? []} certificaten={CERTIFICAAT_TYPEN} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
       </Kaart>
 
@@ -199,7 +199,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
         )}
       </Kaart>
 
-      <Kaart titel="Claims splitsen (US-30)">
+      <Kaart titel="Claims splitsen">
         <p className="muted">Scheid duurzaamheidsclaims in aantoonbaar (certificaat, meting, berekening) en geclaimd (marketingtekst). Draait volledig in de browser.</p>
         <ClaimsSplitser />
       </Kaart>

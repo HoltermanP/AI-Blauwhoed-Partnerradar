@@ -176,10 +176,10 @@ export default async function PartnerDossier({ params, searchParams }: { params:
       {tab === "kwalificatie" ? (
         <div className="raster raster-zij">
           <div>
-            <Kaart titel="Kwalificatiechecklist (US-34)">
+            <Kaart titel="Kwalificatiechecklist">
               <KwalificatieChecklist partnerId={p.id} kwalificatie={p.kwalificatie} magKwalificeren={magKwalificeren} />
             </Kaart>
-            <Kaart titel="Financiële kerncijfers (US-32)">
+            <Kaart titel="Financiële kerncijfers">
               <FinancieelFormulier partnerId={p.id} financieel={p.financieel} magKwalificeren={magKwalificeren} />
             </Kaart>
           </div>
@@ -196,7 +196,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
                 ]}
               />
               {stats.blauwhoedAandeel !== null && stats.blauwhoedAandeel >= 30 ? (
-                <Melding soort={stats.blauwhoedAandeel >= 50 ? "fout" : "waarschuwing"}>US-33: Blauwhoed is {stats.blauwhoedAandeel}% van de jaaromzet van deze partner. Bewaak spreiding en continuïteit.</Melding>
+                <Melding soort={stats.blauwhoedAandeel >= 50 ? "fout" : "waarschuwing"}>Blauwhoed is {stats.blauwhoedAandeel}% van de jaaromzet van deze partner. Bewaak spreiding en continuïteit.</Melding>
               ) : null}
               <p className="muted klein-tekst">Risicoklasse volgt uit omzetdaling (&gt;20%), solvabiliteit (&lt;20/30%), deponering ouder dan 400 dagen, betalingsgedrag en negatief eigen vermogen. Klasse &quot;hoog&quot; is een harde uitsluiting in de matching.</p>
             </Kaart>
@@ -243,7 +243,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
         </Kaart>
       ) : null}
       {tab === "contact" ? (
-        <Kaart titel="Contactpersonen (US-47)">
+        <Kaart titel="Contactpersonen">
           <ContactBeheer partnerId={p.id} contactpersonen={p.contactpersonen} magBewerken={magBewerken} />
         </Kaart>
       ) : null}
@@ -276,7 +276,7 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen }: {
             </p>
           ) : null}
         </Kaart>
-        <Kaart titel="Basisgegevens en herkomst (US-52)">
+        <Kaart titel="Basisgegevens en herkomst">
           <p className="muted klein-tekst">Per veld de bron, de datum van vaststelling, de betrouwbaarheid en de status. Alleen een mens zet een gegeven op gevalideerd; een verrijking overschrijft een gevalideerd veld nooit stilzwijgend.</p>
           <div className="tabelWrap">
             <table className="tabel basisveldTabel">
@@ -316,7 +316,7 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen }: {
           )}
           <p className="muted klein-tekst">Referenties zijn zelfbeeld (bron opgave, betrouwbaarheid 60%). Projecthistorie in het tabblad Historie is bewijs.</p>
         </Kaart>
-        <Kaart titel="Capaciteitsindicatoren (US-05)" acties={magBewerken ? <Link href={`/partners/${p.id}/bewerken`}>Bewerken</Link> : null}>
+        <Kaart titel="Capaciteitsindicatoren" acties={magBewerken ? <Link href={`/partners/${p.id}/bewerken`}>Bewerken</Link> : null}>
           <div className="metriekRij">
             <Metriek waarde={euro(p.omzet)} label="Jaaromzet" sub="opgave" />
             <Metriek waarde={getal(p.medewerkers)} label="Medewerkers" />
@@ -347,7 +347,7 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen }: {
       </div>
       <div>
         <GoudstandaardKaart p={p} db={db} />
-        <Kaart titel="Status (US-07)">
+        <Kaart titel="Status">
           <p>
             <StatusBadge status={p.status} />
             {p.statusReden ? <span className="muted klein-tekst"> · {p.statusReden}</span> : null}
@@ -472,7 +472,7 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
         <Metriek waarde={stats.evaluatiescore !== null ? getal(stats.evaluatiescore, 1) : "–"} label="Evaluatiescore (1–5)" sub="recent weegt zwaarder" />
         <Metriek waarde={stats.blauwhoedAandeel !== null ? `${stats.blauwhoedAandeel}%` : "–"} label="Aandeel Blauwhoed in omzet" />
       </div>
-      <Kaart titel="Projecten (US-18, US-20)">
+      <Kaart titel="Projecten">
         {engagements.length ? (
           <div className="tabelWrap">
             <table className="tabel">
@@ -525,7 +525,7 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
         )}
       </Kaart>
       <div className="raster raster-2">
-        <Kaart titel="Evaluaties en tevredenheid (US-63)">
+        <Kaart titel="Evaluaties en tevredenheid">
           <p className="muted klein-tekst">{TEVREDENHEID_UITLEG}</p>
           {evaluaties.length ? (
             <div className="tabelWrap">
@@ -576,7 +576,7 @@ function Historie({ p, db, afgeleid }: { p: Partner; db: Database; afgeleid: Ret
             <p className="muted">Nog geen evaluaties.</p>
           )}
         </Kaart>
-        <Kaart titel="Werkte samen met (US-22)">
+        <Kaart titel="Werkte samen met">
           {collegas.length ? (
             <div className="tabelWrap">
               <table className="tabel">

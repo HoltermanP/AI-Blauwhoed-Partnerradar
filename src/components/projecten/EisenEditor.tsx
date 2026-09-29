@@ -213,7 +213,7 @@ export default function EisenEditor({ projectId, eisen, gewichtsprofielId, profi
         ) : null}
         <div className="rij">
           <label>
-            Gewichtsprofiel als startpunt (US-10)
+            Gewichtsprofiel als startpunt
             <select value={profielId} onChange={(e) => pasProfielToe(e.target.value)}>
               <option value="">– geen / handmatig –</option>
               {profielen.map((p) => (
@@ -224,7 +224,7 @@ export default function EisenEditor({ projectId, eisen, gewichtsprofielId, profi
             </select>
           </label>
           <div className="veld">
-            Rollen in dit project (US-09)
+            Rollen in dit project
             <div className="vinkjes">
               {ROLLEN.map((r) => (
                 <label key={r}>
@@ -334,7 +334,7 @@ export default function EisenEditor({ projectId, eisen, gewichtsprofielId, profi
                   <input type="number" min={0} max={40} value={r.semantischGewicht} onChange={(ev) => update(rol, (x) => ({ ...x, semantischGewicht: Math.max(0, Math.min(40, Number(ev.target.value))) }))} />
                 </label>
                 <label style={{ gridColumn: "span 2" }}>
-                  Vrije omschrijving voor semantische vergelijking (US-15)
+                  Vrije omschrijving voor semantische vergelijking
                   <input value={r.vrijeOmschrijving ?? ""} onChange={(ev) => update(rol, (x) => ({ ...x, vrijeOmschrijving: ev.target.value || undefined }))} placeholder="bijv. houtbouwarchitect met ervaring in welstandsgevoelige binnensteden" />
                 </label>
               </div>

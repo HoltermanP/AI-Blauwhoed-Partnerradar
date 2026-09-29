@@ -92,7 +92,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Metriek waarde={<span style={{ color: kritiek ? "var(--red)" : undefined }}>{kritiek}</span>} label="Kritieke signalen" sub={<a href="#signalen">Bekijk</a>} />
       </div>
 
-      <Kaart titel="Datakwaliteit (US-66)" acties={<Link href="/beheer">Details per veld</Link>}>
+      <Kaart titel="Datakwaliteit" acties={<Link href="/beheer">Details per veld</Link>}>
         <div className="kwaliteitRaster">
           <Metriek waarde={`${pctVan(verdeling.gevalideerd)}%`} label="Gevalideerd" sub={<Link href="/partners?waardestatus=gevalideerd">{verdeling.gevalideerd} waarden</Link>} />
           <Metriek waarde={`${pctVan(verdeling.voorgesteld)}%`} label="Voorgesteld" sub={<Link href="/partners?waardestatus=voorgesteld">{verdeling.voorgesteld} waarden</Link>} />
@@ -203,7 +203,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <Kaart titel="Matchkwaliteit">
             {gekozen.length === 0 ? (
               <Melding soort="info">
-                Nog geen feedback. De top-3-hitrate ontstaat zodra op de matchpagina (<Link href="/projecten">project → Match</Link>) wordt vastgelegd welke kandidaat gekozen is en waarom (US-42). Dan wordt hier zichtbaar hoe vaak de gekozen partner in de top-3 van de ranking stond.
+                Nog geen feedback. De top-3-hitrate ontstaat zodra op de matchpagina (<Link href="/projecten">project → Match</Link>) wordt vastgelegd welke kandidaat gekozen is en waarom. Dan wordt hier zichtbaar hoe vaak de gekozen partner in de top-3 van de ranking stond.
               </Melding>
             ) : (
               <>

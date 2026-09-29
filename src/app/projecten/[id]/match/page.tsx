@@ -102,7 +102,7 @@ export default async function MatchPagina({ params, searchParams }: { params: Pr
               {run.input.vrijeOmschrijving ? ` · vrije omschrijving: „${run.input.vrijeOmschrijving}”` : ""}
               {vorige ? ` · vergeleken met „${vorige.naam}” (${datumTijd(vorige.gestartOp)})` : ""}
             </p>
-            {!magFeedback ? <p className="muted klein-tekst">Feedback op de ranking (US-42) vereist recht &apos;bewerken&apos;.</p> : null}
+            {!magFeedback ? <p className="muted klein-tekst">Feedback op de ranking vereist recht &apos;bewerken&apos;.</p> : null}
             <Disclaimer>{MATCH_DISCLAIMER}</Disclaimer>
           </Kaart>
           <Kaart titel="Onderbouwing in gewone taal">

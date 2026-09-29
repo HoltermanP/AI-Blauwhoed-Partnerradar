@@ -17,7 +17,7 @@ export default async function GewichtenPagina({ searchParams }: { searchParams: 
       <PaginaKop
         eyebrow="Beheer"
         titel="Gewichtsprofielen"
-        intro="Standaardgewichten per projecttype en rol. Gewogen factoren tellen per rol op tot 100%. Elke wijziging is een nieuwe versie met toelichting en is terug te draaien (US-44)."
+        intro="Standaardgewichten per projecttype en rol. Gewogen factoren tellen per rol op tot 100%. Elke wijziging is een nieuwe versie met toelichting en is terug te draaien."
       />
       {!magBeheren ? <Melding soort="waarschuwing">Alleen-lezen: rol {gebruiker.rol} heeft geen recht &lsquo;beheer&rsquo;.</Melding> : null}
       <nav className="tabs" aria-label="Profielen">
