@@ -42,9 +42,9 @@ Auth.js (next-auth v5) met Microsoft Entra ID. Zet in Vercel (en lokaal indien g
 | `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | `https://login.microsoftonline.com/<tenant-id>/v2.0/` |
 | `AUTH_TOEGESTANE_DOMEINEN` | toegestane e-maildomeinen, kommagescheiden (standaard `blauwhoed.nl`) |
 | `EERSTE_BEHEERDER_EMAIL` | e-mailadres dat altijd beheerder is |
-| `AUTH_DEMO_MODUS` | alleen voor demo's: `1` opent de app zonder inloggen met de rolwisselaar (nooit in productie) |
+| `AUTH_DEMO_MODUS` | testfase: `1` = altijd open zonder inloggen (rolwisselaar), ook met Entra ingericht; `0` = altijd dicht; leeg = open zolang Entra niet is ingericht |
 
-De issuer met de tenant-ID van Blauwhoed is verplicht; accounts uit andere tenants worden geweigerd (controle op `tid`). Redirect-URI in Entra ID: `https://<domein>/api/auth/callback/microsoft-entra-id`. Zonder deze configuratie is de app in productie **dicht** (alleen de inlogpagina); in ontwikkelmodus werkt de rolwisselaar (gebruiker/beheerder). Accounts ontstaan bij de eerste inlog; de beheerder kent rollen toe onder Beheer → Gebruikers.
+De issuer met de tenant-ID van Blauwhoed is verplicht; accounts uit andere tenants worden geweigerd (controle op `tid`). Redirect-URI in Entra ID: `https://<domein>/api/auth/callback/microsoft-entra-id`. Zolang Entra ID niet is ingericht staat de app (testfase) open met de rolwisselaar (gebruiker/beheerder); zet `AUTH_DEMO_MODUS=0` of richt Entra in om hem af te sluiten. **Let op:** in de testfase is de app voor iedereen met de URL toegankelijk. Accounts ontstaan bij de eerste inlog; de beheerder kent rollen toe onder Beheer → Gebruikers.
 
 ## Nieuw in deze fase (acht onderdelen + twee dwarsdoorsnijdende eisen)
 

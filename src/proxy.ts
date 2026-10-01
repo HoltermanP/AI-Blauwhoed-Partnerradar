@@ -26,11 +26,9 @@ function naarInloggen(req: NextRequest) {
 const metAuth = auth((req) => (isOpenbaar(req.nextUrl.pathname) || req.auth?.user ? door(req) : naarInloggen(req)));
 
 export default async function proxy(req: NextRequest, ev: NextFetchEvent) {
-  if (!authGeconfigureerd()) {
-    // Zonder inlogconfiguratie: alleen in ontwikkel-/demomodus open; in productie is de app dicht.
-    if (demoModus() || isOpenbaar(req.nextUrl.pathname)) return door(req);
-    return naarInloggen(req);
-  }
+  // Testfase/demomodus: zonder inloggen open (zie demoModus in src/authjs.ts).
+  if (demoModus()) return door(req);
+  if (!authGeconfigureerd()) return isOpenbaar(req.nextUrl.pathname) ? door(req) : naarInloggen(req);
   return (metAuth as unknown as (r: NextRequest, e: NextFetchEvent) => Promise<Response>)(req, ev);
 }
 

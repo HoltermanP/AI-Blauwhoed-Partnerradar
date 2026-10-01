@@ -17,10 +17,16 @@ export function authGeconfigureerd() {
   return Boolean(process.env.AUTH_SECRET && process.env.AUTH_MICROSOFT_ENTRA_ID_ID && process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET && tenantId());
 }
 
-/** Demo-rolwisselaar zonder inloggen: alleen in ontwikkelmodus, of expliciet met AUTH_DEMO_MODUS=1 (nooit standaard in productie). */
+/**
+ * Testfase: zonder inloggen met de demo-rolwisselaar (gebruiker/beheerder).
+ * - AUTH_DEMO_MODUS=1: altijd open, ook als Entra ID al is ingericht;
+ * - AUTH_DEMO_MODUS=0: altijd dicht (alleen inloggen; zonder Entra-configuratie is de app afgesloten);
+ * - niet gezet: open zolang Entra ID niet is ingericht, daarna alleen inloggen.
+ */
 export function demoModus() {
-  if (authGeconfigureerd()) return false;
-  return process.env.NODE_ENV !== "production" || process.env.AUTH_DEMO_MODUS === "1";
+  if (process.env.AUTH_DEMO_MODUS === "1") return true;
+  if (process.env.AUTH_DEMO_MODUS === "0") return false;
+  return !authGeconfigureerd();
 }
 
 export function toegestaneDomeinen(): string[] {
