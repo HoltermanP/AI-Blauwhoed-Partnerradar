@@ -249,6 +249,37 @@ export async function aiPartnerRegistratie(hint: { naam?: string; website?: stri
 
 export type AIChatAntwoord = { antwoord: string; partnerIds: string[] };
 
+/**
+ * Discovery-terugval wanneer de gewone zoekmachines verkeer van de server blokkeren: Claude zoekt met de web-searchtool
+ * naar officiële bedrijfswebsites. Geeft de gevonden URL's terug (geen persoonsgegevens, alleen bedrijfssites).
+ */
+export async function aiZoekBedrijfswebsites(zoekvragen: string[], max = 10): Promise<string[] | null> {
+  if (!aiBeschikbaar() || !zoekvragen.length) return null;
+  try {
+    const model = await modelVoorFunctie("aandragen");
+    const licht = model.startsWith("claude-haiku");
+    const tools: Anthropic.ToolUnion[] = [licht ? { type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } } : { type: "web_search_20260209", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } }];
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: `Zoek de officiële websites van Nederlandse bedrijven voor deze zoekvragen:\n${zoekvragen.map((z) => `- ${z}`).join("\n")}\n\nAlleen bedrijfswebsites (geen vergelijkingssites, vacaturesites, social media of nieuwsartikelen) en geen personen. Antwoord met één URL per regel.` }];
+    let res = await getClient().messages.create({ model, max_tokens: 2000, tools, messages, ...(licht ? {} : { output_config: { effort: "low" as const } }) });
+    registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
+    const inhoud = [...res.content];
+    for (let i = 0; i < 2 && res.stop_reason === "pause_turn"; i++) {
+      res = await getClient().messages.create({ model, max_tokens: 2000, tools, messages: [...messages, { role: "assistant", content: res.content }], ...(licht ? {} : { output_config: { effort: "low" as const } }) });
+      registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
+      inhoud.push(...res.content);
+    }
+    const urls: string[] = [];
+    for (const b of inhoud) {
+      if (b.type === "text") urls.push(...(b.text.match(/https?:\/\/[^\s)\]>"]+/g) ?? []));
+      else if (b.type === "web_search_tool_result" && Array.isArray(b.content)) urls.push(...b.content.map((r) => r.url));
+    }
+    return Array.from(new Set(urls.map((u) => { try { return new URL(u).origin; } catch { return ""; } }).filter(Boolean))).slice(0, max);
+  } catch (e) {
+    console.warn("Claude-websitezoektocht mislukt:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 export type ChatBron = { titel: string; url: string };
 export type AIChatOpgemaakt = { antwoord: string; partnerIds: string[]; bronnen: ChatBron[] };
 

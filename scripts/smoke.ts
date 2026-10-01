@@ -27,6 +27,7 @@ import { aiBudget, budgetStatus, kostenEur, kwartaalVan, maandVan, maandVerbruik
 import { selecteerPartners, standaardSchema, teDraaienRonde, volgendeRonde } from "../src/lib/domain/schema";
 import type { AIBewerking } from "../src/lib/domain/types";
 import { leesBasisprofiel, sbiTekst } from "../src/lib/domain/kvk";
+import { bingDoelUrl, diagnoseTekst } from "../src/lib/domain/webzoek";
 import { MATCH_DISCLAIMER, matchRijen, waardenRijen } from "../src/lib/domain/export";
 import { regelOnderbouwingRol, regelVerbandAnalyse } from "../src/lib/domain/onderbouwing";
 import { controleerVerwijderen, pseudoniem, verwijderPartnerDefinitief, VERWIJDERD } from "../src/lib/domain/verwijderen";
@@ -526,6 +527,12 @@ const groepExport = (async () => {
   const zipE = maakZip(Object.entries(tab).map(([n, r]) => ({ naam: `${n}.csv`, inhoud: naarCsv(r.length ? r : [{ Melding: "geen" }]) })));
   check("US-68 CSV-bundel als zip", (leesZipBestand(zipE, "concepten.csv")?.toString() ?? "").includes("Concept BV"));
 })();
+
+// Discovery: zoekketen DuckDuckGo → Bing met diagnose
+{
+  check("Discovery: Bing-doel-URL gedecodeerd", bingDoelUrl("https://www.bing.com/ck/a?!&amp;&amp;p=x&amp;u=a1aHR0cHM6Ly90aW1tZXJ1Z2NoZWxlbi5ubC8&amp;ntb=1") === "https://timmerugchelen.nl/");
+  check("Discovery: diagnose noemt geblokkeerde zoekmachines", diagnoseTekst([{ zoekmachine: "DuckDuckGo", status: 202, resultaten: 0, geblokkeerd: true }, { zoekmachine: "Bing", status: 200, resultaten: 5, geblokkeerd: false }]) === "DuckDuckGo: geweigerd of geblokkeerd (1×), Bing: 5 resultaten");
+}
 
 const groepD = (async () => {
   const prof = leesBasisprofiel({ kvkNummer: "12345678", statutaireNaam: "Bouwbedrijf Voorbeeld B.V.", materieleRegistratie: { datumAanvang: "19870401" }, sbiActiviteiten: [{ sbiCode: "4120", sbiOmschrijving: "Algemene burgerlijke en utiliteitsbouw", indHoofdactiviteit: "Ja" }, { sbiCode: "7111", sbiOmschrijving: "Architecten", indHoofdactiviteit: "Nee" }], _embedded: { eigenaar: { rechtsvorm: "BeslotenVennootschap" }, hoofdvestiging: { adressen: [{ type: "bezoekadres", straatnaam: "Kerkstraat", huisnummer: 1, postcode: "3811AB", plaats: "Amersfoort" }] } } });

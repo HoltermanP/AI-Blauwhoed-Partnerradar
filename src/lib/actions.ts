@@ -16,7 +16,7 @@ import { leidEisenAf } from "./domain/projectfactoren";
 import { importeerEngagements } from "./domain/csv";
 import { geocodeer } from "./domain/geocode";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type ImportUitkomst } from "./domain/partnerimport";
-import { webzoekConnector, zoekUrls } from "./domain/webzoek";
+import { diagnoseTekst, kandidaatVanWebsite, laatsteZoekDiagnose, webzoekConnector, zoekUrls } from "./domain/webzoek";
 import { ROL_LABEL } from "./format";
 import { BASISVELD_VAN_LABEL, BASISVELDEN, haalDetailTekst, leesSbi, verrijkVanuitInternet, vindDetailLink } from "./domain/webverrijking";
 import { basisveldenMomentopname, effectieveStatus, geenBronSleutel, herkomstExport, isGoudstandaard, markeerGeenBron, registreerHandmatigeBasisvelden, vulOntbrekendeHerkomst, wisGeenBron, wisHerkomst, zetBasisveldHerkomst } from "./domain/herkomst";
@@ -24,7 +24,7 @@ import { huidigeHerkomst, optieVanVoorstel, veldenZonderBron, verwerkVoorstellen
 import { gezochteVelden } from "./domain/goudstandaard";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiChatOpgemaakt, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
+import { aiBeschikbaar, aiChatOpgemaakt, aiZoekBedrijfswebsites, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
 import { zichtbaar } from "./domain/zichtbaarheid";
 import { SYSTEEM_SLEUTEL, type SysteemSleutel } from "./systeem";
 import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
@@ -793,7 +793,7 @@ export async function beoordeelRegistratie(id: string, besluit: "vrijgegeven" | 
 }
 
 // ---------- Discovery (Epic 5) ----------
-export type DiscoveryUitkomst = { gevonden: number; nieuw: number; alInWachtrij: number; mogelijkeDubbelen: number; bronnen: string[]; regio?: string };
+export type DiscoveryUitkomst = { gevonden: number; nieuw: number; alInWachtrij: number; mogelijkeDubbelen: number; bronnen: string[]; regio?: string; melding?: string };
 
 export async function startDiscovery(projectId: string | null, rollen: Rol[], trefwoorden: string, regio?: string) {
   return veilig(async (): Promise<DiscoveryUitkomst> => {
@@ -807,18 +807,39 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
     if (process.env.DEMO_DATA === "1") connectors.push(demoConnector);
     if (!connectors.length) throw new Error("Geen bronnen actief: sta externe bronnen toe in Beheer (webzoek) en/of zet KVK_API_KEY.");
     const gevonden = (await Promise.all(connectors.map((c) => c.zoek({ rollen, trefwoorden: woorden, regio: regio || undefined })))).flat();
-    // Locatie en AI-samenvatting vóór de mutatie (async), zodat de mutatie zelf synchroon blijft. Eén discovery-run = één AI-bewerking (eis 2).
-    const verrijkt = await alsAIBewerking("discovery", g.naam, `discovery ${rollen.join(",")} ${trefwoorden}`.trim(), () => Promise.all(
-      gevonden.map(async (k) => {
-        const locatie = k.locatie ?? (k.vestigingsplaats ? (await geocodeer(k.vestigingsplaats))?.locatie : undefined);
-        const tekst = String(k.ruweData.websiteTekst ?? k.ruweData.profiel ?? "");
-        const samenvatting = aiBeschikbaar() && tekst ? await aiSamenvatting({ ...k, id: "", status: "nieuw", opgehaaldOp: "" }, project, tekst) : null;
-        return { ...k, locatie, samenvatting: samenvatting ?? undefined };
-      })
-    ), "aandragen");
+    const diagnose = laatsteZoekDiagnose;
+    const bronnamen = connectors.map((c) => c.naam);
+    let melding: string | undefined;
+    // Locatie en AI-samenvatting vóór de mutatie (async), zodat de mutatie zelf synchroon blijft. Eén discovery-run = één AI-bewerking.
+    const verrijkt = await alsAIBewerking("discovery", g.naam, `discovery ${rollen.join(",")} ${trefwoorden}`.trim(), async () => {
+      // Terugval: blokkeren de zoekmachines het verkeer van de server, dan zoekt Claude (web search) de bedrijfswebsites op.
+      if (!gevonden.length && db.instellingen.externeBronnenToegestaan && aiBeschikbaar()) {
+        const extra = woorden.filter((w) => w.length > 4).slice(0, 3).join(" ");
+        const vragen = rollen.map((r) => `${ROL_LABEL[r].toLowerCase()} woningbouw ${extra} ${regio ?? ""}`.replace(/\s+/g, " ").trim());
+        zetAanroepDoel("bedrijfswebsites zoeken (terugval)");
+        const urls = (await aiZoekBedrijfswebsites(vragen)) ?? [];
+        const gelezen = await Promise.all(urls.map((u, i) => kandidaatVanWebsite(u, rollen[i % rollen.length], "Webzoek via Claude", vragen[i % vragen.length], regio || undefined)));
+        gelezen.forEach((k) => k && gevonden.push(k));
+        if (urls.length) bronnamen.push("Webzoek via Claude (terugval)");
+      }
+      return Promise.all(
+        gevonden.map(async (k) => {
+          const locatie = k.locatie ?? (k.vestigingsplaats ? (await geocodeer(k.vestigingsplaats))?.locatie : undefined);
+          const tekst = String(k.ruweData.websiteTekst ?? k.ruweData.profiel ?? "");
+          const samenvatting = aiBeschikbaar() && tekst ? await aiSamenvatting({ ...k, id: "", status: "nieuw", opgehaaldOp: "" }, project, tekst) : null;
+          return { ...k, locatie, samenvatting: samenvatting ?? undefined };
+        })
+      );
+    }, "aandragen");
+    if (!gevonden.length) {
+      const geblokkeerd = diagnose.some((d) => d.geblokkeerd);
+      melding = geblokkeerd
+        ? `De zoekmachines gaven geen resultaat terug of weigerden het verzoek van de server (${diagnoseTekst(diagnose)}). Dit gebeurt vaak bij hosting in een datacenter.${aiBeschikbaar() ? " Ook de terugval via Claude vond geen bedrijfswebsites." : " Met een ANTHROPIC_API_KEY zoekt de app dan via Claude; of stel KVK_API_KEY in voor het KVK-register."}`
+        : `Geen bedrijfswebsites gevonden voor deze zoekopdracht (${diagnoseTekst(diagnose) || "geen zoekopdrachten uitgevoerd"}). Probeer bredere trefwoorden of een andere regio.`;
+    }
     const nu = new Date().toISOString();
     const uitkomst = await muteer(g, { entiteit: "discovery", entiteitId: projectId ?? "algemeen", actie: "zoekopdracht gestart", details: `${rollen.join(", ")}; ${trefwoorden}${regio ? `; regio ${regio}` : ""}` }, (db) => {
-      const u: DiscoveryUitkomst = { gevonden: gevonden.length, nieuw: 0, alInWachtrij: 0, mogelijkeDubbelen: 0, bronnen: connectors.map((c) => c.naam), regio: regio || undefined };
+      const u: DiscoveryUitkomst = { gevonden: gevonden.length, nieuw: 0, alInWachtrij: 0, mogelijkeDubbelen: 0, bronnen: bronnamen, regio: regio || undefined, melding };
       verrijkt.forEach((k) => {
         const bestaand = db.kandidaten.find((x) => (x.kvk && x.kvk === k.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(k.naam));
         if (bestaand) {

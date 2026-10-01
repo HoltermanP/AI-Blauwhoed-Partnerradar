@@ -61,9 +61,14 @@ export default function DiscoveryStart({ projecten, profielen, magStarten }: { p
       const r = await startDiscovery(projectId || null, rollen, trefwoorden, regio);
       if (!r.ok) return setFout(r.fout);
       const u = r.data!;
+      if (u.gevonden === 0 && u.melding) {
+        setFout(`0 kandidaten gevonden. ${u.melding}`);
+        return router.refresh();
+      }
       setSucces(
         `${u.gevonden} kandidaat(en) gevonden via ${u.bronnen.join(" + ")}${u.regio ? ` in ${u.regio}` : ""}: ${u.nieuw} nieuw in de wachtrij, ${u.alInWachtrij} stonden er al (gekoppeld aan dit project), ${u.mogelijkeDubbelen} mogelijk dubbel met een bestaande partner.` +
-          (u.gevonden === 0 ? " Tip: kies meer rollen of laat de regio leeg." : "")
+          (u.gevonden === 0 ? " Tip: kies meer rollen of laat de regio leeg." : "") +
+          (u.bronnen.some((b) => b.includes("Claude")) ? " De zoekmachines blokkeerden het verzoek; er is via Claude gezocht." : "")
       );
       router.refresh();
     });
