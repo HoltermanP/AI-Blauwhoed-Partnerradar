@@ -16,14 +16,15 @@ import { leidEisenAf } from "./domain/projectfactoren";
 import { importeerEngagements } from "./domain/csv";
 import { geocodeer } from "./domain/geocode";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type ImportUitkomst } from "./domain/partnerimport";
-import { webzoekConnector } from "./domain/webzoek";
+import { webzoekConnector, zoekUrls } from "./domain/webzoek";
+import { ROL_LABEL } from "./format";
 import { BASISVELD_VAN_LABEL, BASISVELDEN, haalDetailTekst, leesSbi, verrijkVanuitInternet, vindDetailLink } from "./domain/webverrijking";
 import { basisveldenMomentopname, effectieveStatus, geenBronSleutel, herkomstExport, isGoudstandaard, markeerGeenBron, registreerHandmatigeBasisvelden, vulOntbrekendeHerkomst, wisGeenBron, wisHerkomst, zetBasisveldHerkomst } from "./domain/herkomst";
 import { huidigeHerkomst, optieVanVoorstel, veldenZonderBron, verwerkVoorstellen } from "./domain/voorstellen";
 import { gezochteVelden } from "./domain/goudstandaard";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiChat, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
+import { aiBeschikbaar, aiChatOpgemaakt, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
 import { zichtbaar } from "./domain/zichtbaarheid";
 import { SYSTEEM_SLEUTEL, type SysteemSleutel } from "./systeem";
 import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
@@ -878,36 +879,46 @@ export async function markeerGeenDubbel(id: string) {
 }
 
 // ---------- Chat over het partnerbestand (B5) ----------
-export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; viaAI: boolean };
+export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; viaAI: boolean; bronnen: Array<{ titel: string; url: string }>; metInternet: boolean };
 
 /**
- * B5: beantwoord een vraag over het partnerbestand. Gebruikt uitsluitend databaserecords en verwijst naar de
- * onderliggende partners. Elke vraag is één AI-bewerking (eis 2). Zonder API-sleutel: semantische zoekresultaten.
+ * B5: beantwoord een vraag over het partnerbestand, als Markdown (wordt als HTML getoond). Partnergegevens komen
+ * uitsluitend uit databaserecords; met `metInternet` zoekt de chat daarnaast op internet (indicatief, met bronnen).
+ * Elke vraag is één AI-bewerking. Zonder API-sleutel: semantische treffers en, met internet, zoekresultaten als links.
  */
-export async function stelChatVraag(vraag: string, historie: Array<{ vraag: string; antwoord: string }> = []) {
+export async function stelChatVraag(vraag: string, historie: Array<{ vraag: string; antwoord: string }> = [], metInternet = false) {
   return veilig(async (): Promise<ChatAntwoord> => {
     const g = await vereisRecht("lezen");
     if (!vraag.trim()) throw new Error("Stel een vraag.");
     const db = await getDb();
+    if (metInternet && !db.instellingen.externeBronnenToegestaan) throw new Error("Externe bronnen staan uit (Beheer); zoeken op internet is daardoor niet mogelijk.");
     const { partners, records } = chatContext(db, vraag);
     if (aiBeschikbaar()) {
-      const r = await alsAIBewerking("chat", g.naam, vraag.slice(0, 120), () => {
-        zetAanroepDoel("chatvraag");
-        return aiChat(vraag, JSON.stringify(records), historie.slice(-4));
+      const r = await alsAIBewerking("chat", g.naam, `${metInternet ? "[met internet] " : ""}${vraag.slice(0, 120)}`, () => {
+        zetAanroepDoel(metInternet ? "chatvraag met web search" : "chatvraag");
+        return aiChatOpgemaakt(vraag, JSON.stringify(records), historie.slice(-4), metInternet);
       }, "chat");
       if (r) {
         const genoemd = r.partnerIds.map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p) && zichtbaar(p!) && records.some((x) => x.id === p!.id));
-        return { antwoord: r.antwoord, partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), viaAI: true };
+        return { antwoord: r.antwoord, partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), viaAI: true, bronnen: r.bronnen, metInternet };
       }
     }
-    // Terugval zonder AI: semantische treffers met een eerlijke uitleg.
-    return {
-      antwoord: partners.length
-        ? `AI staat uit (geen ANTHROPIC_API_KEY); dit zijn de partnerrecords die semantisch het best bij de vraag passen. Open een partner voor de details.`
-        : "Geen passende partners gevonden in de database voor deze vraag.",
-      partners: partners.slice(0, 8).map((p) => ({ id: p.id, naam: p.naam })),
-      viaAI: false
-    };
+    // Terugval zonder AI: semantische treffers als opgemaakte lijst, en met internet de zoekresultaten als links.
+    const lijst = partners.slice(0, 8);
+    const regels = [
+      "### Uit het partnerbestand",
+      lijst.length
+        ? `De partnerrecords die het best bij de vraag passen (semantisch, zonder AI):\n\n| Partner | Rol | Plaats |\n| --- | --- | --- |\n${lijst.map((p) => `| **${p.naam.replace(/\|/g, "/")}** | ${p.rollen.map((x) => ROL_LABEL[x]).join(", ")} | ${p.vestigingsplaats || "–"} |`).join("\n")}`
+        : "Geen passende partners gevonden in de database voor deze vraag."
+    ];
+    let bronnen: Array<{ titel: string; url: string }> = [];
+    if (metInternet) {
+      const urls = await zoekUrls(vraag, 6);
+      bronnen = urls.map((u) => ({ titel: new URL(u).hostname.replace(/^www\./, ""), url: u }));
+      regels.push("### Van internet (indicatief – niet gevalideerd)", bronnen.length ? "Zoekresultaten zonder samenvatting (AI staat uit); zie de bronnen hieronder." : "Geen zoekresultaten gevonden.");
+    }
+    if (!aiBeschikbaar()) regels.push("_AI staat uit (geen ANTHROPIC_API_KEY): er is geen gegenereerd antwoord._");
+    return { antwoord: regels.join("\n\n"), partners: lijst.map((p) => ({ id: p.id, naam: p.naam })), viaAI: false, bronnen, metInternet };
   });
 }
 

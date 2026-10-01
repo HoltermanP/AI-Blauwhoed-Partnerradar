@@ -249,6 +249,72 @@ export async function aiPartnerRegistratie(hint: { naam?: string; website?: stri
 
 export type AIChatAntwoord = { antwoord: string; partnerIds: string[] };
 
+export type ChatBron = { titel: string; url: string };
+export type AIChatOpgemaakt = { antwoord: string; partnerIds: string[]; bronnen: ChatBron[] };
+
+const CHAT_OPMAAK = `Schrijf het antwoord in Markdown, zodat het als nette HTML wordt getoond:
+- begin met een korte kernzin; gebruik ### kopjes als het antwoord uit meerdere delen bestaat;
+- gebruik opsommingen voor lijstjes en een tabel (Markdown, met kopregel) zodra je partners op meerdere kenmerken vergelijkt;
+- zet partnernamen vet; houd het beknopt; geen HTML-tags.
+Sluit af met precies één laatste regel: PARTNER_IDS: <kommagescheiden ids van de partnerrecords die je noemt, of -> (deze regel wordt niet getoond).`;
+
+/**
+ * Chat met opgemaakt antwoord (Markdown) en optioneel zoeken op internet via de web-searchtool van Claude. Internetinformatie
+ * is indicatief en wordt gescheiden van de gegevens uit het partnerbestand gepresenteerd, met bronvermelding.
+ */
+export async function aiChatOpgemaakt(vraag: string, context: string, historie: Array<{ vraag: string; antwoord: string }>, metInternet: boolean): Promise<AIChatOpgemaakt | null> {
+  if (!aiBeschikbaar()) return null;
+  try {
+    const model = await modelVoorFunctie("chat");
+    const licht = model.startsWith("claude-haiku");
+    const system = [
+      "Je beantwoordt vragen van een medewerker van woningontwikkelaar Blauwhoed over hun eigen partnerdatabase, in het Nederlands.",
+      "Gegevens over partners haal je uit de meegeleverde partnerrecords; verzin geen partners, cijfers of eigenschappen. Onderscheid gevalideerde waarden van voorgestelde (status staat per waarde in de records).",
+      metInternet
+        ? "Je mag daarnaast op internet zoeken voor aanvullende, openbare informatie. Presenteer die in een aparte sectie '### Van internet (indicatief – niet gevalideerd)' met de bron erbij, en meng ze niet met de gegevens uit het partnerbestand. Partijen die je op internet vindt maar niet in de records staan, zijn geen partners van Blauwhoed: noem ze hooguit als mogelijke kandidaat. Zoek niet naar personen."
+        : "Staat het antwoord niet in de records, zeg dat dan expliciet en stel voor welk filter of welke verrijking zou helpen.",
+      CHAT_OPMAAK
+    ].join("\n\n");
+    const messages: Anthropic.MessageParam[] = [
+      ...historie.flatMap((h) => [
+        { role: "user" as const, content: h.vraag },
+        { role: "assistant" as const, content: h.antwoord }
+      ]),
+      { role: "user", content: `Partnerrecords (JSON):\n${context}\n\nVraag: ${vraag}` }
+    ];
+    const tools: Anthropic.ToolUnion[] | undefined = metInternet ? [licht ? { type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } } : { type: "web_search_20260209", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } }] : undefined;
+    let res = await getClient().messages.create({ model, max_tokens: 6000, system, messages, ...(tools ? { tools } : {}), ...(licht ? {} : { output_config: { effort: "medium" as const } }) });
+    registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
+    const inhoud = [...res.content];
+    // Server-side zoeklus kan pauzeren: hervat met de gepauzeerde assistent-beurt (max. 3 keer).
+    for (let i = 0; i < 3 && res.stop_reason === "pause_turn"; i++) {
+      res = await getClient().messages.create({ model, max_tokens: 6000, system, messages: [...messages, { role: "assistant", content: res.content }], ...(tools ? { tools } : {}), ...(licht ? {} : { output_config: { effort: "medium" as const } }) });
+      registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
+      inhoud.push(...res.content);
+    }
+    if (res.stop_reason === "refusal") return null;
+    const bronnen = new Map<string, ChatBron>();
+    let tekst = "";
+    for (const b of inhoud) {
+      if (b.type === "text") {
+        tekst += b.text;
+        (b.citations ?? []).forEach((c) => {
+          if (c.type === "web_search_result_location" && c.url) bronnen.set(c.url, { titel: c.title ?? c.url, url: c.url });
+        });
+      } else if (b.type === "web_search_tool_result" && Array.isArray(b.content)) {
+        b.content.slice(0, 6).forEach((r) => !bronnen.has(r.url) && bronnen.set(r.url, { titel: r.title || r.url, url: r.url }));
+      }
+    }
+    const m = tekst.match(/\n?\s*PARTNER_IDS:\s*(.*)\s*$/);
+    const partnerIds = m ? m[1].split(",").map((x) => x.trim()).filter((x) => x && x !== "-") : [];
+    const antwoord = (m ? tekst.slice(0, m.index) : tekst).trim();
+    return antwoord ? { antwoord, partnerIds, bronnen: Array.from(bronnen.values()).slice(0, 12) } : null;
+  } catch (e) {
+    console.warn("Claude-chat mislukt:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 /**
  * B5: chat over het partnerbestand. Het model krijgt uitsluitend records uit de database mee en mag niets verzinnen;
  * elk antwoord verwijst naar de onderliggende partner-ids.

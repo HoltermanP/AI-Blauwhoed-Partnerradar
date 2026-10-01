@@ -15,12 +15,12 @@ export default async function ChatPagina() {
         titel="Chat met het partnerbestand"
         intro={
           <>
-            Stel vragen in gewone taal; het antwoord gebruikt uitsluitend wat in de database staat en verwijst naar de onderliggende partners. Liever klassiek? <Link href="/partners">Filteren</Link> of <Link href="/zoeken">semantisch zoeken</Link>. Elke vraag wordt als AI-bewerking geregistreerd (eis 2).
+            Stel vragen in gewone taal; het antwoord gebruikt wat in de database staat en verwijst naar de onderliggende partners. Vink &ldquo;Ook op internet zoeken&rdquo; aan voor aanvullende openbare informatie (apart getoond, met bronnen). Liever klassiek? <Link href="/partners">Filteren</Link> of <Link href="/zoeken">semantisch zoeken</Link>. Elke vraag wordt als AI-bewerking geregistreerd.
           </>
         }
       />
       <Kaart>
-        <ChatPaneel aiActief={db.instellingen.aiProvider === "anthropic"} />
+        <ChatPaneel aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} internetMogelijk={db.instellingen.externeBronnenToegestaan} />
       </Kaart>
     </>
   );
