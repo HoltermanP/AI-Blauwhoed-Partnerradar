@@ -286,7 +286,11 @@ export type AIChatOpgemaakt = { antwoord: string; partnerIds: string[]; bronnen:
 const CHAT_OPMAAK = `Schrijf het antwoord in Markdown, zodat het als nette HTML wordt getoond:
 - begin met een korte kernzin; gebruik ### kopjes als het antwoord uit meerdere delen bestaat;
 - gebruik opsommingen voor lijstjes en een tabel (Markdown, met kopregel) zodra je partners op meerdere kenmerken vergelijkt;
-- zet partnernamen vet; houd het beknopt; geen HTML-tags.
+- houd het beknopt; geen HTML-tags.
+Bronvermelding is verplicht:
+- noem een partner uit de records altijd als link naar zijn dossier: [**Naam**](/partners/<id>) (alleen ids uit de records);
+- vermeld bij concrete kenmerken, certificaten of cijfers kort de herkomst uit het record, bijv. "(bron: KvK, gevalideerd)" of "(voorgesteld, niet gevalideerd)";
+- zet bij elke bewering van internet de bron er direct achter als link: ([sitenaam](https://...)).
 Sluit af met precies één laatste regel: PARTNER_IDS: <kommagescheiden ids van de partnerrecords die je noemt, of -> (deze regel wordt niet getoond).`;
 
 /**

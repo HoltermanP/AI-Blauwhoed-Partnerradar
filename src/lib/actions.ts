@@ -900,7 +900,12 @@ export async function markeerGeenDubbel(id: string) {
 }
 
 // ---------- Chat over het partnerbestand (B5) ----------
-export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; viaAI: boolean; bronnen: Array<{ titel: string; url: string }>; metInternet: boolean };
+export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; geraadpleegd: Array<{ id: string; naam: string }>; viaAI: boolean; bronnen: Array<{ titel: string; url: string }>; metInternet: boolean };
+
+/** Partnerlinks in een AI-antwoord alleen laten staan als ze naar een meegestuurd record verwijzen; anders gewone tekst. */
+function controleerPartnerLinks(tekst: string, ids: Set<string>) {
+  return tekst.replace(/\[([^\]]+)\]\(\/partners\/([^)\s]+)\)/g, (heel, label: string, id: string) => (ids.has(id) ? heel : label));
+}
 
 /**
  * B5: beantwoord een vraag over het partnerbestand, als Markdown (wordt als HTML getoond). Partnergegevens komen
@@ -914,14 +919,18 @@ export async function stelChatVraag(vraag: string, historie: Array<{ vraag: stri
     const db = await getDb();
     if (metInternet && !db.instellingen.externeBronnenToegestaan) throw new Error("Externe bronnen staan uit (Beheer); zoeken op internet is daardoor niet mogelijk.");
     const { partners, records } = chatContext(db, vraag);
+    const geraadpleegd = partners.map((p) => ({ id: p.id, naam: p.naam }));
     if (aiBeschikbaar()) {
       const r = await alsAIBewerking("chat", g.naam, `${metInternet ? "[met internet] " : ""}${vraag.slice(0, 120)}`, () => {
         zetAanroepDoel(metInternet ? "chatvraag met web search" : "chatvraag");
         return aiChatOpgemaakt(vraag, JSON.stringify(records), historie.slice(-4), metInternet);
       }, "chat");
       if (r) {
-        const genoemd = r.partnerIds.map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p) && zichtbaar(p!) && records.some((x) => x.id === p!.id));
-        return { antwoord: r.antwoord, partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), viaAI: true, bronnen: r.bronnen, metInternet };
+        const ids = new Set(records.map((x) => x.id));
+        // Genoemde partners: de PARTNER_IDS-regel plus de partnerlinks in de tekst (beide alleen uit de meegestuurde records).
+        const uitLinks = Array.from(r.antwoord.matchAll(/\]\(\/partners\/([^)\s]+)\)/g)).map((m) => m[1]);
+        const genoemd = Array.from(new Set([...r.partnerIds, ...uitLinks])).map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p) && zichtbaar(p!) && ids.has(p!.id));
+        return { antwoord: controleerPartnerLinks(r.antwoord, ids), partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), geraadpleegd, viaAI: true, bronnen: r.bronnen, metInternet };
       }
     }
     // Terugval zonder AI: semantische treffers als opgemaakte lijst, en met internet de zoekresultaten als links.
@@ -929,7 +938,7 @@ export async function stelChatVraag(vraag: string, historie: Array<{ vraag: stri
     const regels = [
       "### Uit het partnerbestand",
       lijst.length
-        ? `De partnerrecords die het best bij de vraag passen (semantisch, zonder AI):\n\n| Partner | Rol | Plaats |\n| --- | --- | --- |\n${lijst.map((p) => `| **${p.naam.replace(/\|/g, "/")}** | ${p.rollen.map((x) => ROL_LABEL[x]).join(", ")} | ${p.vestigingsplaats || "–"} |`).join("\n")}`
+        ? `De partnerrecords die het best bij de vraag passen (semantisch, zonder AI):\n\n| Partner | Rol | Plaats |\n| --- | --- | --- |\n${lijst.map((p) => `| [**${p.naam.replace(/[|[\]]/g, "/")}**](/partners/${p.id}) | ${p.rollen.map((x) => ROL_LABEL[x]).join(", ")} | ${p.vestigingsplaats || "–"} |`).join("\n")}`
         : "Geen passende partners gevonden in de database voor deze vraag."
     ];
     let bronnen: Array<{ titel: string; url: string }> = [];
@@ -939,7 +948,7 @@ export async function stelChatVraag(vraag: string, historie: Array<{ vraag: stri
       regels.push("### Van internet (indicatief – niet gevalideerd)", bronnen.length ? "Zoekresultaten zonder samenvatting (AI staat uit); zie de bronnen hieronder." : "Geen zoekresultaten gevonden.");
     }
     if (!aiBeschikbaar()) regels.push("_AI staat uit (geen ANTHROPIC_API_KEY): er is geen gegenereerd antwoord._");
-    return { antwoord: regels.join("\n\n"), partners: lijst.map((p) => ({ id: p.id, naam: p.naam })), viaAI: false, bronnen, metInternet };
+    return { antwoord: regels.join("\n\n"), partners: lijst.map((p) => ({ id: p.id, naam: p.naam })), geraadpleegd, viaAI: false, bronnen, metInternet };
   });
 }
 

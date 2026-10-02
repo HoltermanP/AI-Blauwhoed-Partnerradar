@@ -1385,4 +1385,19 @@ a:not(.knop):not(.chip):not(.badge) { color: var(--blue); }
 .chatOpmaak blockquote { border-left: 3px solid var(--blue-line); margin: 8px 0; padding: 2px 10px; color: var(--muted); }
 .chatVoet { margin-top: 8px; }
 .chatInvoer { display: grid; gap: 6px; }
-.chatInternet { font-size: 14px; }
+.chatBronnen { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+.chatBronnen ul { margin: 4px 0 0; padding-left: 18px; }
+.chatBronnen ol { margin: 4px 0; padding-left: 20px; }
+.chatBronnen li { margin: 2px 0; }
+.chatBronnen .uitklap { margin-top: 2px; }
+/* Zoeken: klassiek zoeken en chat naast elkaar, met één keuze voor het zoekbereik. */
+.zoekBereik { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin-bottom: 14px; font-size: 14px; }
+.zoekBereik label { display: inline-flex; align-items: center; gap: 6px; }
+.zoekBereik input[type="radio"] { width: auto; min-height: auto; }
+.zoekWerkblad { align-items: start; margin-bottom: 20px; }
+.zoekWerkblad .kandidaatRij { grid-template-columns: 30px minmax(0, 1fr); }
+.zoekWerkblad .kandidaatRij > :last-child { grid-column: 2; }
+.zoekWerkblad h3 { font-size: 16px; }
+.zoekWerkblad .kaart > div > h3:first-child { margin-top: 18px; }
+.zoekWeb { margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--line); }
+.zoekWeb ol { padding-left: 20px; overflow-wrap: anywhere; }
