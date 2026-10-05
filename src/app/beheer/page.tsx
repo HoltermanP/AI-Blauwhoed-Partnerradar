@@ -1,5 +1,6 @@
 // Beheeroverzicht: instellingen (US-48), rollen/rechten (US-45), links naar factoren (US-04), gewichten (US-44), audit (US-46).
 import Link from "next/link";
+import { bepaalOmgeving, databaseAanduiding, OMGEVING_LABEL } from "@/lib/domain/omgeving";
 import { heeftRecht, GEBRUIKERSROL_LABEL } from "@/lib/auth";
 import { huidigeGebruiker } from "@/lib/auth";
 import type { Gebruikersrol } from "@/lib/domain/types";
@@ -189,7 +190,8 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
               <div><dt>Evaluaties</dt><dd>{db.evaluaties.length}</dd></div>
               <div><dt>Matchruns</dt><dd>{db.matchRuns.length}</dd></div>
               <div><dt>Importwachtrij</dt><dd>{db.importWachtrij.length}</dd></div>
-              <div><dt>Opslag</dt><dd>{process.env.DATABASE_URL ? "Neon (JSONB-snapshot)" : "In-memory (seed)"}</dd></div>
+              <div><dt>Omgeving</dt><dd>{OMGEVING_LABEL[bepaalOmgeving()]}</dd></div>
+              <div><dt>Opslag</dt><dd>{process.env.DATABASE_URL ? `Neon (JSONB-snapshot) · ${databaseAanduiding(process.env.DATABASE_URL)}` : "In-memory (seed)"}</dd></div>
             </dl>
           </Kaart>
         </div>

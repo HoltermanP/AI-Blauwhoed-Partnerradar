@@ -7,11 +7,18 @@ import { DEMO_GEBRUIKERS, GEBRUIKERSROL_LABEL, huidigeGebruiker } from "@/lib/au
 import { demoModus } from "@/authjs";
 import { uitloggen } from "@/lib/acties/sessie";
 import { headers } from "next/headers";
+import { bepaalOmgeving, databaseAanduiding, OMGEVING_LABEL } from "@/lib/domain/omgeving";
 
-export const metadata: Metadata = {
-  title: "Blauwhoed Partnerdatabase",
-  description: "Slimme partnerdatabase: factorenmodel, uitlegbare matching, historie als bewijs, discovery en teamsamenstelling."
-};
+export function generateMetadata(): Metadata {
+  const omgeving = bepaalOmgeving();
+  const productie = omgeving === "productie";
+  return {
+    title: productie ? "Blauwhoed Partnerdatabase" : `[${OMGEVING_LABEL[omgeving]}] Blauwhoed Partnerdatabase`,
+    description: "Slimme partnerdatabase: factorenmodel, uitlegbare matching, historie als bewijs, discovery en teamsamenstelling.",
+    // Test- en acceptatieomgevingen horen niet in zoekmachines.
+    ...(productie ? {} : { robots: { index: false, follow: false } })
+  };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +27,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const opInlogpagina = (await headers()).get("x-pr-pad")?.startsWith("/inloggen");
   const gebruiker = opInlogpagina ? null : await huidigeGebruiker();
   const demo = demoModus();
+  const omgeving = bepaalOmgeving();
   return (
     <html lang="nl">
       <head>
@@ -31,6 +39,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
       </head>
       <body>
+        {omgeving !== "productie" ? (
+          <div className={`omgevingBalk omgeving-${omgeving}`} role="note">
+            <b>{OMGEVING_LABEL[omgeving]}omgeving</b>
+            <span>Niet de echte partnerdatabase: wijzigingen hier komen niet in productie.</span>
+            <span className="omgevingDb">database: {databaseAanduiding(process.env.DATABASE_URL)}</span>
+          </div>
+        ) : null}
         <header className="topbar">
           <Link href="/" className="brandMark" aria-label="Blauwhoed">
             <img src="/brand/logo.png" alt="Blauwhoed" width={188} height={20} />
