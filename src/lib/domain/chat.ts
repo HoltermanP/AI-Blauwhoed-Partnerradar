@@ -1,5 +1,5 @@
 // B5: contextopbouw voor de chat — compacte, feitelijke partnerrecords uit de database (nooit iets anders).
-import { effectieveStatus } from "./herkomst";
+import { VERIFICATIE_LABEL, verificatieVan } from "./verificatie";
 import { semantischZoeken } from "./matching";
 import type { Database, Partner } from "./types";
 import { totaalscore } from "./tevredenheid";
@@ -20,7 +20,7 @@ export function chatRecord(p: Partner, db: Database) {
     certificaten: p.certificaten.map((c) => `${c.type} (geldig tot ${c.geldigTot})`),
     waarden: p.factoren.slice(0, 25).map((f) => {
       const def = fmap.get(f.factorId);
-      return { veld: def ? (f.optieId ? `${def.naam}: ${def.opties?.find((o) => o.id === f.optieId)?.label ?? f.optieId}` : def.naam) : f.factorId, waarde: f.waarde, bron: f.bron, status: effectieveStatus(f, def) ?? "berekend", peildatum: f.peildatum };
+      return { veld: def ? (f.optieId ? `${def.naam}: ${def.opties?.find((o) => o.id === f.optieId)?.label ?? f.optieId}` : def.naam) : f.factorId, waarde: f.waarde, bron: f.bron, verificatie: VERIFICATIE_LABEL[verificatieVan(f, def)], peildatum: f.peildatum };
     }),
     // US-63: projecthistorie met projectnummer en tevredenheid (oordeel van Blauwhoed, op organisatieniveau).
     projecten: db.engagements.filter((e) => e.partnerId === p.id).map((e) => {

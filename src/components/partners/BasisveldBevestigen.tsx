@@ -1,5 +1,5 @@
 "use client";
-// US-52: een basisveld handmatig bevestigen zet de status op gevalideerd (met naam en datum).
+// US-52: een basisveld handmatig verifiëren zet de status op gevalideerd (met naam, rol en datum).
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { bevestigBasisveld } from "@/lib/actions";
@@ -15,7 +15,7 @@ export default function BasisveldBevestigen({ partnerId, veld }: { partnerId: st
         type="button"
         className="knop knop-tekst klein"
         disabled={bezig}
-        title="Ik heb deze waarde gecontroleerd: zet de status op gevalideerd"
+        title="Ik heb deze waarde gecontroleerd: het label wordt 'geverifieerd door gebruiker' of 'geverifieerd door beheerder'"
         onClick={() =>
           start(async () => {
             const r = await bevestigBasisveld(partnerId, veld);
@@ -24,7 +24,7 @@ export default function BasisveldBevestigen({ partnerId, veld }: { partnerId: st
           })
         }
       >
-        Bevestigen
+        Verifiëren
       </button>
       {fout ? <span className="tekst-rood klein-tekst">{fout}</span> : null}
     </>

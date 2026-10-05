@@ -159,10 +159,10 @@ export default async function PartnerDossier({ params, searchParams }: { params:
       ) : null}
       <Tabs items={tabItems} actief={tab} basis={`/partners/${p.id}`} />
 
-      {tab === "profiel" ? <Profiel p={p} db={db} stats={stats} magBewerken={magBewerken} magPromoveren={magPromoveren} magVerwijderen={heeftRecht(gebruiker.rol, "definitief_verwijderen")} /> : null}
+      {tab === "profiel" ? <Profiel p={p} db={db} stats={stats} magBewerken={magBewerken} magPromoveren={magPromoveren} magVerwijderen={heeftRecht(gebruiker.rol, "definitief_verwijderen")} beheerder={gebruiker.rol === "beheerder"} /> : null}
       {tab === "factoren" ? (
         <Kaart titel="Factorwaarden">
-          <FactorenBeheer partnerId={p.id} rollen={p.rollen} factoren={db.factoren} effectief={effectieveFactoren(p, db, nu)} handmatig={p.factoren} magBewerken={magBewerken} />
+          <FactorenBeheer partnerId={p.id} rollen={p.rollen} factoren={db.factoren} effectief={effectieveFactoren(p, db, nu)} handmatig={p.factoren} magBewerken={magBewerken} beheerder={gebruiker.rol === "beheerder"} />
         </Kaart>
       ) : null}
       {tab === "certificaten" ? (
@@ -251,7 +251,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   );
 }
 
-function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen }: { p: Partner; db: Database; stats: ReturnType<typeof leidFactorenAf>["statistieken"]; magBewerken: boolean; magPromoveren: boolean; magVerwijderen: boolean }) {
+function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen, beheerder = false }: { p: Partner; db: Database; stats: ReturnType<typeof leidFactorenAf>["statistieken"]; magBewerken: boolean; magPromoveren: boolean; magVerwijderen: boolean; beheerder?: boolean }) {
   const belasting = huidigeBelasting(p, db);
   return (
     <div className="raster raster-zij">
@@ -292,8 +292,8 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen }: {
                         <GeenBronBadge markering={p.geenBron?.[`basis:${v}`]} />
                         {w ? (
                           <div>
-                            {h ? <HerkomstRegel bron={h.bron} detail={h.bronDetail} datum={h.vastgesteldOp} betrouwbaarheid={h.betrouwbaarheid} status={h.status} gevalideerdDoor={h.gevalideerdDoor} gevalideerdOp={h.gevalideerdOp} /> : <span className="muted klein-tekst">herkomst onbekend</span>}
-                            {magBewerken && h?.status !== "gevalideerd" ? <BasisveldBevestigen partnerId={p.id} veld={v} /> : null}
+                            {h ? <HerkomstRegel bron={h.bron} detail={h.bronDetail} datum={h.vastgesteldOp} betrouwbaarheid={h.betrouwbaarheid} status={h.status} gevalideerdDoor={h.gevalideerdDoor} gevalideerdDoorRol={h.gevalideerdDoorRol} gevalideerdOp={h.gevalideerdOp} /> : <span className="muted klein-tekst">herkomst onbekend</span>}
+                            {magBewerken && (h?.status !== "gevalideerd" || (beheerder && h.gevalideerdDoorRol !== "beheerder")) ? <BasisveldBevestigen partnerId={p.id} veld={v} /> : null}
                           </div>
                         ) : null}
                       </td>

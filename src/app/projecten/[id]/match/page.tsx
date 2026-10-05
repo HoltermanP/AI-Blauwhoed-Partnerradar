@@ -3,13 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { getDb } from "@/lib/store";
-import type { Kandidaat, MatchRun } from "@/lib/domain/types";
+import type { Kandidaat, MatchRun, Rol } from "@/lib/domain/types";
 import { ROL_LABEL, datumTijd } from "@/lib/format";
 import { Disclaimer, Kaart, Knop, Leeg, PaginaKop } from "@/components/ui";
 import MatchOnderbouwing from "@/components/projecten/MatchOnderbouwing";
 import { MATCH_DISCLAIMER } from "@/lib/domain/export";
 import MatchRunFormulier from "@/components/projecten/MatchRunFormulier";
-import RolResultaatWeergave, { type Verschil } from "@/components/projecten/RolResultaatWeergave";
+import RolResultaatWeergave, { type RunOnderbouwing, type Verschil } from "@/components/projecten/RolResultaatWeergave";
 
 /** US-16: verschillen per rol t.o.v. de vorige run: nieuw, scorewijziging >= 5, weggevallen. */
 function verschillen(run: MatchRun, vorige: MatchRun | undefined): Record<string, Verschil> {
@@ -33,6 +33,14 @@ function verschillen(run: MatchRun, vorige: MatchRun | undefined): Record<string
     uit[r.rol] = d;
   });
   return uit;
+}
+
+/** AI-toelichting per kandidaat uit de run; een regelgebaseerde run-onderbouwing staat al bij elke kandidaat. */
+function runOnderbouwing(run: MatchRun, rol: Rol): RunOnderbouwing | undefined {
+  const o = run.onderbouwing;
+  const r = o?.perRol.find((x) => x.rol === rol);
+  if (!o || !r || o.provider.startsWith("regels")) return undefined;
+  return { provider: o.provider, perKandidaat: Object.fromEntries(r.perKandidaat.map((k) => [k.partnerId, { onderbouwing: k.onderbouwing, aandachtspunten: k.aandachtspunten }])) };
 }
 
 export default async function MatchPagina({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
@@ -105,12 +113,12 @@ export default async function MatchPagina({ params, searchParams }: { params: Pr
             {!magFeedback ? <p className="muted klein-tekst">Feedback op de ranking vereist recht &apos;bewerken&apos;.</p> : null}
             <Disclaimer>{MATCH_DISCLAIMER}</Disclaimer>
           </Kaart>
-          <Kaart titel="Onderbouwing in gewone taal">
+          <Kaart titel="Samenvatting per rol">
             <Disclaimer>{MATCH_DISCLAIMER}</Disclaimer>
             <MatchOnderbouwing run={run} namen={Object.fromEntries(run.resultaat.flatMap((r) => [...r.kandidaten, ...r.prospects].map((k) => [k.partnerId, k.partnerNaam])))} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} />
           </Kaart>
           {run.resultaat.map((r) => (
-            <RolResultaatWeergave key={r.rol} resultaat={r} runId={run.id} projectId={p.id} feedback={feedback} magFeedback={magFeedback} verschil={vorige ? diff[r.rol] : undefined} />
+            <RolResultaatWeergave key={r.rol} resultaat={r} runId={run.id} projectId={p.id} feedback={feedback} magFeedback={magFeedback} verschil={vorige ? diff[r.rol] : undefined} onderbouwing={runOnderbouwing(run, r.rol)} />
           ))}
         </>
       ) : (

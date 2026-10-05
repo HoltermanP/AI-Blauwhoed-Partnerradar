@@ -2,6 +2,8 @@
 import { basisveldWaarde, BASISVELDEN_LIJST, betrouwbaarheidNiveau, bronRang, bronTekst, effectieveStatus, geenBronVeldnaam } from "./herkomst";
 import { BASISVELD_LABEL } from "./types";
 import { totaalscore } from "./tevredenheid";
+import { basisveldVerificatie, VERIFICATIE_LABEL, verificatieVan } from "./verificatie";
+import { onderbouwKandidaat } from "./onderbouwing";
 import { STATUS_LABEL } from "../format";
 import type { Database, MatchRun } from "./types";
 
@@ -75,14 +77,14 @@ export function waardenRijen(db: Database, partners = exportPartners(db)) {
   return partners.flatMap((p) => [
     ...BASISVELDEN_LIJST.filter((v) => basisveldWaarde(p, v)).map((v) => {
       const h = p.veldHerkomst?.[v];
-      return { Partner: p.naam, KVK: p.kvk, Soort: "basisveld", Veld: BASISVELD_LABEL[v], Waarde: basisveldWaarde(p, v), Bron: h ? bronTekst(h.bron) : "onbekend", Bronrang: h ? bronRang(h.bron) : "", "Bron (detail)": h?.bronDetail ?? "", Status: h?.status ?? "onbekend", Betrouwbaarheid: h ? betrouwbaarheidNiveau(h.betrouwbaarheid) : "", "Vastgesteld op": h?.vastgesteldOp ?? "", "Gevalideerd door": h?.gevalideerdDoor ?? "", "Gevalideerd op": h?.gevalideerdOp ?? "" };
+      return { Partner: p.naam, KVK: p.kvk, Soort: "basisveld", Veld: BASISVELD_LABEL[v], Waarde: basisveldWaarde(p, v), Bron: h ? bronTekst(h.bron) : "onbekend", Bronrang: h ? bronRang(h.bron) : "", "Bron (detail)": h?.bronDetail ?? "", Status: h?.status ?? "onbekend", Verificatie: VERIFICATIE_LABEL[basisveldVerificatie(h)], Betrouwbaarheid: h ? betrouwbaarheidNiveau(h.betrouwbaarheid) : "", "Vastgesteld op": h?.vastgesteldOp ?? "", "Gevalideerd door": h?.gevalideerdDoor ?? "", "Gevalideerd op": h?.gevalideerdOp ?? "" };
     }),
     ...p.factoren.map((pf) => {
       const f = fmap.get(pf.factorId);
       const veld = f ? (pf.optieId ? `${f.naam}: ${f.opties?.find((o) => o.id === pf.optieId)?.label ?? pf.optieId}` : f.naam) : pf.factorId;
-      return { Partner: p.naam, KVK: p.kvk, Soort: "factor", Veld: veld, Waarde: Array.isArray(pf.waarde) ? pf.waarde.join(", ") : typeof pf.waarde === "object" ? `${pf.waarde.min}–${pf.waarde.max}` : String(pf.waarde), Bron: bronTekst(pf.bron), Bronrang: bronRang(pf.bron), "Bron (detail)": pf.bewijs?.label ?? "", Status: effectieveStatus(pf, f) ?? "berekend", Betrouwbaarheid: betrouwbaarheidNiveau(pf.betrouwbaarheid), "Vastgesteld op": pf.peildatum, "Gevalideerd door": pf.gevalideerdDoor ?? "", "Gevalideerd op": pf.gevalideerdOp ?? "" };
+      return { Partner: p.naam, KVK: p.kvk, Soort: "factor", Veld: veld, Waarde: Array.isArray(pf.waarde) ? pf.waarde.join(", ") : typeof pf.waarde === "object" ? `${pf.waarde.min}–${pf.waarde.max}` : String(pf.waarde), Bron: bronTekst(pf.bron), Bronrang: bronRang(pf.bron), "Bron (detail)": pf.bewijs?.label ?? "", Status: effectieveStatus(pf, f) ?? "berekend", Verificatie: VERIFICATIE_LABEL[verificatieVan(pf, f)], Betrouwbaarheid: betrouwbaarheidNiveau(pf.betrouwbaarheid), "Vastgesteld op": pf.peildatum, "Gevalideerd door": pf.gevalideerdDoor ?? "", "Gevalideerd op": pf.gevalideerdOp ?? "" };
     }),
-    ...Object.entries(p.geenBron ?? {}).map(([k, m]) => ({ Partner: p.naam, KVK: p.kvk, Soort: "geen betrouwbare bron", Veld: geenBronVeldnaam(k, db.factoren), Waarde: "", Bron: `doorzocht: ${m.doorzocht.join(", ")}`, Bronrang: "", "Bron (detail)": "", Status: "geen betrouwbare bron", Betrouwbaarheid: "", "Vastgesteld op": m.op, "Gevalideerd door": "", "Gevalideerd op": "" }))
+    ...Object.entries(p.geenBron ?? {}).map(([k, m]) => ({ Partner: p.naam, KVK: p.kvk, Soort: "geen betrouwbare bron", Veld: geenBronVeldnaam(k, db.factoren), Waarde: "", Bron: `doorzocht: ${m.doorzocht.join(", ")}`, Bronrang: "", "Bron (detail)": "", Status: "geen betrouwbare bron", Verificatie: "", Betrouwbaarheid: "", "Vastgesteld op": m.op, "Gevalideerd door": "", "Gevalideerd op": "" }))
   ]);
 }
 
@@ -136,13 +138,15 @@ export function matchRijen(run: MatchRun, db: Database) {
       "Gewogen score": k.gewogenScore,
       "Semantische score": k.semantischeScore ?? "",
       "Dekkingsgraad (%)": k.dekkingsgraad,
+      "Geverifieerd (%)": k.verificatiegraad ?? "",
       "Afstand (km)": k.afstandKm ?? "",
+      Onderbouwing: run.onderbouwing?.perRol.find((x) => x.rol === r.rol)?.perKandidaat.find((x) => x.partnerId === k.partnerId)?.onderbouwing ?? (k.onderbouwing ?? onderbouwKandidaat(k)).tekst,
       Waarschuwingen: k.waarschuwingen.join(" | ")
     }))
   );
   const criteria = run.resultaat.flatMap((r) =>
     [...r.kandidaten, ...r.prospects].flatMap((k) =>
-      k.criteria.map((c) => ({ Rol: r.rol, Partner: k.partnerNaam, Criterium: c.factorNaam, Gevraagd: JSON.stringify(c.gevraagd), Waarde: c.waarde === undefined ? "" : JSON.stringify(c.waarde), Fit: c.fit ?? "", Bron: c.bron ? bronTekst(c.bron) : "", Betrouwbaarheid: c.betrouwbaarheid !== undefined ? betrouwbaarheidNiveau(c.betrouwbaarheid) : "", "Gewicht (%)": c.gewicht, "Effectief gewicht (%)": c.effectiefGewicht, Bijdrage: c.bijdrage, Toelichting: c.toelichting }))
+      k.criteria.map((c) => ({ Rol: r.rol, Partner: k.partnerNaam, Criterium: c.factorNaam, Gevraagd: JSON.stringify(c.gevraagd), Waarde: c.waarde === undefined ? "" : JSON.stringify(c.waarde), Fit: c.fit ?? "", Bron: c.bron ? bronTekst(c.bron) : "", Betrouwbaarheid: c.betrouwbaarheid !== undefined ? betrouwbaarheidNiveau(c.betrouwbaarheid) : "", Verificatie: c.verificatie ? VERIFICATIE_LABEL[c.verificatie] : "", "Gewicht (%)": c.gewicht, "Effectief gewicht (%)": c.effectiefGewicht, Bijdrage: c.bijdrage, Toelichting: c.toelichting }))
     )
   );
   const uitsluitingen = run.resultaat.flatMap((r) => r.uitsluitingen.map((u) => ({ Rol: r.rol, Partner: u.partnerNaam, Soort: u.soort, Reden: u.reden })));

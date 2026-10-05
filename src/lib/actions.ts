@@ -19,8 +19,10 @@ import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type I
 import { diagnoseTekst, kandidaatVanWebsite, laatsteZoekDiagnose, webzoekConnector, zoekUrls } from "./domain/webzoek";
 import { ROL_LABEL } from "./format";
 import { BASISVELD_VAN_LABEL, BASISVELDEN, haalDetailTekst, leesSbi, verrijkVanuitInternet, vindDetailLink } from "./domain/webverrijking";
-import { basisveldenMomentopname, effectieveStatus, geenBronSleutel, herkomstExport, isGoudstandaard, markeerGeenBron, registreerHandmatigeBasisvelden, vulOntbrekendeHerkomst, wisGeenBron, wisHerkomst, zetBasisveldHerkomst } from "./domain/herkomst";
-import { huidigeHerkomst, optieVanVoorstel, veldenZonderBron, verwerkVoorstellen } from "./domain/voorstellen";
+import { basisveldenMomentopname, effectieveStatus, geenBronSleutel, herkomstExport, isGoudstandaard, markeerGeenBron, vergelijkHerkomst, registreerHandmatigeBasisvelden, vulOntbrekendeHerkomst, wisGeenBron, wisHerkomst, zetBasisveldHerkomst } from "./domain/herkomst";
+import { verificatieVan, verifieer } from "./domain/verificatie";
+import { onderbouwMatchrun } from "./acties/analyse";
+import { automatischToepasbaar, huidigeHerkomst, optieVanVoorstel, pasAutomatischToe, veldenZonderBron, verwerkVoorstellen } from "./domain/voorstellen";
 import { gezochteVelden } from "./domain/goudstandaard";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
@@ -137,7 +139,7 @@ export async function slaPartnerOp(id: string | null, invoer: PartnerInvoer) {
         const voor = basisveldenMomentopname(p);
         Object.assign(p, { ...invoer, telefoon: invoer.telefoon || undefined, email: invoer.email || undefined, kvk, locatie: geo, bijgewerktOp: nu });
         // US-52: handmatig gewijzigde basisvelden zijn door een mens vastgesteld (bron opgave, gevalideerd).
-        registreerHandmatigeBasisvelden(p, voor, g.naam);
+        registreerHandmatigeBasisvelden(p, voor, g.naam, g.rol);
         return p.id;
       }
       const nieuw: Partner = {
@@ -156,7 +158,7 @@ export async function slaPartnerOp(id: string | null, invoer: PartnerInvoer) {
         aangemaaktOp: nu,
         bijgewerktOp: nu
       };
-      registreerHandmatigeBasisvelden(nieuw, {}, g.naam);
+      registreerHandmatigeBasisvelden(nieuw, {}, g.naam, g.rol);
       db.partners.push(nieuw);
       return nieuw.id;
     });
@@ -177,7 +179,7 @@ export async function bevestigBasisveld(partnerId: string, veld: BasisVeld) {
       if (!p) throw new Error("Partner niet gevonden.");
       const vandaag = new Date().toISOString().slice(0, 10);
       const h = p.veldHerkomst?.[veld];
-      zetBasisveldHerkomst(p, veld, { bron: h?.bron ?? "opgave", bronDetail: h?.bronDetail ?? "handmatig bevestigd", vastgesteldOp: h?.vastgesteldOp ?? vandaag, betrouwbaarheid: h?.betrouwbaarheid, status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdOp: vandaag });
+      zetBasisveldHerkomst(p, veld, { bron: h?.bron ?? "opgave", bronDetail: h?.bronDetail ?? "handmatig bevestigd", vastgesteldOp: h?.vastgesteldOp ?? vandaag, betrouwbaarheid: h?.betrouwbaarheid, status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdDoorRol: g.rol, gevalideerdOp: vandaag });
     });
     revalidatePath(`/partners/${partnerId}`);
   });
@@ -217,10 +219,32 @@ export async function slaPartnerFactorOp(partnerId: string, factor: Omit<Partner
       if (f.opties && factor.optieId && !f.opties.some((o) => o.id === factor.optieId && o.actief)) throw new Error("Optie komt niet uit de waardenlijst.");
       const idx = p.factoren.findIndex((x) => x.factorId === factor.factorId && (x.optieId ?? "") === (factor.optieId ?? ""));
       // Handmatige invoer is een menselijke vaststelling: status 'gevalideerd' met naam en datum (eis 1).
-      const record: PartnerFactor = { ...factor, peildatum: factor.peildatum ?? new Date().toISOString().slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdOp: new Date().toISOString().slice(0, 10) };
+      const record: PartnerFactor = { ...factor, peildatum: factor.peildatum ?? new Date().toISOString().slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdDoorRol: g.rol, gevalideerdOp: new Date().toISOString().slice(0, 10) };
       if (idx >= 0) p.factoren[idx] = record;
       else p.factoren.push(record);
       wisGeenBron(p, geenBronSleutel({ factorId: factor.factorId }));
+      p.bijgewerktOp = new Date().toISOString();
+    });
+    revalidatePath(`/partners/${partnerId}`);
+  });
+}
+
+/**
+ * Verificatielabel: een gebruiker of beheerder bevestigt een (automatisch ingevulde of verouderde) factorwaarde. Het label
+ * wordt 'geverifieerd door gebruiker' resp. 'geverifieerd door beheerder' en de waarde telt daarna volledig mee in de
+ * matching. Een beheerder kan een door een gebruiker geverifieerde waarde ook zelf (opnieuw) verifiëren.
+ */
+export async function verifieerFactorwaarde(partnerId: string, factorId: string, optieId?: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    await muteer(g, { entiteit: "partner_factor", entiteitId: partnerId, actie: `factorwaarde geverifieerd (${g.rol})`, details: `${factorId}${optieId ? `/${optieId}` : ""}` }, (db) => {
+      const p = db.partners.find((x) => x.id === partnerId);
+      if (!p) throw new Error("Partner niet gevonden.");
+      const pf = p.factoren.find((x) => x.factorId === factorId && (x.optieId ?? "") === (optieId ?? ""));
+      if (!pf) throw new Error("Deze waarde is niet vastgelegd (een berekende waarde uit de projecthistorie hoeft niet geverifieerd te worden).");
+      const v = verificatieVan(pf, db.factoren.find((f) => f.id === factorId));
+      if (v === "beheerder" || (v === "gebruiker" && g.rol !== "beheerder")) throw new Error("Deze waarde is al geverifieerd.");
+      pf.peildatum = verifieer(pf, g);
       p.bijgewerktOp = new Date().toISOString();
     });
     revalidatePath(`/partners/${partnerId}`);
@@ -578,6 +602,9 @@ export async function voerMatchUit(projectId: string, naam?: string, vrijeOmschr
       return run.id;
     });
     revalidatePath(`/projecten/${projectId}`);
+    // Elke kandidaat heeft al een onderbouwing in gewone taal (regels). Met AI-sleutel schrijft het model daarnaast direct
+    // een lopende toelichting voor de top van elke rol (één AI-bewerking per matchrun), na de response.
+    if (aiBeschikbaar()) after(() => onderbouwMatchrun(id).then(() => undefined).catch(() => undefined));
     return id;
   });
 }
@@ -1157,7 +1184,8 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
 /** Schrijf nieuwe voorstellen (zonder dubbelen) naar de wachtrij, registreer raadpleging + inhoudshash, en werk de ronde bij. */
 async function bewaarVoorstellen(g: Gebruiker, entiteitId: string, nieuweVoorstellen: EnrichmentVoorstel[], geraadpleegd: Geraadpleegd[], rondeId?: string, rondeKlaar?: boolean) {
   let toegevoegd = 0;
-  await muteer(g, { entiteit: "verrijking", entiteitId, actie: "verrijkingsronde", details: `${nieuweVoorstellen.length} voorstellen` }, (db) => {
+  let automatischIngevuld = 0;
+  await muteer(g, { entiteit: "verrijking", entiteitId, actie: "verrijkingsronde", details: `${nieuweVoorstellen.length} voorstellen (lege en niet-geverifieerde velden automatisch ingevuld als 'niet geverifieerd')` }, (db) => {
     const bestaand = new Set(db.verrijkingsvoorstellen.filter((x) => x.status === "open").map((x) => `${x.partnerId}|${x.veld}|${JSON.stringify(x.voorgesteld)}|${x.aard ?? ""}`));
     const geteld = { nieuw: 0, gewijzigd: 0, nietBevestigd: 0 };
     nieuweVoorstellen.forEach((v) => {
@@ -1189,7 +1217,20 @@ async function bewaarVoorstellen(g: Gebruiker, entiteitId: string, nieuweVoorste
       (geenBron ?? []).forEach((sleutel) => markeerGeenBron(p, sleutel, doorzocht ?? []));
       p.laatstVerrijktOp = new Date().toISOString();
       // Alternatieven opnieuw bepalen over alle open voorstellen van deze partner (ook uit eerdere rondes).
-      verwerkVoorstellen(p, db.verrijkingsvoorstellen.filter((v) => v.partnerId === p.id && v.status === "open"), db.factoren);
+      const open = db.verrijkingsvoorstellen.filter((v) => v.partnerId === p.id && v.status === "open");
+      verwerkVoorstellen(p, open, db.factoren);
+      // Zoveel mogelijk invullen: lege en niet-geverifieerde velden direct vullen met label 'niet geverifieerd'
+      // (beste bron eerst, één waarde per veld); de rest blijft ter beoordeling in de wachtrij.
+      if (db.instellingen.automatischInvullen !== false) {
+        const gedaan = new Set<string>();
+        [...open].sort(vergelijkHerkomst).forEach((v) => {
+          const veldSleutel = `${v.factorId ?? v.veld}|${v.factorId ? optieVanVoorstel(v, db.factoren) ?? "" : ""}`;
+          if (gedaan.has(veldSleutel) || !automatischToepasbaar(p, v, db.factoren)) return;
+          pasAutomatischToe(p, v, db.factoren);
+          gedaan.add(veldSleutel);
+          automatischIngevuld++;
+        });
+      }
     });
     if (rondeId) {
       const ronde = db.verrijkingsrondes.find((r) => r.id === rondeId);
@@ -1199,6 +1240,7 @@ async function bewaarVoorstellen(g: Gebruiker, entiteitId: string, nieuweVoorste
         ronde.nieuw += geteld.nieuw;
         ronde.gewijzigd += geteld.gewijzigd;
         ronde.nietBevestigd += geteld.nietBevestigd;
+        ronde.automatischIngevuld = (ronde.automatischIngevuld ?? 0) + automatischIngevuld;
         ronde.bijgewerktOp = new Date().toISOString();
         if (rondeKlaar) ronde.klaarOp = ronde.bijgewerktOp;
       }
@@ -1340,7 +1382,7 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
           }
         } else if (veld === "sbiActiviteiten") p.sbiActiviteiten = leesSbi(waarde);
         else p[veld] = waarde;
-        if (veld) zetBasisveldHerkomst(p, veld, { bron: v.bron, bronDetail: v.bronUrl, vastgesteldOp: v.gevondenOp.slice(0, 10), betrouwbaarheid: v.betrouwbaarheid, status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdOp: vandaag });
+        if (veld) zetBasisveldHerkomst(p, veld, { bron: v.bron, bronDetail: v.bronUrl, vastgesteldOp: v.gevondenOp.slice(0, 10), betrouwbaarheid: v.betrouwbaarheid, status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdDoorRol: g.rol, gevalideerdOp: vandaag });
         p.bronnen.push({ url: v.bronUrl ?? "", opgehaaldOp: v.gevondenOp.slice(0, 10), soort: "verrijking" });
         p.bijgewerktOp = nu;
         return;
@@ -1359,7 +1401,7 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean) {
       }
       // Acceptatie is een menselijke beoordeling: de nieuwe waarde is daarmee gevalideerd (eis 1).
       wisGeenBron(p, geenBronSleutel({ factorId: v.factorId }));
-      const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? v.bron }, peildatum: v.gevondenOp.slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdOp: nu.slice(0, 10), toelichting: `${v.soort}: ${v.citaat}` };
+      const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? v.bron }, peildatum: v.gevondenOp.slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdDoorRol: g.rol, gevalideerdOp: nu.slice(0, 10), toelichting: `${v.soort}: ${v.citaat}` };
       const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
       if (idx >= 0) p.factoren[idx] = record;
       else p.factoren.push(record);
@@ -1550,7 +1592,7 @@ export async function draaiGewichtsprofielTerug(id: string, versie: number) {
   });
 }
 
-export async function zetInstelling(sleutel: "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving", waarde: string | boolean | number) {
+export async function zetInstelling(sleutel: "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving" | "automatischInvullen", waarde: string | boolean | number) {
   return veilig(async () => {
     const g = await vereisRecht("beheer");
     await muteer(g, { entiteit: "instellingen", entiteitId: sleutel, actie: `gewijzigd naar ${waarde}` }, (db) => {

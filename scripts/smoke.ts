@@ -38,6 +38,9 @@ import { afgeleideTotaalscore, controleerTotaal, historieTreft } from "../src/li
 import { aanbiedersUitOverzicht, ontdubbel, regelOnderbouwing, regelZoekvragen } from "../src/lib/domain/aandragen";
 import { leesSbi } from "../src/lib/domain/webverrijking";
 import { leesZipBestand, maakZip } from "../src/lib/zip";
+import { bepaalOmgeving, databaseAanduiding } from "../src/lib/domain/omgeving";
+import { VERIFICATIE_WEGING, verificatieVan } from "../src/lib/domain/verificatie";
+import { automatischToepasbaar, pasAutomatischToe } from "../src/lib/domain/voorstellen";
 import { docxTekst, leesTekstUitBestand } from "../src/lib/documenttekst";
 import { controleerRegisters, partnerInRegister, registerUrl, verwerkRegisterUitkomsten } from "../src/lib/domain/registers";
 import { certificaatStatus } from "../src/components/partners/certificaten";
@@ -502,7 +505,8 @@ check("Registratie: vrijgave geblokkeerd zonder rol/plaats", vrijgaveBlokkades({
   const dbO = maakSeedDatabase();
   const res = matchProject({ db: dbO, project: dbO.projecten.find((p) => p.id === "proj-groene-loper")! });
   const r = regelOnderbouwingRol(res.find((x) => x.rol === "aannemer")!);
-  check("US-70 onderbouwing per kandidaat met score, dekking en aandachtspunten", r.perKandidaat.length > 0 && r.perKandidaat[0].onderbouwing.includes("dekkingsgraad") && typeof r.samenvatting === "string");
+  check("US-70 onderbouwing per kandidaat in gewone taal (score, verificatie) met aandachtspunten", r.perKandidaat.length > 0 && /scoort \d+ van 100/.test(r.perKandidaat[0].onderbouwing) && /geverifieerd/.test(r.perKandidaat[0].onderbouwing) && Array.isArray(r.perKandidaat[0].aandachtspunten) && typeof r.samenvatting === "string");
+  check("Elke kandidaat en prospect krijgt bij de matching een onderbouwing", res.every((x) => [...x.kandidaten, ...x.prospects].every((k) => (k.onderbouwing?.tekst.length ?? 0) > 40)));
   const va = regelVerbandAnalyse(leidVerbandenAf(dbO));
   check("US-70 verbandanalyse met bronnen en kanttekening (art. 11.4)", va.patronen.length > 0 && va.patronen.every((p) => p.bronnen.length > 0) && va.kanttekeningen.some((k) => k.includes("geen bevestiging")));
   check("US-70 disclaimer matchscore (art. 11.3)", MATCH_DISCLAIMER.includes("geen oordeel over geschiktheid, betrouwbaarheid of financiële gezondheid"));
@@ -566,6 +570,67 @@ const groepD = (async () => {
   check("US-62 niet gevonden = blijft geclaimd", fsc.verificatie === "geclaimd" && fsc.registerControle?.gevonden === false);
   check("US-62 certificaat zonder geldigheid", certificaatStatus("").label === "geldigheid onbekend");
 })();
+
+// Verificatielabels: labels, weging in de matching, automatisch invullen en migratie
+{
+  const dbV = maakSeedDatabase();
+  const fac = (id: string) => dbV.factoren.find((f) => f.id === id);
+  const basis = { factorId: "x", waarde: 3, bron: "web" as const, betrouwbaarheid: 0.6, peildatum: new Date().toISOString().slice(0, 10) };
+  check("Verificatie: labels beheerder/gebruiker/niet/berekend", verificatieVan({ ...basis, status: "gevalideerd", gevalideerdDoorRol: "beheerder" }, undefined) === "beheerder" && verificatieVan({ ...basis, status: "gevalideerd" }, undefined) === "gebruiker" && verificatieVan({ ...basis, status: "voorgesteld" }, undefined) === "niet" && verificatieVan({ ...basis, afgeleid: true }, undefined) === "berekend");
+  check("Verificatie: weging beheerder ≥ gebruiker > niet geverifieerd > verouderd", VERIFICATIE_WEGING.beheerder >= VERIFICATIE_WEGING.gebruiker && VERIFICATIE_WEGING.gebruiker > VERIFICATIE_WEGING.niet && VERIFICATIE_WEGING.niet > VERIFICATIE_WEGING.verouderd);
+  // Dezelfde waarde scoort hoger als ze geverifieerd is dan als ze dat niet is.
+  const project = dbV.projecten.find((p) => p.id === "proj-groene-loper")!;
+  const rol = matchProject({ db: dbV, project }).find((x) => x.rol === "aannemer")!;
+  const k = rol.kandidaten.find((x) => x.criteria.some((c) => (c.basisFit ?? 0) >= 0.9 && c.verificatie !== "berekend"));
+  const c = k?.criteria.find((x) => (x.basisFit ?? 0) >= 0.9 && x.verificatie !== "berekend");
+  const partner = dbV.partners.find((p) => p.id === k?.partnerId);
+  const pf = partner?.factoren.find((f) => f.factorId === c?.factorId && (f.optieId ?? "") === (c?.optieId ?? ""));
+  if (pf && k) {
+    pf.status = "gevalideerd";
+    pf.gevalideerdDoorRol = "beheerder";
+    pf.peildatum = new Date().toISOString().slice(0, 10);
+    const geverifieerd = matchProject({ db: dbV, project }).find((x) => x.rol === "aannemer")!.kandidaten.find((x) => x.partnerId === k.partnerId)!;
+    pf.status = "voorgesteld";
+    const niet = matchProject({ db: dbV, project }).find((x) => x.rol === "aannemer")!.kandidaten.find((x) => x.partnerId === k.partnerId)!;
+    check("Verificatie telt mee in de matchscore (geverifieerd > niet geverifieerd)", geverifieerd.gewogenScore > niet.gewogenScore && (geverifieerd.verificatiegraad ?? 0) > (niet.verificatiegraad ?? 0), { geverifieerd: geverifieerd.gewogenScore, niet: niet.gewogenScore });
+    check("Criterium draagt het verificatielabel", niet.criteria.find((x) => x.factorId === c!.factorId && x.optieId === c!.optieId)?.verificatie === "niet");
+  } else check("Verificatie telt mee in de matchscore (testdata gevonden)", false);
+  // Automatisch invullen
+  const p = dbV.partners[0];
+  const niveau = dbV.factoren.find((f) => f.actief && f.schaal.soort === "niveau" && !f.opties?.length && !f.afgeleid)!;
+  p.factoren = p.factoren.filter((f) => f.factorId !== niveau.id);
+  const voorstel = (w: unknown, extra: Partial<EnrichmentVoorstel> = {}): EnrichmentVoorstel => ({ id: `ev-t-${Math.random()}`, partnerId: p.id, factorId: niveau.id, veld: niveau.naam, huidig: null, voorgesteld: w as EnrichmentVoorstel["voorgesteld"], bron: "web", bronUrl: "https://voorbeeld.nl", betrouwbaarheid: 0.6, soort: "aantoonbaar", citaat: "test", status: "open", gevondenOp: new Date().toISOString(), aard: "nieuw", ...extra });
+  check("Automatisch invullen: leeg veld met geldige waarde", automatischToepasbaar(p, voorstel(4), dbV.factoren));
+  check("Automatisch invullen: ongeldige waarde voor de schaal niet", !automatischToepasbaar(p, voorstel(9), dbV.factoren) && !automatischToepasbaar(p, voorstel("veel"), dbV.factoren));
+  check("Automatisch invullen: geen alternatief of conflict", !automatischToepasbaar(p, voorstel(4, { alternatief: true }), dbV.factoren) && !automatischToepasbaar(p, voorstel(4, { conflictMetGevalideerd: true }), dbV.factoren));
+  const v1 = voorstel(4);
+  pasAutomatischToe(p, v1, dbV.factoren);
+  const ingevuld = p.factoren.find((f) => f.factorId === niveau.id)!;
+  check("Automatisch ingevuld = 'niet geverifieerd' en voorstel afgehandeld", ingevuld.status === "voorgesteld" && ingevuld.automatisch === true && verificatieVan(ingevuld, niveau) === "niet" && v1.status === "geaccepteerd" && v1.automatischToegepast === true);
+  check("Automatisch invullen overschrijft een niet-geverifieerde waarde uit een gelijke bron", automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4 }), dbV.factoren));
+  ingevuld.status = "gevalideerd";
+  check("Automatisch invullen overschrijft nooit een geverifieerde waarde", !automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4 }), dbV.factoren));
+  ingevuld.status = "voorgesteld";
+  ingevuld.bron = "goudstandaard";
+  check("Automatisch invullen vervangt geen betere bron (goudstandaard)", !automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4 }), dbV.factoren));
+  // Migratie v13: rol bij bestaande validaties
+  const dbM = maakSeedDatabase();
+  dbM.versie = 12;
+  const beheerder = dbM.gebruikers.find((g) => g.rol === "beheerder");
+  const doelPf = dbM.partners.flatMap((x) => x.factoren).find((f) => !f.afgeleid)!;
+  Object.assign(doelPf, { status: "gevalideerd", gevalideerdDoor: beheerder?.naam ?? "onbekend", gevalideerdDoorRol: undefined });
+  migreerDatabase(dbM, new Map());
+  check("Migratie v13: bestaande validatie krijgt de rol van de medewerker", doelPf.gevalideerdDoorRol === (beheerder ? "beheerder" : "gebruiker") && dbM.instellingen.automatischInvullen === true);
+  void fac;
+}
+
+// OTAP: omgeving herkennen
+check("OTAP productie-deployment is productie", bepaalOmgeving({ VERCEL_ENV: "production" }) === "productie");
+check("OTAP branch acceptatie is acceptatie", bepaalOmgeving({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "acceptatie" }) === "acceptatie");
+check("OTAP overige previews zijn test", bepaalOmgeving({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "test" }) === "test" && bepaalOmgeving({ VERCEL_ENV: "preview", VERCEL_GIT_COMMIT_REF: "feature-x" }) === "test");
+check("OTAP OMGEVING gaat voor", bepaalOmgeving({ OMGEVING: "Acceptatie", VERCEL_ENV: "production" }) === "acceptatie");
+check("OTAP lokaal is ontwikkeling", bepaalOmgeving({ NODE_ENV: "development" }) === "ontwikkeling");
+check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("postgresql://u:p@ep-cool-bird-123-pooler.eu-central-1.aws.neon.tech/db") === "ep-cool-bird-123" && databaseAanduiding(undefined) === "in-memory");
 
 Promise.all([groepD, groepExport]).then(() => {
   console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");

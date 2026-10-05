@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { geefMatchFeedback } from "@/lib/actions";
-import { DEKKING_WAARSCHUWING } from "@/lib/domain/matching";
+import { DEKKING_WAARSCHUWING, VERIFICATIE_WAARSCHUWING } from "@/lib/domain/matching";
+import { onderbouwKandidaat } from "@/lib/domain/onderbouwing";
+import { VERIFICATIE_KLEUR, VERIFICATIE_LABEL } from "@/lib/domain/verificatie";
 import type { CriteriumScore, Kandidaat, MatchFeedback, RolResultaat, Uitsluiting } from "@/lib/domain/types";
 import { ROL_LABEL, datumTijd, waardeTekst } from "@/lib/format";
 import { Badge, Melding, ScoreBalk, StatusBadge } from "@/components/ui";
@@ -13,6 +15,14 @@ import { Badge, Melding, ScoreBalk, StatusBadge } from "@/components/ui";
 const SOORT_LABEL: Record<Uitsluiting["soort"], string> = { status: "Status", rol: "Rol", regio: "Regio", capaciteit: "Capaciteit", beschikbaarheid: "Beschikbaarheid", certificaat: "Certificaat", factor: "Factor" };
 const BESLISSING_LABEL: Record<MatchFeedback["beslissing"], string> = { gekozen: "Gekozen", shortlist: "Shortlist", afgewezen: "Afgewezen" };
 const BESLISSING_KLEUR: Record<MatchFeedback["beslissing"], "groen" | "blauw" | "grijs"> = { gekozen: "groen", shortlist: "blauw", afgewezen: "grijs" };
+
+/** Onderbouwing van de run (AI of regels) per kandidaat, met wie/wat haar opstelde. */
+export type RunOnderbouwing = { provider: string; perKandidaat: Record<string, { onderbouwing: string; aandachtspunten: string[] }> };
+
+function VerificatieBadge({ c }: { c: CriteriumScore }) {
+  if (!c.verificatie) return <span className="muted">–</span>;
+  return <Badge kleur={VERIFICATIE_KLEUR[c.verificatie]}>{VERIFICATIE_LABEL[c.verificatie]}</Badge>;
+}
 
 export type Verschil = { nieuw: string[]; weg: string[]; gewijzigd: Array<{ naam: string; van: number; naar: number }> };
 
@@ -37,6 +47,7 @@ function CriteriumTabel({ criteria }: { criteria: CriteriumScore[] }) {
             <th className="num">Fit</th>
             <th className="num">Betrouwb.</th>
             <th>Bron</th>
+            <th>Verificatie</th>
             <th className="num">Gewicht</th>
             <th className="num">Effectief</th>
             <th>Bijdrage</th>
@@ -53,6 +64,7 @@ function CriteriumTabel({ criteria }: { criteria: CriteriumScore[] }) {
               <td className="num">{c.fit === null ? "–" : `${Math.round(c.fit * 100)}%`}</td>
               <td className="num">{c.betrouwbaarheid === undefined ? "–" : `${Math.round(c.betrouwbaarheid * 100)}%`}</td>
               <td>{c.bron ?? "–"}</td>
+              <td>{c.fit === null ? <span className="muted">–</span> : <VerificatieBadge c={c} />}</td>
               <td className="num">{c.gewicht}%</td>
               <td className="num">{c.effectiefGewicht}%</td>
               <td>
@@ -85,6 +97,12 @@ function Vergelijking({ kandidaten, onSluit }: { kandidaten: Kandidaat[]; onSlui
       <>
         <b>{waardeTekst(c.waarde)}</b> · {Math.round(c.fit * 100)}%<br />
         <span className="muted">{c.bron} {c.betrouwbaarheid !== undefined ? `(${Math.round(c.betrouwbaarheid * 100)}%)` : ""}</span>
+        {c.verificatie ? (
+          <>
+            <br />
+            <VerificatieBadge c={c} />
+          </>
+        ) : null}
       </>
     );
   };
@@ -138,6 +156,14 @@ function Vergelijking({ kandidaten, onSluit }: { kandidaten: Kandidaat[]; onSlui
               ))}
             </tr>
             <tr>
+              <td>Geverifieerd</td>
+              {kandidaten.map((k) => (
+                <td key={k.partnerId} className={(k.verificatiegraad ?? 0) < VERIFICATIE_WAARSCHUWING ? "waarschuwing-tekst" : ""}>
+                  {k.verificatiegraad === undefined ? "–" : `${k.verificatiegraad}%`}
+                </td>
+              ))}
+            </tr>
+            <tr>
               <td>Afstand</td>
               {kandidaten.map((k) => (
                 <td key={k.partnerId}>{k.afstandKm === null ? "–" : `${k.afstandKm} km`}</td>
@@ -158,7 +184,28 @@ function Vergelijking({ kandidaten, onSluit }: { kandidaten: Kandidaat[]; onSlui
   );
 }
 
-function KandidaatKaart({ k, rang, feedback, magFeedback, geselecteerd, onSelecteer, selectieVol, onFeedback }: { k: Kandidaat; rang: number; feedback?: MatchFeedback; magFeedback: boolean; geselecteerd: boolean; onSelecteer: (aan: boolean) => void; selectieVol: boolean; onFeedback: (beslissing: MatchFeedback["beslissing"], reden: string) => void }) {
+/** Waarom deze partner matcht: de toelichting van de run (AI) als die er is, anders de bij de matching opgestelde tekst. */
+function Onderbouwing({ k, run }: { k: Kandidaat; run?: RunOnderbouwing }) {
+  const ai = run?.perKandidaat[k.partnerId];
+  const regels = k.onderbouwing ?? onderbouwKandidaat(k);
+  return (
+    <div className="matchOnderbouwing">
+      <p>{ai ? ai.onderbouwing : regels.tekst}</p>
+      {ai && ai.aandachtspunten.length ? <p className="klein-tekst muted">Aandachtspunten: {ai.aandachtspunten.join("; ")}</p> : null}
+      <p className="klein-tekst muted">
+        {ai ? `Toelichting opgesteld door ${run!.provider}; ` : "Toelichting opgesteld uit de scoregegevens; "}een onderbouwde eerste selectie, geen oordeel over geschiktheid.
+        {ai ? (
+          <details className="uitklap">
+            <summary>Toelichting uit de scoregegevens</summary>
+            {regels.tekst}
+          </details>
+        ) : null}
+      </p>
+    </div>
+  );
+}
+
+function KandidaatKaart({ k, rang, feedback, magFeedback, geselecteerd, onSelecteer, selectieVol, onFeedback, run }: { k: Kandidaat; rang: number; feedback?: MatchFeedback; magFeedback: boolean; geselecteerd: boolean; onSelecteer: (aan: boolean) => void; selectieVol: boolean; onFeedback: (beslissing: MatchFeedback["beslissing"], reden: string) => void; run?: RunOnderbouwing }) {
   const [redenOpen, setRedenOpen] = useState<MatchFeedback["beslissing"] | null>(null);
   const [reden, setReden] = useState("");
   return (
@@ -194,8 +241,14 @@ function KandidaatKaart({ k, rang, feedback, magFeedback, geselecteerd, onSelect
             Dekking <b>{k.dekkingsgraad}%</b>
             {k.dekkingsgraad < DEKKING_WAARSCHUWING ? " (laag: weinig bekende data)" : ""}
           </span>
+          {k.verificatiegraad !== undefined ? (
+            <span className={k.verificatiegraad < VERIFICATIE_WAARSCHUWING ? "waarschuwing-tekst" : ""} title="Aandeel van de gebruikte gegevens dat door een gebruiker of beheerder is geverifieerd of uit projecthistorie komt">
+              Geverifieerd <b>{k.verificatiegraad}%</b>
+            </span>
+          ) : null}
           <span>{k.afstandKm === null ? "" : `${k.afstandKm} km`}</span>
         </div>
+        <Onderbouwing k={k} run={run} />
         {k.semantischeTreffers.length ? (
           <div className="klein-tekst">
             {k.semantischeTreffers.map((t) => (
@@ -254,7 +307,7 @@ function KandidaatKaart({ k, rang, feedback, magFeedback, geselecteerd, onSelect
   );
 }
 
-export default function RolResultaatWeergave({ resultaat, runId, projectId, feedback, magFeedback, verschil }: { resultaat: RolResultaat; runId: string; projectId: string; feedback: MatchFeedback[]; magFeedback: boolean; verschil?: Verschil }) {
+export default function RolResultaatWeergave({ resultaat, runId, projectId, feedback, magFeedback, verschil, onderbouwing }: { resultaat: RolResultaat; runId: string; projectId: string; feedback: MatchFeedback[]; magFeedback: boolean; verschil?: Verschil; onderbouwing?: RunOnderbouwing }) {
   const router = useRouter();
   const [selectie, setSelectie] = useState<string[]>([]);
   const [vergelijk, setVergelijk] = useState(false);
@@ -306,7 +359,7 @@ export default function RolResultaatWeergave({ resultaat, runId, projectId, feed
 
       {resultaat.kandidaten.length ? (
         resultaat.kandidaten.map((k, i) => (
-          <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} />
+          <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} run={onderbouwing} />
         ))
       ) : (
         <p className="muted">Geen kandidaten die door de harde filters komen.</p>
@@ -316,7 +369,7 @@ export default function RolResultaatWeergave({ resultaat, runId, projectId, feed
         <>
           <h3 className="subkop">Prospects (niet in advies, nog te kwalificeren)</h3>
           {resultaat.prospects.map((k, i) => (
-            <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} />
+            <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} run={onderbouwing} />
           ))}
         </>
       ) : null}

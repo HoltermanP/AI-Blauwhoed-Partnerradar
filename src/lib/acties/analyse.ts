@@ -28,7 +28,7 @@ export async function onderbouwMatchrun(runId: string) {
             const regel = regelOnderbouwingRol(r);
             if (!aiBeschikbaar() || !r.kandidaten.length) return regel;
             zetAanroepDoel(`match-onderbouwing ${r.rol}`);
-            const ai = await aiMatchOnderbouwing(project, r.rol, r.kandidaten.slice(0, 5).map((k) => ({ partnerId: k.partnerId, naam: k.partnerNaam, score: k.score, dekkingsgraad: k.dekkingsgraad, criteria: k.criteria.map((c) => `${c.factorNaam}: ${c.toelichting} (bijdrage ${c.bijdrage})`), waarschuwingen: k.waarschuwingen })));
+            const ai = await aiMatchOnderbouwing(project, r.rol, r.kandidaten.slice(0, 5).map((k) => ({ partnerId: k.partnerId, naam: k.partnerNaam, score: k.score, dekkingsgraad: k.dekkingsgraad, verificatiegraad: k.verificatiegraad ?? null, semantischeTreffers: k.semantischeTreffers.slice(0, 6), criteria: k.criteria.map((c) => `${c.factorNaam}: ${c.fit === null ? "geen gegevens (telt niet mee)" : `${c.toelichting} Bijdrage ${c.bijdrage} punten.`}`), waarschuwingen: k.waarschuwingen })));
             if (!ai) return regel;
             provider = await providerLabel("match");
             return { rol: r.rol, samenvatting: ai.samenvatting, perKandidaat: ai.perKandidaat.filter((x) => r.kandidaten.some((k) => k.partnerId === x.partnerId)) };

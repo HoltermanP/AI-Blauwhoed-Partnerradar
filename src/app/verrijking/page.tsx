@@ -51,7 +51,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
 
   return (
     <>
-      <PaginaKop eyebrow="Epic 6" titel="Verrijking" intro="Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Extracties krijgen bron 'web' met lage betrouwbaarheid en worden pas na controle overgenomen." />
+      <PaginaKop eyebrow="Epic 6" titel="Verrijking" intro={db.instellingen.automatischInvullen !== false ? "Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Lege en niet-geverifieerde velden worden direct ingevuld met het label 'niet geverifieerd' (telt minder zwaar in de matching tot een gebruiker of beheerder het verifieert); afwijkingen van geverifieerde waarden en de goudstandaard blijven hieronder ter beoordeling." : "Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Extracties worden pas na controle overgenomen (automatisch invullen staat uit in Beheer)."} />
 
       <div className="raster raster-zij">
         <Kaart titel="Verrijkingsronde">
@@ -108,6 +108,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
                   <th className="num">Gewijzigd</th>
                   <th className="num">Niet bevestigd</th>
                   <th className="num">Ongewijzigd</th>
+                  <th className="num" title="Direct in het profiel gezet met label 'niet geverifieerd'">Automatisch ingevuld</th>
                   <th />
                 </tr>
               </thead>
@@ -121,6 +122,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
                     <td className="num">{r.gewijzigd}</td>
                     <td className="num">{r.nietBevestigd}</td>
                     <td className="num" title="Delta-selectie: broninhoud niet gewijzigd sinds de vorige ronde">{r.ongewijzigd}</td>
+                    <td className="num">{r.automatischIngevuld ?? 0}</td>
                     <td>
                       <Link href={`/verrijking?ronde=${r.id}`}>Alleen verschillen van deze ronde</Link>
                     </td>

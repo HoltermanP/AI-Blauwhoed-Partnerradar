@@ -6,7 +6,7 @@ import { zetInstelling } from "@/lib/actions";
 import type { Database } from "@/lib/domain/types";
 import { Melding } from "@/components/ui";
 
-type Sleutel = "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving";
+type Sleutel = "aiProvider" | "externeBronnenToegestaan" | "afgeschermdeOmgeving" | "automatischInvullen";
 
 export function Instellingen({ instellingen, magBeheren }: { instellingen: Database["instellingen"]; magBeheren: boolean }) {
   const router = useRouter();
@@ -43,6 +43,12 @@ export function Instellingen({ instellingen, magBeheren }: { instellingen: Datab
         <label>
           <input type="checkbox" checked={instellingen.externeBronnenToegestaan} disabled={!magBeheren || bezig} onChange={(e) => zet("externeBronnenToegestaan", e.target.checked)} />
           Externe bronnen toegestaan (websites van partners ophalen voor verrijking)
+        </label>
+      </div>
+      <div className="vinkjes">
+        <label>
+          <input type="checkbox" checked={instellingen.automatischInvullen !== false} disabled={!magBeheren || bezig} onChange={(e) => zet("automatischInvullen", e.target.checked)} />
+          Verrijking vult lege en niet-geverifieerde velden direct in (label &lsquo;niet geverifieerd&rsquo;, telt minder zwaar in de matching); uit = alles via de voorstellenwachtrij
         </label>
       </div>
       <div className="vinkjes">

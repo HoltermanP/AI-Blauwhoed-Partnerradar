@@ -3,6 +3,8 @@ import { effectieveFactoren, huidigeBelasting } from "./derive";
 import { semantischeGelijkenis } from "./embedding";
 import { afstandKm } from "./geo";
 import { zichtbaar } from "./zichtbaarheid";
+import { isGeverifieerd, VERIFICATIE_LABEL, VERIFICATIE_WEGING, verificatieVan } from "./verificatie";
+import { onderbouwKandidaat } from "./onderbouwing";
 import type {
   CriteriumScore,
   Database,
@@ -19,6 +21,8 @@ import type {
 } from "./types";
 
 export const DEKKING_WAARSCHUWING = 60;
+/** Onder deze verificatiegraad krijgt een kandidaat een waarschuwing: de score rust vooral op onbevestigde gegevens. */
+export const VERIFICATIE_WAARSCHUWING = 50;
 
 function periodeOverlapt(a: { van: string; tot: string }, b: { van: string; tot: string }) {
   return new Date(a.van) <= new Date(b.tot) && new Date(b.van) <= new Date(a.tot);
@@ -191,6 +195,7 @@ export function gewogenScore(partner: Partner, eis: ProjectRequirement, ctx: Mat
   const criteria: CriteriumScore[] = [];
   let bekendGewicht = 0;
   let totaalGewicht = 0;
+  let geverifieerdGewicht = 0;
 
   const verlopenCerts = partner.certificaten.filter((c) => new Date(c.geldigTot) < nu).map((c) => c.type);
 
@@ -204,7 +209,7 @@ export function gewogenScore(partner: Partner, eis: ProjectRequirement, ctx: Mat
     let pf = zoekWaarde(factoren, e);
     // Reisafstand komt uit geometrie, niet uit een vastgelegde waarde.
     if (factor.id === "reisafstand") {
-      pf = { factorId: "reisafstand", waarde: afstandKm(partner.locatie, ctx.project.locatie), bron: "projecthistorie", betrouwbaarheid: 1, peildatum: nu.toISOString().slice(0, 10) };
+      pf = { factorId: "reisafstand", waarde: afstandKm(partner.locatie, ctx.project.locatie), bron: "projecthistorie", betrouwbaarheid: 1, peildatum: nu.toISOString().slice(0, 10), afgeleid: true };
     }
     if (factor.id === "organisatieomvang" && !pf && partner.medewerkers) {
       pf = { factorId: "organisatieomvang", waarde: partner.medewerkers, bron: "opgave", betrouwbaarheid: 0.7, peildatum: partner.bijgewerktOp.slice(0, 10) };
@@ -217,9 +222,12 @@ export function gewogenScore(partner: Partner, eis: ProjectRequirement, ctx: Mat
       return;
     }
     const { fit, toelichting } = fitVoor(factor, e.gevraagd, pf.waarde);
-    // Bewijs boven zelfbeeld: lage betrouwbaarheid dempt de fit richting neutraal (0.5).
-    const gedempt = 0.5 + (fit - 0.5) * (0.5 + 0.5 * pf.betrouwbaarheid);
+    // Bewijs boven zelfbeeld: lage betrouwbaarheid dempt de fit richting neutraal (0.5), en een waarde die (nog) niet
+    // door een gebruiker of beheerder is geverifieerd ook: zo telt een onbevestigd gegeven minder zwaar mee.
+    const verificatie = verificatieVan(pf, factor, nu);
+    const gedempt = 0.5 + (fit - 0.5) * (0.5 + 0.5 * pf.betrouwbaarheid) * VERIFICATIE_WEGING[verificatie];
     bekendGewicht += e.gewicht;
+    if (isGeverifieerd(verificatie)) geverifieerdGewicht += e.gewicht;
     criteria.push({
       factorId: factor.id,
       factorNaam: naam,
@@ -227,13 +235,15 @@ export function gewogenScore(partner: Partner, eis: ProjectRequirement, ctx: Mat
       gevraagd: e.gevraagd,
       waarde: pf.waarde,
       fit: Math.round(gedempt * 100) / 100,
+      basisFit: Math.round(fit * 100) / 100,
       betrouwbaarheid: pf.betrouwbaarheid,
       bron: pf.bron,
       bewijs: pf.bewijs,
+      verificatie,
       gewicht: e.gewicht,
       effectiefGewicht: 0,
       bijdrage: 0,
-      toelichting: `${toelichting} Bron: ${pf.bron} (betrouwbaarheid ${Math.round(pf.betrouwbaarheid * 100)}%).${pf.afgeleid ? " Afgeleid uit historie." : ""}`
+      toelichting: `${toelichting} Bron: ${pf.bron} (betrouwbaarheid ${Math.round(pf.betrouwbaarheid * 100)}%, ${VERIFICATIE_LABEL[verificatie]}${VERIFICATIE_WEGING[verificatie] < 1 ? `, telt voor ${Math.round(VERIFICATIE_WEGING[verificatie] * 100)}%` : ""}).${pf.afgeleid && factor.id !== "reisafstand" ? " Afgeleid uit historie." : ""}`
     });
   });
 
@@ -246,7 +256,8 @@ export function gewogenScore(partner: Partner, eis: ProjectRequirement, ctx: Mat
     score += c.fit * (c.gewicht / bekendGewicht);
   });
   const dekkingsgraad = totaalGewicht ? Math.round((bekendGewicht / totaalGewicht) * 100) : 0;
-  return { score: bekendGewicht ? Math.round(score * 100) : 0, dekkingsgraad, criteria };
+  const verificatiegraad = bekendGewicht ? Math.round((geverifieerdGewicht / bekendGewicht) * 100) : 0;
+  return { score: bekendGewicht ? Math.round(score * 100) : 0, dekkingsgraad, verificatiegraad, criteria };
 }
 
 export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResultaat {
@@ -275,6 +286,15 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
     if ((eis.semantischGewicht > 0 || eis.vrijeOmschrijving) && sem.score > 0 && semBronnen.length) sem.treffers.push(`profiel gevoed door: ${semBronnen.join(", ")}`);
     const waarschuwingen: string[] = [];
     if (gewogen.dekkingsgraad < DEKKING_WAARSCHUWING) waarschuwingen.push(`Dekkingsgraad ${gewogen.dekkingsgraad}%: score rust op weinig bekende data.`);
+    if (gewogen.criteria.some((c) => c.fit !== null) && gewogen.verificatiegraad < VERIFICATIE_WAARSCHUWING) waarschuwingen.push(`Verificatiegraad ${gewogen.verificatiegraad}%: de score rust grotendeels op gegevens die nog niet door een gebruiker of beheerder zijn geverifieerd.`);
+    // Harde eisen die alleen op een niet-geverifieerde of verouderde waarde zijn doorstaan.
+    eis.eisen.forEach((e) => {
+      const factor = db.factoren.find((f) => f.id === e.factorId);
+      if (!factor || !factor.actief || !(factor.type === "hard" || e.minimumeis)) return;
+      const pf = zoekWaarde(factoren, e);
+      const v = pf ? verificatieVan(pf, factor, nu) : undefined;
+      if (v && !isGeverifieerd(v)) waarschuwingen.push(`${e.minimumeis ? "Minimumeis" : "Harde eis"} '${factor.naam}' is getoetst op een ${VERIFICATIE_LABEL[v]} waarde; laat deze verifiëren.`);
+    });
     const bijnaVerlopen = partner.certificaten.filter((c) => {
       const d = (new Date(c.geldigTot).getTime() - nu.getTime()) / (24 * 3600 * 1000);
       return d >= 0 && d <= 90;
@@ -298,8 +318,10 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
       criteria: gewogen.criteria,
       semantischeTreffers: sem.treffers,
       afstandKm: afstandKm(partner.locatie, project.locatie),
-      isProspect: partner.status === "prospect"
+      isProspect: partner.status === "prospect",
+      verificatiegraad: gewogen.verificatiegraad
     };
+    kandidaat.onderbouwing = onderbouwKandidaat(kandidaat);
     (partner.status === "prospect" ? prospects : kandidaten).push(kandidaat);
   });
 

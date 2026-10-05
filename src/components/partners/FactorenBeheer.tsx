@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
-import { slaPartnerFactorOp, verwijderPartnerFactor } from "@/lib/actions";
+import { slaPartnerFactorOp, verifieerFactorwaarde, verwijderPartnerFactor } from "@/lib/actions";
 import { BRON_BETROUWBAARHEID, BRON_LABEL, BRONNEN as ALLE_BRONNEN, type Bron, type Factor, type FactorWaarde, type PartnerFactor, type Rol } from "@/lib/domain/types";
 import { datum, waardeTekst } from "@/lib/format";
-import { effectieveStatus } from "@/lib/domain/herkomst";
+import { VERIFICATIE_KLEUR, VERIFICATIE_LABEL, VERIFICATIE_WEGING, verificatieVan } from "@/lib/domain/verificatie";
 import { Badge, BetrouwbaarheidBadge, BronLabel, Melding } from "@/components/ui";
 import { FactorWaardeVeld, standaardWaarde } from "./FactorWaardeVeld";
 
@@ -21,15 +21,27 @@ type Props = {
   /** Handmatig vastgelegde waarden (partner.factoren). */
   handmatig: PartnerFactor[];
   magBewerken: boolean;
+  /** Een beheerder kan ook waarden verifiëren die al door een gebruiker zijn geverifieerd. */
+  beheerder?: boolean;
 };
 
-/** Eis 1: status per waarde. 'verouderd' wordt berekend uit peildatum + vervaltermijn van de factor. */
+/** Verificatielabel per waarde: door beheerder, door gebruiker, niet geverifieerd, verouderd of berekend uit historie. */
 function WaardeStatus({ pf, factor }: { pf: PartnerFactor; factor?: Factor }) {
-  const st = effectieveStatus(pf, factor);
-  if (!st) return <span className="muted" title="Berekende waarde; geen validatiestatus">berekend</span>;
-  const kleur = st === "gevalideerd" ? "groen" : st === "verouderd" ? "rood" : "geel";
-  const titel = st === "gevalideerd" ? `Gevalideerd door ${pf.gevalideerdDoor ?? "?"} op ${pf.gevalideerdOp ? datum(pf.gevalideerdOp) : "?"}` : st === "verouderd" ? "Ouder dan de vervaltermijn van dit veld, of door een mens vervallen verklaard" : "Nog niet door een mens gevalideerd";
-  return <Badge kleur={kleur} titel={titel}>{st}</Badge>;
+  const v = verificatieVan(pf, factor);
+  const weging = `Telt in de matching voor ${Math.round(VERIFICATIE_WEGING[v] * 100)}% mee.`;
+  const titel =
+    v === "beheerder" || v === "gebruiker"
+      ? `Geverifieerd door ${pf.gevalideerdDoor ?? "?"} (${v}) op ${pf.gevalideerdOp ? datum(pf.gevalideerdOp) : "?"}. ${weging}`
+      : v === "verouderd"
+        ? `Ouder dan de vervaltermijn van dit veld, of door een mens vervallen verklaard. ${weging}`
+        : v === "berekend"
+          ? `Berekend uit projecthistorie en evaluaties; geen verificatie nodig. ${weging}`
+          : `${pf.automatisch ? "Automatisch ingevuld door de verrijking" : "Nog niet"} door een gebruiker of beheerder bevestigd. ${weging}`;
+  return (
+    <Badge kleur={VERIFICATIE_KLEUR[v]} titel={titel}>
+      {VERIFICATIE_LABEL[v]}
+    </Badge>
+  );
 }
 
 function bewijsLink(pf: PartnerFactor) {
@@ -48,7 +60,7 @@ function waardeMetLabel(f: Factor | undefined, pf: PartnerFactor) {
   return waardeTekst(pf.waarde);
 }
 
-export default function FactorenBeheer({ partnerId, rollen, factoren, effectief, handmatig, magBewerken }: Props) {
+export default function FactorenBeheer({ partnerId, rollen, factoren, effectief, handmatig, magBewerken, beheerder = false }: Props) {
   const router = useRouter();
   const [bezig, start] = useTransition();
   const [fout, setFout] = useState<string | null>(null);
@@ -69,6 +81,15 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
       });
     return Array.from(groepen.entries());
   }, [effectief, factorMap]);
+
+  function verifieerWaarde(pf: PartnerFactor) {
+    setFout(null);
+    start(async () => {
+      const r = await verifieerFactorwaarde(partnerId, pf.factorId, pf.optieId);
+      if (!r.ok) setFout(r.fout);
+      else router.refresh();
+    });
+  }
 
   function verwijder(pf: PartnerFactor) {
     if (!confirm("Handmatige waarde verwijderen?")) return;
@@ -116,7 +137,7 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                   <th>Optie</th>
                   <th>Waarde</th>
                   <th>Bron</th>
-                  <th>Status</th>
+                  <th>Verificatie</th>
                   <th className="num">Betrouwb.</th>
                   <th>Peildatum</th>
                   <th>Bewijs</th>
@@ -130,6 +151,8 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                   const k = sleutel(pf);
                   const eigen = handmatigMap.get(k);
                   const open = openRij === k;
+                  const verificatie = verificatieVan(pf, f);
+                  const magVerifieren = Boolean(eigen) && (verificatie === "niet" || verificatie === "verouderd" || (beheerder && verificatie === "gebruiker"));
                   return (
                     <RijMetFormulier key={k} open={open} kolommen={magBewerken ? 10 : 9} formulier={
                       f && open ? (
@@ -166,6 +189,11 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                       <td className="klein-tekst">{pf.toelichting ?? ""}</td>
                       {magBewerken ? (
                         <td style={{ whiteSpace: "nowrap" }}>
+                          {magVerifieren ? (
+                            <button type="button" className="knop knop-secundair klein" onClick={() => verifieerWaarde(pf)} disabled={bezig} title={`Bevestig deze waarde; het label wordt '${beheerder ? VERIFICATIE_LABEL.beheerder : VERIFICATIE_LABEL.gebruiker}'.`}>
+                              Verifiëren
+                            </button>
+                          ) : null}
                           <button type="button" className="knop knop-tekst klein" onClick={() => setOpenRij(open ? null : k)} disabled={!f}>
                             Overschrijven
                           </button>

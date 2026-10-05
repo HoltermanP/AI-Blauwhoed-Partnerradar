@@ -1,11 +1,12 @@
 // Migraties van de opgeslagen database (JSONB-snapshot). Elke migratie is idempotent en verhoogt db.versie.
 import { laadAanvulling } from "./aanvulling";
 import { vulOntbrekendeHerkomst } from "./herkomst";
+import { rolVanNaam } from "./verificatie";
 import { standaardAanvullingInstellingen } from "./instellingen";
 import { kostenEur } from "./kosten";
 import type { Database, Geo } from "./types";
 
-export const HUIDIGE_VERSIE = 12;
+export const HUIDIGE_VERSIE = 13;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -202,6 +203,20 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
       if (e.totaalscore !== undefined && !(e.totaalscore >= 1 && e.totaalscore <= 5)) delete e.totaalscore;
     });
   }
+  if (van < 13) {
+    // Verificatielabel: wie een waarde heeft gevalideerd (gebruiker of beheerder) weegt mee in de matchscore. Bestaande
+    // validaties krijgen de rol van de medewerker met die naam; onbekend = gebruiker. Automatisch invullen staat aan.
+    db.partners.forEach((p) => {
+      p.factoren.forEach((f) => {
+        if (f.status === "gevalideerd" && !f.gevalideerdDoorRol) f.gevalideerdDoorRol = rolVanNaam(f.gevalideerdDoor, db.gebruikers ?? []);
+      });
+      Object.values(p.veldHerkomst ?? {}).forEach((h) => {
+        if (h && h.status === "gevalideerd" && !h.gevalideerdDoorRol) h.gevalideerdDoorRol = rolVanNaam(h.gevalideerdDoor, db.gebruikers ?? []);
+      });
+    });
+    db.instellingen.automatischInvullen = db.instellingen.automatischInvullen ?? true;
+  }
+
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });
   return uitkomst;

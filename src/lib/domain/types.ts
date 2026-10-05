@@ -147,7 +147,11 @@ export type PartnerFactor = {
   /** Status van deze waarde. Ontbreekt bij afgeleide (berekende) waarden. 'verouderd' wordt ook automatisch berekend uit peildatum + Factor.vervalMaanden. */
   status?: FactorWaardeStatus;
   gevalideerdDoor?: string;
+  /** Rol van wie de waarde verifieerde: het verificatielabel (gebruiker of beheerder) weegt mee in de matchscore. */
+  gevalideerdDoorRol?: Gebruikersrol;
   gevalideerdOp?: string;
+  /** Door de verrijking (AI/internet/registers) automatisch ingevuld; blijft 'niet geverifieerd' tot een mens het bevestigt. */
+  automatisch?: boolean;
   /** true = automatisch afgeleid uit historie; false/undefined = handmatig vastgelegd. */
   afgeleid?: boolean;
   /** Handmatige overschrijving van een afgeleide waarde. */
@@ -283,7 +287,9 @@ export type VeldHerkomst = {
   betrouwbaarheid: number;
   status: FactorWaardeStatus;
   gevalideerdDoor?: string;
+  gevalideerdDoorRol?: Gebruikersrol;
   gevalideerdOp?: string;
+  automatisch?: boolean;
 };
 
 /** US-53: expliciete markering dat er voor een veld geen betrouwbare bron is gevonden (het veld blijft leeg). */
@@ -503,11 +509,15 @@ export type CriteriumScore = {
   optieId?: string;
   gevraagd: FactorWaarde;
   waarde?: FactorWaarde;
-  /** Ruwe fit 0–1 voordat betrouwbaarheid meeweegt. */
+  /** Fit 0–1 na demping voor betrouwbaarheid en verificatie (dit telt in de score). */
   fit: number | null;
+  /** Fit 0–1 van de waarde tegenover de eis, vóór demping (1 = voldoet volledig aan de eis). */
+  basisFit?: number;
   betrouwbaarheid?: number;
   bron?: Bron;
   bewijs?: Bewijs;
+  /** Verificatielabel van de gebruikte waarde (beheerder, gebruiker, niet geverifieerd, verouderd, berekend). */
+  verificatie?: Verificatie;
   gewicht: number;
   effectiefGewicht: number;
   bijdrage: number;
@@ -528,6 +538,10 @@ export type Kandidaat = {
   semantischeTreffers: string[];
   afstandKm: number | null;
   isProspect: boolean;
+  /** Aandeel (in gewicht) van de gebruikte waarden dat geverifieerd of uit historie berekend is. */
+  verificatiegraad?: number;
+  /** Onderbouwing in gewone taal, bij elke kandidaat opgesteld tijdens de matching (regels; AI-tekst staat bij de run). */
+  onderbouwing?: { tekst: string; aandachtspunten: string[] };
 };
 
 export type RolResultaat = {
@@ -618,6 +632,8 @@ export type EnrichmentVoorstel = {
   goudstandaardGaatVoor?: boolean;
   citaat: string;
   status: "open" | "geaccepteerd" | "afgewezen";
+  /** Automatisch in het profiel gezet als 'niet geverifieerd' (leeg of niet-geverifieerd veld, geen conflict). */
+  automatischToegepast?: boolean;
   gevondenOp: string;
 };
 
@@ -633,6 +649,8 @@ export type VerrijkingsRonde = {
   door: string;
   totaal: number;
   partnerIdsVerwerkt: string[];
+  /** Velden die in deze ronde automatisch zijn ingevuld (label 'niet geverifieerd'). */
+  automatischIngevuld?: number;
   /** Partners overgeslagen omdat de broninhoud niet wijzigde sinds de vorige ronde (delta-selectie). */
   ongewijzigd: number;
   nieuw: number;
@@ -724,6 +742,9 @@ export type VerrijkingsSchema = {
 
 /** US-65: twee rollen conform de overeenkomst. Het aantal gebruikers is onbeperkt. */
 export type Gebruikersrol = "gebruiker" | "beheerder";
+
+/** Verificatielabel per waarde: door wie bevestigd, nog niet bevestigd, verouderd of berekend uit projecthistorie. */
+export type Verificatie = "beheerder" | "gebruiker" | "niet" | "verouderd" | "berekend";
 
 export type Gebruiker = {
   id: string;
@@ -817,5 +838,7 @@ export type Database = {
     registerbronnen: RegisterBron[];
     /** Extra openbare verrijkingsbronnen (beheerbaar, geen codewijziging nodig). */
     verrijkingsbronnen: VerrijkingsBron[];
+    /** Verrijking vult lege en niet-geverifieerde velden direct in (label 'niet geverifieerd'); standaard aan. */
+    automatischInvullen?: boolean;
   };
 };

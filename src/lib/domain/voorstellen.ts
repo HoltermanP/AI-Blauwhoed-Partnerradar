@@ -2,10 +2,11 @@
 // - conflict met een door een mens gevalideerde waarde (factor én basisveld, US-52);
 // - bronrangorde: hoogste rang wint, lager is 'alternatief'; goudstandaard gaat altijd voor (US-49/US-50);
 // - velden zonder betrouwbare bron worden gemarkeerd in plaats van gevuld (US-53).
-import { effectieveStatus, geenBronSleutel, markeerAlternatieven } from "./herkomst";
+import { basisveldWaarde, bronRang, effectieveStatus, geenBronSleutel, markeerAlternatieven, wisGeenBron, zetBasisveldHerkomst } from "./herkomst";
 import { veldGevuld } from "./goudstandaard";
-import { BASISVELD_VAN_LABEL } from "./webverrijking";
-import type { EnrichmentVoorstel, Factor, Partner, PartnerFactor } from "./types";
+import { waardePastBijFactor } from "./verificatie";
+import { BASISVELD_VAN_LABEL, leesSbi } from "./webverrijking";
+import type { BasisVeld, EnrichmentVoorstel, Factor, Partner, PartnerFactor } from "./types";
 
 /** Optie van een factorvoorstel: expliciet, of af te leiden uit het veldlabel ("Bouwsysteem: houtbouw"). */
 export function optieVanVoorstel(v: EnrichmentVoorstel, factoren: Factor[]): string | undefined {
@@ -54,4 +55,61 @@ export function veldenZonderBron(p: Partner, voorstellen: EnrichmentVoorstel[], 
     })
   );
   return gezocht.filter((s) => !veldGevuld(p, s) && !gevonden.has(s.replace(/\/.*$/, "")));
+}
+
+// ---------- Automatisch invullen ----------
+// Zoveel mogelijk kenmerken gevuld krijgen zonder dat een mens elk voorstel eerst hoeft te accepteren: een gevonden
+// waarde gaat direct in het profiel met het label 'niet geverifieerd' (telt minder zwaar in de matching), mits
+// - het veld leeg is, of de huidige waarde zelf niet geverifieerd is en uit een gelijke of lagere bronrang komt;
+// - er geen conflict is met een geverifieerde waarde of de goudstandaard, en het voorstel geen alternatief is;
+// - de waarde past bij de schaal van de factor.
+// Al het andere blijft een voorstel in de wachtrij.
+
+/** Basisvelden die (alleen als ze leeg zijn) automatisch worden ingevuld; plaats vraagt geocodering en blijft handmatig. */
+const AUTOMATISCHE_BASISVELDEN: BasisVeld[] = ["website", "kvk", "omschrijving", "adres", "statutaireNaam", "oprichtingsdatum", "telefoon", "email", "sbiActiviteiten"];
+
+export function automatischToepasbaar(p: Partner, v: EnrichmentVoorstel, factoren: Factor[], nu = new Date()): boolean {
+  if (v.status !== "open" || v.aard === "niet_bevestigd" || v.alternatief || v.conflictMetGevalideerd || v.goudstandaardGaatVoor) return false;
+  if (v.factorId) {
+    const factor = factoren.find((f) => f.id === v.factorId);
+    if (!factor || !factor.actief || factor.afgeleid) return false;
+    const optie = optieVanVoorstel(v, factoren);
+    if (!waardePastBijFactor(factor, v.voorgesteld, optie)) return false;
+    const huidig = huidigeFactorwaarde(p, v, factoren);
+    if (!huidig) return true;
+    if (huidig.afgeleid || huidig.overschrijving) return false;
+    const st = effectieveStatus(huidig, factor, nu);
+    if (st === "gevalideerd") return false;
+    // Alleen vervangen door een minstens zo goede bron (lagere rang = beter).
+    return bronRang(v.bron) < bronRang(huidig.bron) || (bronRang(v.bron) === bronRang(huidig.bron) && v.betrouwbaarheid >= huidig.betrouwbaarheid) || st === "verouderd";
+  }
+  const veld = BASISVELD_VAN_LABEL[v.veld];
+  if (!veld || !AUTOMATISCHE_BASISVELDEN.includes(veld) || basisveldWaarde(p, veld)) return false;
+  const w = String(v.voorgesteld ?? "").trim();
+  if (!w) return false;
+  if (veld === "kvk") return /^\d{8}$/.test(w);
+  if (veld === "website") return /^https?:\/\//.test(w);
+  return true;
+}
+
+/** Zet een toepasbaar voorstel in het profiel als 'niet geverifieerd' en markeer het voorstel als automatisch toegepast. */
+export function pasAutomatischToe(p: Partner, v: EnrichmentVoorstel, factoren: Factor[], nu = new Date()) {
+  const dag = v.gevondenOp.slice(0, 10) || nu.toISOString().slice(0, 10);
+  if (v.factorId) {
+    const optie = optieVanVoorstel(v, factoren);
+    const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? v.bron }, peildatum: dag, status: "voorgesteld", automatisch: true, toelichting: `${v.soort}: ${v.citaat}` };
+    const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
+    if (idx >= 0) p.factoren[idx] = record;
+    else p.factoren.push(record);
+    wisGeenBron(p, geenBronSleutel({ factorId: v.factorId }));
+  } else {
+    const veld = BASISVELD_VAN_LABEL[v.veld];
+    const w = String(v.voorgesteld).trim();
+    if (veld === "sbiActiviteiten") p.sbiActiviteiten = leesSbi(w);
+    else (p as unknown as Record<string, string>)[veld] = w;
+    zetBasisveldHerkomst(p, veld, { bron: v.bron, bronDetail: v.bronUrl, vastgesteldOp: dag, betrouwbaarheid: v.betrouwbaarheid, status: "voorgesteld", automatisch: true });
+  }
+  v.status = "geaccepteerd";
+  v.automatischToegepast = true;
+  p.bijgewerktOp = nu.toISOString();
 }

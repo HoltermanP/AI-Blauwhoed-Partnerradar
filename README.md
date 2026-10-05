@@ -21,6 +21,9 @@ node scripts/schermcontrole.mjs http://localhost:3000 /tmp/shots u-beheer / /par
 
 Zie [docs/userstories.md](docs/userstories.md) voor de status per story. Kort:
 
+- **Automatisch invullen met verificatielabel**: de verrijking (AI, websites, KVK, registers, eigen uitgaven, documenten) vult lege en niet-geverifieerde kenmerken en basisvelden direct in met het label *niet geverifieerd*; een gebruiker of beheerder verifieert ze met één klik (label *geverifieerd door gebruiker* resp. *geverifieerd door beheerder*). Een geverifieerde waarde of de goudstandaard wordt nooit automatisch overschreven: afwijkingen blijven een voorstel in de wachtrij. Uit te zetten in Beheer → Instellingen.
+- **Verificatie telt mee in de matching**: de fit van een waarde werkt volledig door als een beheerder of de projecthistorie haar onderbouwt, voor 85% als een gebruiker haar verifieerde, voor 50% als ze niet geverifieerd is en voor 30% als ze verouderd is (`VERIFICATIE_WEGING` in `src/lib/domain/verificatie.ts`). Per kandidaat staan de verificatiegraad en het label per criterium; harde eisen die alleen op niet-geverifieerde waarden zijn doorstaan krijgen een waarschuwing.
+- **Onderbouwing bij elke match**: elke kandidaat krijgt bij de matching een toelichting in gewone taal (waarom hij past, waar hij minder sterk is, wat geverifieerd is en wat ontbreekt). Met AI-sleutel schrijft het model na elke matchrun automatisch een lopende toelichting voor de top van elke rol (één AI-bewerking per run).
 - **De mens beslist**: elk AI-voorstel (AI-registratie, geaccepteerde discovery-kandidaat, AI-aandraag vanuit een zoekprofiel) is een **concept** en telt nergens mee tot een **beheerder** het vrijgeeft in `/vrijgave`.
 - **Goudstandaard en bronrang** (`/beheer/goudstandaard`): per partnertype verplichte/gewenste velden; bronnen in rang 1 (goudstandaard, eigen uitgaven zoals Conceptenboulevard), 2 (documenten, opgave, projecthistorie, KVK, registers) en 3 (internet, "indicatief – niet gevalideerd"). AI overschrijft rang 1 nooit; gevalideerde waarden nooit stilzwijgend.
 - **Herkomst per basisveld** (bron, datum, hoog/midden/laag, status) en de markering **"geen betrouwbare bron"**.
@@ -29,6 +32,38 @@ Zie [docs/userstories.md](docs/userstories.md) voor de status per story. Kort:
 - **Bronnen**: KVK Basisprofiel, tekst uit geüploade PDF/Word-documenten, openbare keurmerkregisters.
 - **Projectnummer en tevredenheidsscore** per project; **Excel-exports**; **volledige data-export** (JSON en CSV-zip); **definitief verwijderen** (AVG) van gearchiveerde partners.
 - **Inloggen met Microsoft Entra ID** en twee rollen: gebruiker en beheerder.
+
+## Omgevingen (OTAP)
+
+Eén Vercel-project, drie omgevingen, elk met een eigen Neon-database:
+
+| Omgeving | Git-branch | Vercel | Database (Neon-branch) | Inloggen |
+| --- | --- | --- | --- | --- |
+| Test | `test` | Preview, branch-domein bijv. `test-partnerradar.vercel.app` | `test` (lege of demodata) | open met rolwisselaar (`AUTH_DEMO_MODUS=1`) |
+| Acceptatie | `acceptatie` | Preview, branch-domein bijv. `acceptatie-partnerradar.vercel.app` | `acceptatie` (kopie van productie) | Entra ID, zoals productie |
+| Productie | `master` | Production | `main` | Entra ID |
+
+Werkwijze: wijzigingen gaan eerst naar `test` (merge of push), na akkoord van het team door naar `acceptatie` (gebruikers testen met realistische data) en pas daarna naar `master`:
+
+```bash
+git checkout test && git merge <feature-branch> && git push        # → testomgeving
+git checkout acceptatie && git merge test && git push              # → acceptatieomgeving
+git checkout master && git merge acceptatie && git push            # → productie
+```
+
+Buiten productie staat bovenaan een gekleurde balk met de omgeving en het Neon-endpoint van de database; de paginatitel krijgt `[Test]` of `[Acceptatie]` en zoekmachines worden geweerd. De omgeving wordt afgeleid uit Vercel (branch `acceptatie` = acceptatie, overige previews = test) en kan worden vastgezet met `OMGEVING`. De dagelijkse verrijkingscron draait alleen op productie (Vercel Cron draait niet op previews).
+
+### Eenmalig inrichten
+
+1. **Neon**: maak in het Neon-project twee branches vanaf `main`: `acceptatie` (krijgt een kopie van de productiedata; ververs later met *Reset from parent*) en `test` (maak daarna leeg via Beheer → "Database leegmaken", of laad demodata). Kopieer per branch de connection string (pooled).
+2. **Vercel → Settings → Environment Variables**: zet de huidige waarden alleen op *Production* en voeg per branch *Preview*-waarden toe (bij "Preview" een specifieke branch kiezen):
+   - `DATABASE_URL`: de connection string van de Neon-branch **(nooit de productiedatabase op een preview)**;
+   - `test`: `AUTH_DEMO_MODUS=1`, eventueel `DEMO_DATA=1`; `acceptatie`: de Entra-variabelen en een eigen `AUTH_SECRET`;
+   - `ANTHROPIC_API_KEY`, `KVK_API_KEY`: eigen (of dezelfde) sleutels; het AI-budget geldt per database, dus per omgeving;
+   - `BLOB_READ_WRITE_TOKEN`: bij voorkeur een aparte Blob-store voor test/acceptatie.
+3. **Vercel → Settings → Domains**: voeg de twee domeinen toe en koppel ze aan *Git Branch* `test` resp. `acceptatie`.
+4. **Entra ID**: voeg voor acceptatie de redirect-URI `https://<acceptatiedomein>/api/auth/callback/microsoft-entra-id` toe aan de app-registratie.
+5. Controleer na de eerste deployment op elke omgeving de balk bovenaan (en Beheer → Omgeving/Opslag): het Neon-endpoint moet bij de juiste branch horen.
 
 ## Inloggen (US-64)
 

@@ -289,7 +289,7 @@ const CHAT_OPMAAK = `Schrijf het antwoord in Markdown, zodat het als nette HTML 
 - houd het beknopt; geen HTML-tags.
 Bronvermelding is verplicht:
 - noem een partner uit de records altijd als link naar zijn dossier: [**Naam**](/partners/<id>) (alleen ids uit de records);
-- vermeld bij concrete kenmerken, certificaten of cijfers kort de herkomst uit het record, bijv. "(bron: KvK, gevalideerd)" of "(voorgesteld, niet gevalideerd)";
+- vermeld bij concrete kenmerken, certificaten of cijfers kort de herkomst uit het record, bijv. "(bron: KvK, geverifieerd door beheerder)" of "(bron: web, niet geverifieerd)";
 - zet bij elke bewering van internet de bron er direct achter als link: ([sitenaam](https://...)).
 Sluit af met precies één laatste regel: PARTNER_IDS: <kommagescheiden ids van de partnerrecords die je noemt, of -> (deze regel wordt niet getoond).`;
 
@@ -304,7 +304,7 @@ export async function aiChatOpgemaakt(vraag: string, context: string, historie: 
     const licht = model.startsWith("claude-haiku");
     const system = [
       "Je beantwoordt vragen van een medewerker van woningontwikkelaar Blauwhoed over hun eigen partnerdatabase, in het Nederlands.",
-      "Gegevens over partners haal je uit de meegeleverde partnerrecords; verzin geen partners, cijfers of eigenschappen. Onderscheid gevalideerde waarden van voorgestelde (status staat per waarde in de records).",
+      "Gegevens over partners haal je uit de meegeleverde partnerrecords; verzin geen partners, cijfers of eigenschappen. Vermeld bij kenmerken of ze geverifieerd zijn (veld 'verificatie' per waarde: door beheerder, door gebruiker, niet geverifieerd, verouderd of berekend uit historie).",
       metInternet
         ? "Je mag daarnaast op internet zoeken voor aanvullende, openbare informatie. Presenteer die in een aparte sectie '### Van internet (indicatief – niet gevalideerd)' met de bron erbij, en meng ze niet met de gegevens uit het partnerbestand. Partijen die je op internet vindt maar niet in de records staan, zijn geen partners van Blauwhoed: noem ze hooguit als mogelijke kandidaat. Zoek niet naar personen."
         : "Staat het antwoord niet in de records, zeg dat dan expliciet en stel voor welk filter of welke verrijking zou helpen.",
@@ -376,10 +376,10 @@ export type AIMatchOnderbouwing = { perKandidaat: Array<{ partnerId: string; ond
  * US-59/US-70: onderbouwing van een matchresultaat in gewone taal (één matchvraag = één bewerking). Het model krijgt alleen
  * de berekende criteria en bronnen mee; het is een onderbouwde eerste selectie, geen oordeel over geschiktheid.
  */
-export async function aiMatchOnderbouwing(project: Pick<Project, "naam" | "omschrijving" | "type" | "woningen">, rol: string, kandidaten: Array<{ partnerId: string; naam: string; score: number; dekkingsgraad: number; criteria: string[]; waarschuwingen: string[] }>): Promise<AIMatchOnderbouwing | null> {
+export async function aiMatchOnderbouwing(project: Pick<Project, "naam" | "omschrijving" | "type" | "woningen">, rol: string, kandidaten: Array<{ partnerId: string; naam: string; score: number; dekkingsgraad: number; verificatiegraad: number | null; semantischeTreffers: string[]; criteria: string[]; waarschuwingen: string[] }>): Promise<AIMatchOnderbouwing | null> {
   return jsonAntwoord<AIMatchOnderbouwing>(
     "match",
-    "Je licht voor woningontwikkelaar Blauwhoed een berekende partnermatch toe in het Nederlands. Gebruik uitsluitend de meegeleverde scores, criteria en bronnen; voeg geen feiten toe. Schrijf per kandidaat 1–3 zinnen waarom hij zo scoort en noem aandachtspunten (lage dekking, ontbrekende of indicatieve gegevens). Het is een onderbouwde eerste selectie, geen oordeel over geschiktheid, betrouwbaarheid of financiële gezondheid; formuleer dus niet als aanbeveling om te contracteren.",
+    "Je licht voor woningontwikkelaar Blauwhoed een berekende partnermatch toe in het Nederlands, voor een projectmanager zonder kennis van het scoremodel. Gebruik uitsluitend de meegeleverde scores, criteria en bronnen; voeg geen feiten toe. Schrijf per kandidaat 2–4 heldere, lopende zinnen (geen opsomming, geen vakjargon zoals 'fit' of 'dekkingsgraad'): waarom deze partner bij het project past, met de concrete kenmerken die het meest bijdragen, en waar hij minder sterk is. Elk criterium vermeldt of de waarde geverifieerd is door een beheerder, door een gebruiker, nog niet geverifieerd, verouderd of berekend uit projecthistorie; niet-geverifieerde waarden tellen minder zwaar mee. Benoem het in de tekst als de match vooral op niet-geverifieerde gegevens rust. Noem als aandachtspunten: ontbrekende gegevens, niet-geverifieerde of indicatieve gegevens en de waarschuwingen. Het is een onderbouwde eerste selectie, geen oordeel over geschiktheid, betrouwbaarheid of financiële gezondheid; formuleer dus niet als aanbeveling om te contracteren.",
     `Project: ${project.naam} (${project.type}, ${project.woningen} woningen). ${project.omschrijving.slice(0, 800)}\nRol: ${rol}\n\nKandidaten (JSON):\n${JSON.stringify(kandidaten).slice(0, 20000)}`,
     {
       type: "object",

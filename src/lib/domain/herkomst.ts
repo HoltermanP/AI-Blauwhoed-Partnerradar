@@ -3,7 +3,7 @@
 // - 'verouderd' wordt hier berekend uit peildatum + de per factor ingestelde vervaltermijn;
 // - herkomst is per partner exporteerbaar en verwijderbaar (AVG).
 import { BASISVELD_LABEL, BRON_BETROUWBAARHEID, BRON_LABEL, BRON_RANG } from "./types";
-import type { BasisVeld, Bron, EnrichmentVoorstel, Factor, FactorWaardeStatus, Partner, PartnerFactor, VeldHerkomst } from "./types";
+import type { BasisVeld, Bron, EnrichmentVoorstel, Factor, FactorWaardeStatus, Gebruikersrol, Partner, PartnerFactor, VeldHerkomst } from "./types";
 
 // ---------- US-51: één centrale mapping van numerieke betrouwbaarheid naar hoog/midden/laag ----------
 export type BetrouwbaarheidNiveau = "hoog" | "midden" | "laag";
@@ -70,7 +70,7 @@ export function zetBasisveldHerkomst(p: Partner, veld: BasisVeld, h: Omit<VeldHe
 }
 
 /** Handmatige vaststelling van basisvelden door een mens: gewijzigde velden krijgen bron 'opgave' en status gevalideerd. */
-export function registreerHandmatigeBasisvelden(p: Partner, voor: Partial<Record<BasisVeld, string>>, door: string, nu = new Date()) {
+export function registreerHandmatigeBasisvelden(p: Partner, voor: Partial<Record<BasisVeld, string>>, door: string, rol: Gebruikersrol = "gebruiker", nu = new Date()) {
   const dag = nu.toISOString().slice(0, 10);
   BASISVELDEN_LIJST.forEach((veld) => {
     const nieuw = basisveldWaarde(p, veld);
@@ -79,7 +79,7 @@ export function registreerHandmatigeBasisvelden(p: Partner, voor: Partial<Record
       return;
     }
     if (nieuw === (voor[veld] ?? "") && p.veldHerkomst?.[veld]) return; // ongewijzigd: herkomst blijft
-    zetBasisveldHerkomst(p, veld, { bron: "opgave", bronDetail: "handmatige invoer", vastgesteldOp: dag, status: "gevalideerd", gevalideerdDoor: door, gevalideerdOp: dag });
+    zetBasisveldHerkomst(p, veld, { bron: "opgave", bronDetail: "handmatige invoer", vastgesteldOp: dag, status: "gevalideerd", gevalideerdDoor: door, gevalideerdDoorRol: rol, gevalideerdOp: dag });
   });
 }
 
@@ -215,10 +215,10 @@ export function wisHerkomst(partner: Partner) {
 }
 
 /** Herkomst afleiden voor basisvelden die (van vóór v3.1) nog geen herkomst hebben. Conservatief: status 'voorgesteld' tot een mens bevestigt. */
-function afgeleideHerkomst(p: Partner): Pick<VeldHerkomst, "bron" | "status" | "bronDetail" | "gevalideerdDoor" | "gevalideerdOp"> {
+function afgeleideHerkomst(p: Partner): Pick<VeldHerkomst, "bron" | "status" | "bronDetail" | "gevalideerdDoor" | "gevalideerdDoorRol" | "gevalideerdOp"> {
   if (p.registratie) {
     const vrij = p.registratie.besluit === "vrijgegeven";
-    return { bron: "web", status: vrij ? "gevalideerd" : "voorgesteld", bronDetail: p.registratie.bronnen[0], gevalideerdDoor: vrij ? p.registratie.beoordeeldDoor : undefined, gevalideerdOp: vrij ? p.registratie.beoordeeldOp?.slice(0, 10) : undefined };
+    return { bron: "web", status: vrij ? "gevalideerd" : "voorgesteld", bronDetail: p.registratie.bronnen[0], gevalideerdDoor: vrij ? p.registratie.beoordeeldDoor : undefined, gevalideerdDoorRol: vrij ? "beheerder" : undefined, gevalideerdOp: vrij ? p.registratie.beoordeeldOp?.slice(0, 10) : undefined };
   }
   const imp = p.bronnen.find((b) => b.soort === "import");
   if (imp) return { bron: "opgave", status: "voorgesteld", bronDetail: `import: ${imp.url}` };
@@ -227,7 +227,7 @@ function afgeleideHerkomst(p: Partner): Pick<VeldHerkomst, "bron" | "status" | "
   return { bron: "opgave", status: "voorgesteld", bronDetail: "vastgelegd vóór aanvulling v3.1" };
 }
 
-export function vulOntbrekendeHerkomst(p: Partner, standaard?: Pick<VeldHerkomst, "bron" | "status" | "bronDetail" | "gevalideerdDoor" | "gevalideerdOp">) {
+export function vulOntbrekendeHerkomst(p: Partner, standaard?: Pick<VeldHerkomst, "bron" | "status" | "bronDetail" | "gevalideerdDoor" | "gevalideerdDoorRol" | "gevalideerdOp">) {
   const h = standaard ?? afgeleideHerkomst(p);
   let n = 0;
   BASISVELDEN_LIJST.forEach((veld) => {
