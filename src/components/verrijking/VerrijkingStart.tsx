@@ -16,7 +16,6 @@ const OMVANGEN: Array<{ id: VerrijkingsSchema["omvang"]; label: string }> = [
   { id: "partnertype", label: "Partnertypen uit het schema" }
 ];
 
-const euro = (n: number) => `€ ${n.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function VerrijkingStart({ partners, magBewerken, externeBronnen, schattingen, budgetOverschreden, openRonde }: { partners: Array<{ id: string; naam: string }>; magBewerken: boolean; externeBronnen: boolean; schattingen: SchattingPerOmvang; budgetOverschreden: boolean; openRonde: string | null }) {
   const [omvang, setOmvang] = useState<VerrijkingsSchema["omvang"]>("alles");
@@ -70,14 +69,14 @@ export default function VerrijkingStart({ partners, magBewerken, externeBronnen,
           {schatting.aiActief ? (
             <>
               {" "}
-              — {schatting.overgeslagen} naar verwachting ongewijzigd en overgeslagen; geschat <b>{euro(schatting.geschatteKostenEur)}</b>.
+              — {schatting.overgeslagen} naar verwachting ongewijzigd en overgeslagen.
             </>
           ) : (
             " — AI staat uit: alleen regelextractie, geen bewerkingen."
           )}
         </p>
         <p className="muted klein-tekst">
-          Maandbudget: {schatting.verbruiktDezeMaand} van {schatting.budgetBewerkingen} bewerkingen gebruikt. Resterend na deze ronde: <b className={schatting.overschrijdtBudget ? "tekst-rood" : ""}>{schatting.resterendNa} bewerkingen</b> ({Math.round(schatting.pctNa)}% van het budget); tokenbudget daarna € {schatting.resterendEurNa.toFixed(2)}.
+          Maandbudget: {schatting.verbruiktDezeMaand} van {schatting.budgetBewerkingen} bewerkingen gebruikt. Resterend na deze ronde: <b className={schatting.overschrijdtBudget ? "tekst-rood" : ""}>{schatting.resterendNa} bewerkingen</b> ({Math.round(schatting.pctNa)}% van het budget).
         </p>
       </div>
       {budgetOverschreden ? <Melding soort="waarschuwing">AI-maandbudget bereikt: rondes zijn gepauzeerd. Eén partner verrijken kan nog.</Melding> : schatting.overschrijdtBudget ? <Melding soort="waarschuwing">Deze ronde zou het maandbudget overschrijden. Een geplande ronde start in dat geval niet automatisch; handmatig starten verwerkt 20 partners per klik.</Melding> : null}

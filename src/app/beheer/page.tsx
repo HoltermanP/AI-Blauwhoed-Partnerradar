@@ -175,7 +175,6 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
             <dl className="definities">
               <div><dt>Maand</dt><dd>{verbruik.periode}</dd></div>
               <div><dt>Bewerkingen</dt><dd>{budget.bewerkingen} van {budget.budgetBewerkingen} ({Math.round(budget.pct)}%)</dd></div>
-              <div><dt>Tokenkosten</dt><dd>€ {budget.kostenEur.toFixed(2)} van € {budget.tokenbudgetEur.toFixed(0)}</dd></div>
               <div><dt>Tokens</dt><dd>{verbruik.invoerTokens.toLocaleString("nl-NL")} in · {verbruik.uitvoerTokens.toLocaleString("nl-NL")} uit</dd></div>
             </dl>
             <Link href="/beheer/verbruik" className="knop knop-secundair klein">Budget, modellen en specificatie</Link>

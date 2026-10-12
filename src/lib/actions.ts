@@ -1441,7 +1441,7 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     }
     const db = await getDb();
     // US-58: boven het maandbudget krijgen interactieve functies voorrang; een ronde over (een deel van) het bestand start dan niet.
-    if (!partnerId && budgetStatus(db).overschreden) throw new Error("Het AI-maandbudget (bewerkingen of tokenbudget) is bereikt. Verrijkingsrondes zijn gepauzeerd; verrijking van één partner en zoeken/chat blijven mogelijk. Pas het budget aan onder Beheer → AI-verbruik.");
+    if (!partnerId && budgetStatus(db).overschreden) throw new Error("Het AI-maandbudget (bewerkingen) is bereikt. Verrijkingsrondes zijn gepauzeerd; verrijking van één partner en zoeken/chat blijven mogelijk. Pas het budget aan onder Beheer → AI-verbruik.");
     // Hervatbare ronde-administratie (alleen bij een ronde over het bestand).
     let ronde = partnerId ? undefined : db.verrijkingsrondes.find((r) => !r.klaarOp);
     if (!partnerId && !ronde) {

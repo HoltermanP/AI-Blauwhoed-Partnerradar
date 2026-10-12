@@ -61,7 +61,7 @@ Zie [docs/userstories.md](docs/userstories.md) voor de status per story. Kort:
 - **De mens beslist**: elk AI-voorstel (AI-registratie, geaccepteerde discovery-kandidaat, AI-aandraag vanuit een zoekprofiel) is een **concept** en telt nergens mee tot een **beheerder** het vrijgeeft in `/vrijgave`.
 - **Goudstandaard en bronrang** (`/beheer/goudstandaard`): per partnertype verplichte/gewenste velden; bronnen in rang 1 (goudstandaard, eigen uitgaven zoals Conceptenboulevard), 2 (documenten, opgave, projecthistorie, KVK, registers) en 3 (internet, "indicatief – niet gevalideerd"). AI overschrijft rang 1 nooit; gevalideerde waarden nooit stilzwijgend.
 - **Herkomst per basisveld** (bron, datum, hoog/midden/laag, status) en de markering **"geen betrouwbare bron"**.
-- **AI-verbruik in bewerkingen** (`/beheer/verbruik`): één verrijkte partner = één bewerking; budget 750 bewerkingen en € 30, rekenprijzen in euro, signalen 80%/125%/kwartaal 110%, specificatie in CSV/Excel, model per functie.
+- **AI-verbruik in bewerkingen** (`/beheer/verbruik`): één verrijkte partner = één bewerking; budget 750 bewerkingen per maand (zonder bedragen; verbruik in bewerkingen en tokens), signalen 80%/100%/125%/kwartaal 110%, specificatie in CSV/Excel, model per functie.
 - **Verrijkingsschema** (Verrijking): frequentie, dag/tijd en omvang; dagelijkse cron via `vercel.json`.
 - **Bronnen**: KVK Basisprofiel, tekst uit geüploade PDF/Word-documenten, openbare keurmerkregisters.
 - **Projectnummer en tevredenheidsscore** per project; **Excel-exports**; **volledige data-export** (JSON en CSV-zip); **definitief verwijderen** (AVG) van gearchiveerde partners.

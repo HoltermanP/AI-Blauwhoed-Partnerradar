@@ -137,7 +137,8 @@ export function budgetStatus(db: Pick<Database, "aiBewerkingen" | "instellingen"
   const verstreken = ((Number(maandVan(nu.toISOString()).slice(5, 7)) - 1) % 3) + 1;
   const inKwartaal = (db.aiBewerkingen ?? []).filter((b) => kwartaalVan(b.op) === kw).length;
   const kwartaalGemPct = budget.bewerkingenPerMaand > 0 && maanden.length ? (inKwartaal / verstreken / budget.bewerkingenPerMaand) * 100 : 0;
-  const hoogste = Math.max(pct, pctEur);
+  // Het budget telt in AI-bewerkingen; bedragen worden niet getoond en tellen niet mee voor de signalen.
+  const hoogste = pct;
   return {
     bewerkingen: v.bewerkingen,
     budgetBewerkingen: budget.bewerkingenPerMaand,
@@ -206,8 +207,7 @@ export function schatVerrijkingsronde(partners: Pick<Partner, "webHash" | "websi
     budgetBewerkingen: budget.bewerkingenPerMaand,
     resterendNa,
     pctNa: budget.bewerkingenPerMaand > 0 ? ((status.bewerkingen + verwacht) / budget.bewerkingenPerMaand) * 100 : 0,
-    // Zowel het budget in bewerkingen als het tokenbudget in euro telt.
-    overschrijdtBudget: (budget.bewerkingenPerMaand > 0 && resterendNa < 0) || (budget.tokenbudgetEur > 0 && resterendEurNa < 0)
+    overschrijdtBudget: budget.bewerkingenPerMaand > 0 && resterendNa < 0
   };
 }
 
@@ -227,8 +227,7 @@ export function verbruikSpecificatie(db: Pick<Database, "aiBewerkingen" | "inste
     Modelaanroepen: b.aanroepen.length,
     Modellen: Array.from(new Set(b.aanroepen.map((a) => a.model))).join(", "),
     "Invoertokens": b.invoerTokens,
-    "Uitvoertokens": b.uitvoerTokens,
-    "Providerkosten (EUR)": Math.round(bewerkingKosten(b, budget) * 10000) / 10000
+    "Uitvoertokens": b.uitvoerTokens
   }));
   const periode = (soort: "maand" | "kwartaal") =>
     verbruikPerPeriode(bewerkingen, soort, budget).map((v) => ({
@@ -242,8 +241,7 @@ export function verbruikSpecificatie(db: Pick<Database, "aiBewerkingen" | "inste
       Discovery: v.perCategorie.discovery,
       Overig: v.perCategorie.overig,
       Invoertokens: v.invoerTokens,
-      Uitvoertokens: v.uitvoerTokens,
-      "Providerkosten (EUR)": Math.round(v.kostenEur * 100) / 100
+      Uitvoertokens: v.uitvoerTokens
     }));
-  return { regels, perMaand: periode("maand"), perKwartaal: periode("kwartaal"), rekenprijzen: [{ "Input per miljoen tokens (EUR)": budget.prijsInvoerPerMTok, "Output per miljoen tokens (EUR)": budget.prijsUitvoerPerMTok, "Budget bewerkingen/maand": budget.bewerkingenPerMaand, "Tokenbudget/maand (EUR)": budget.tokenbudgetEur }] };
+  return { regels, perMaand: periode("maand"), perKwartaal: periode("kwartaal"), rekenprijzen: [{ "Budget bewerkingen/maand": budget.bewerkingenPerMaand }] };
 }

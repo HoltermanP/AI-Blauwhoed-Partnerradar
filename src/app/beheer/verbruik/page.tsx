@@ -4,13 +4,12 @@ import Link from "next/link";
 import { AIBudgetEditor, ModellenEditor } from "@/components/beheer/AIInstellingen";
 import { Badge, Kaart, Knop, Melding, Metriek, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
-import { aiBudget, BESCHIKBARE_MODELLEN, bewerkingKosten, budgetStatus, CATEGORIEEN, categorieVan, FUNCTIE_LABEL, STANDAARD_MODELLEN, verbruikPerPeriode, type Verbruik } from "@/lib/domain/kosten";
+import { aiBudget, BESCHIKBARE_MODELLEN, budgetStatus, CATEGORIEEN, categorieVan, FUNCTIE_LABEL, STANDAARD_MODELLEN, verbruikPerPeriode, type Verbruik } from "@/lib/domain/kosten";
 import type { AIFunctie } from "@/lib/domain/types";
 import { datumTijd } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { aiAan, aiVerwerking } from "@/lib/aiplatform";
 
-const euro = (n: number) => `€ ${n.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function PeriodeTabel({ rijen, budget, kop }: { rijen: Verbruik[]; budget: number; kop: string }) {
   if (!rijen.length) return <p className="muted">Nog geen AI-bewerkingen geregistreerd.</p>;
@@ -26,7 +25,6 @@ function PeriodeTabel({ rijen, budget, kop }: { rijen: Verbruik[]; budget: numbe
               <th key={c} className="num">{c}</th>
             ))}
             <th className="num">Tokens in/uit</th>
-            <th className="num">Kosten</th>
           </tr>
         </thead>
         <tbody>
@@ -41,7 +39,6 @@ function PeriodeTabel({ rijen, budget, kop }: { rijen: Verbruik[]; budget: numbe
                   <td key={c} className="num">{v.perCategorie[c]}</td>
                 ))}
                 <td className="num">{v.invoerTokens.toLocaleString("nl-NL")} / {v.uitvoerTokens.toLocaleString("nl-NL")}</td>
-                <td className="num">{euro(v.kostenEur)}</td>
               </tr>
             );
           })}
@@ -81,7 +78,7 @@ export default async function VerbruikPagina() {
       {status.overschreden ? <Melding soort="fout">100% van het maandbudget bereikt: geplande verrijkingsrondes starten niet; interactieve functies gaan voor.</Melding> : status.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
       <div className="metriekRij">
         <Metriek waarde={`${status.bewerkingen} / ${status.budgetBewerkingen}`} label="AI-bewerkingen deze maand" sub={`${Math.round(status.pct)}% van het budget`} />
-        <Metriek waarde={euro(status.kostenEur)} label="Tokenkosten deze maand" sub={`${Math.round(status.pctEur)}% van ${euro(status.tokenbudgetEur)}`} />
+        <Metriek waarde={(perMaand.find((x) => x.periode === new Date().toISOString().slice(0, 7))?.invoerTokens ?? 0).toLocaleString("nl-NL")} label="Invoertokens deze maand" sub={`${(perMaand.find((x) => x.periode === new Date().toISOString().slice(0, 7))?.uitvoerTokens ?? 0).toLocaleString("nl-NL")} uitvoertokens`} />
         <Metriek waarde={`${Math.round(status.kwartaalGemPct)}%`} label="Gemiddeld per maand dit kwartaal" sub="signaal boven 110%" />
         <Metriek waarde={Math.max(0, status.budgetBewerkingen - status.bewerkingen)} label="Resterende bewerkingen deze maand" sub={(() => {
           const m = perMaand.find((x) => x.periode === new Date().toISOString().slice(0, 7));
@@ -96,7 +93,7 @@ export default async function VerbruikPagina() {
         <PeriodeTabel rijen={perKwartaal} budget={budget.bewerkingenPerMaand * 3} kop="Kwartaal" />
       </Kaart>
       <div className="raster raster-2">
-        <Kaart titel="Budget en rekenprijzen">
+        <Kaart titel="Budget">
           <AIBudgetEditor budget={budget} magBeheren={magBeheren} />
         </Kaart>
         <Kaart titel="Model per functie">
@@ -117,7 +114,6 @@ export default async function VerbruikPagina() {
                   <th className="num">Aanroepen</th>
                   <th>Model</th>
                   <th className="num">Tokens in/uit</th>
-                  <th className="num">Kosten</th>
                 </tr>
               </thead>
               <tbody>
@@ -130,7 +126,6 @@ export default async function VerbruikPagina() {
                     <td className="num">{b.aanroepen.length}</td>
                     <td className="klein-tekst">{Array.from(new Set(b.aanroepen.map((a) => a.model))).join(", ")}</td>
                     <td className="num">{b.invoerTokens.toLocaleString("nl-NL")} / {b.uitvoerTokens.toLocaleString("nl-NL")}</td>
-                    <td className="num">{euro(bewerkingKosten(b, budget))}</td>
                   </tr>
                 ))}
               </tbody>

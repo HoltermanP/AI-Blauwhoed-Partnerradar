@@ -37,7 +37,7 @@ async function verwerk(request: Request) {
     const selectie = selecteerPartners(db, schema, nu);
     const schatting = schatVerrijkingsronde(selectie, db, aiBeschikbaar(), { alleenGewijzigd: schema.omvang === "gewijzigde_website", nu });
     const budget = budgetStatus(db, nu);
-    const reden = budget.overschreden ? "het AI-maandbudget is al bereikt" : schatting.overschrijdtBudget ? `de ronde vraagt naar verwachting ${schatting.bewerkingen} AI-bewerkingen (≈ € ${schatting.geschatteKostenEur.toFixed(2)}) en zou het maandbudget overschrijden (resterend ${schatting.resterendNa + schatting.bewerkingen} bewerkingen, € ${(schatting.resterendEurNa + schatting.geschatteKostenEur).toFixed(2)} tokenbudget)` : null;
+    const reden = budget.overschreden ? "het AI-maandbudget is al bereikt" : schatting.overschrijdtBudget ? `de ronde vraagt naar verwachting ${schatting.bewerkingen} AI-bewerkingen en zou het maandbudget overschrijden (resterend ${schatting.resterendNa + schatting.bewerkingen} bewerkingen)` : null;
     if (reden) {
       await muteer(SYSTEEM, { entiteit: "verrijking", entiteitId: "schema", actie: "geplande ronde niet gestart", details: reden }, (d) => {
         d.instellingen.verrijkingsschema = { ...schemaVan(d), overgeslagen: { op: nu.toISOString(), reden: `Geplande ronde niet gestart: ${reden}. Pas het budget of de omvang aan, of start handmatig.`, gepland: gepland.toISOString() }, laatsteGeplandeRonde: gepland.toISOString() };

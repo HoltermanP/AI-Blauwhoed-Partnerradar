@@ -1,5 +1,5 @@
 "use client";
-// US-58/US-59: budget in bewerkingen en euro, rekenprijzen en het model per functie.
+// US-58/US-59: budget in AI-bewerkingen en het model per functie. Er worden geen bedragen getoond.
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { slaAIBudgetOp, slaModellenOp } from "@/lib/acties/beheer";
@@ -22,9 +22,6 @@ export function AIBudgetEditor({ budget, magBeheren }: { budget: AIBudget; magBe
       {melding ? <Melding soort={melding.soort}>{melding.tekst}</Melding> : null}
       <div className="rij">
         {veld("bewerkingenPerMaand", "Maandbudget (AI-bewerkingen)")}
-        {veld("tokenbudgetEur", "Tokenbudget per maand (€)", "0.5")}
-        {veld("prijsInvoerPerMTok", "Rekenprijs input (€ per miljoen tokens)", "0.01")}
-        {veld("prijsUitvoerPerMTok", "Rekenprijs output (€ per miljoen tokens)", "0.01")}
       </div>
       {magBeheren ? (
         <div className="formulierActies">
@@ -44,7 +41,7 @@ export function AIBudgetEditor({ budget, magBeheren }: { budget: AIBudget; magBe
           </button>
         </div>
       ) : null}
-      <p className="muted klein-tekst">Bij 80% van het maandbudget (bewerkingen of tokenbudget) krijgt de beheerder een signaal; vanaf 100% starten geplande rondes niet meer en gaan interactieve functies voor. Boven 125% in een maand of gemiddeld boven 110% over een kwartaal volgt een apart signaal (art. 8).</p>
+      <p className="muted klein-tekst">Bij 80% van het maandbudget krijgt de beheerder een signaal; vanaf 100% starten geplande rondes niet meer en gaan interactieve functies voor. Boven 125% in een maand of gemiddeld boven 110% over een kwartaal volgt een apart signaal (art. 8).</p>
     </div>
   );
 }

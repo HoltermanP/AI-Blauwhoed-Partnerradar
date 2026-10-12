@@ -231,7 +231,8 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   dbK.instellingen.aiBudget.bewerkingenPerMaand = 5;
   check("US-57 ronde die het budget zou overschrijden wordt herkend", schatVerrijkingsronde(partnersS, dbK, true).overschrijdtBudget);
   dbK.instellingen.aiBudget = { ...dbK.instellingen.aiBudget, bewerkingenPerMaand: 750, tokenbudgetEur: 0.05 };
-  check("US-58 ook het tokenbudget in euro blokkeert een ronde", schatVerrijkingsronde(partnersS, dbK, true).overschrijdtBudget);
+  check("Budget telt alleen in bewerkingen (geen bedragen)", !schatVerrijkingsronde(partnersS, dbK, true).overschrijdtBudget);
+  check("Verbruiksexport zonder bedragen", !JSON.stringify(verbruikSpecificatie(dbK)).match(/EUR|€|kosten/i));
   check("US-58 maandindeling in Nederlandse tijd", maandVan("2026-09-30T22:30:00Z") === "2026-10" && kwartaalVan("2026-09-30T22:30:00Z") === "2026-K4" && maandVan("2026-01-31T12:00:00Z") === "2026-01");
 }
 

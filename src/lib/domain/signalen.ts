@@ -23,9 +23,9 @@ export function signalenVoor(db: Database, nu = new Date()): Signaal[] {
   const signalen: Signaal[] = [];
   const dag = 24 * 3600 * 1000;
 
-  // US-58: signalen op het budget in AI-bewerkingen (en het tokenbudget in euro).
+  // US-58: signalen op het budget in AI-bewerkingen.
   const budget = budgetStatus(db, nu);
-  const verbruik = `${budget.bewerkingen} van ${budget.budgetBewerkingen} bewerkingen (${Math.round(budget.pct)}%), € ${budget.kostenEur.toFixed(2)} van € ${budget.tokenbudgetEur.toFixed(0)} tokenbudget`;
+  const verbruik = `${budget.bewerkingen} van ${budget.budgetBewerkingen} bewerkingen (${Math.round(budget.pct)}%)`;
   if (budget.boven125) signalen.push({ id: "ai-budget-125", soort: "budget", ernst: "kritiek", titel: "AI-verbruik boven 125% van het maandbudget", omschrijving: `${verbruik}. Volgens art. 8 aanleiding voor overleg over nacalculatie met AI-Group.`, link: "/beheer/verbruik" });
   if (budget.kwartaalBoven110) signalen.push({ id: "ai-budget-kwartaal", soort: "budget", ernst: "kritiek", titel: "Gemiddeld AI-verbruik dit kwartaal boven 110%", omschrijving: `Gemiddeld ${Math.round(budget.kwartaalGemPct)}% van het maandbudget per maand in het lopende kwartaal.`, link: "/beheer/verbruik" });
   if (budget.overschreden && !budget.boven125) signalen.push({ id: "ai-budget-op", soort: "budget", ernst: "kritiek", titel: "AI-maandbudget bereikt", omschrijving: `${verbruik}. Geplande verrijkingsrondes starten niet; interactieve functies (zoeken, chat, matchen) gaan voor.`, link: "/beheer/verbruik" });

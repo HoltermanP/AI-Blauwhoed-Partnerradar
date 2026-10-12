@@ -1,4 +1,4 @@
-// US-58/US-67: specificatie van het AI-verbruik (bewerkingen, tokens, providerkosten) als CSV of Excel. Alleen de beheerder.
+// US-58/US-67: specificatie van het AI-verbruik (bewerkingen en tokens, zonder bedragen) als CSV of Excel. Alleen de beheerder.
 import { NextResponse } from "next/server";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { naarCsv } from "@/lib/domain/export";
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const stempel = new Date().toISOString().slice(0, 10);
   await muteer(g, { entiteit: "export", entiteitId: "verbruik", actie: `verbruiksspecificatie gedownload (${formaat})`, details: `${spec.regels.length} bewerkingen` }, () => undefined);
   if (formaat === "xlsx") {
-    return xlsxAntwoord(await naarXlsx([{ naam: "Per maand", rijen: spec.perMaand }, { naam: "Per kwartaal", rijen: spec.perKwartaal }, { naam: "Bewerkingen", rijen: spec.regels }, { naam: "Rekenprijzen", rijen: spec.rekenprijzen }]), `ai-verbruik-${stempel}`);
+    return xlsxAntwoord(await naarXlsx([{ naam: "Per maand", rijen: spec.perMaand }, { naam: "Per kwartaal", rijen: spec.perKwartaal }, { naam: "Bewerkingen", rijen: spec.regels }, { naam: "Budget", rijen: spec.rekenprijzen }]), `ai-verbruik-${stempel}`);
   }
   return new NextResponse(naarCsv(spec.regels.length ? spec.regels : [{ Melding: "Nog geen AI-bewerkingen geregistreerd." }]), { headers: { "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="ai-verbruik-${stempel}.csv"` } });
 }
