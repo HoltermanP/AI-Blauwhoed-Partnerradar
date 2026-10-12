@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import ZoekWerkblad from "@/components/zoeken/ZoekWerkblad";
+import { GeenMatchadvies } from "@/components/chat/ChatPaneel";
 import { Badge, HerkomstRegel, Kaart, Leeg, Melding, PaginaKop, ScoreBalk, StatusBadge } from "@/components/ui";
 import { basisveldHerkomst } from "@/lib/domain/herkomst";
 import { zichtbaar } from "@/lib/domain/zichtbaarheid";
@@ -12,6 +13,7 @@ import { ROLLEN, type CertificaatType, type Partner, type PartnerStatus } from "
 import { ROL_LABEL, STATUS_LABEL } from "@/lib/format";
 import { zoekUrls } from "@/lib/domain/webzoek";
 import { getDb } from "@/lib/store";
+import { aiAan } from "@/lib/aiplatform";
 
 export const maxDuration = 60;
 const STATUSSEN: PartnerStatus[] = ["bekend", "preferred", "prospect", "afgewezen", "geblokkeerd", "gearchiveerd"];
@@ -57,7 +59,9 @@ async function WebResultaten({ q }: { q: string }) {
   }
   return (
     <div className="zoekWeb">
-      <h3>Van internet <span className="muted klein-tekst">— indicatief, niet gevalideerd</span></h3>
+      <h3>
+        <span className="badge badge-geel">Internet</span> Van internet <span className="muted klein-tekst">— indicatief, niet gevalideerd</span>
+      </h3>
       {urls.length ? (
         <ol className="klein-tekst">
           {urls.map((u) => (
@@ -77,7 +81,7 @@ async function WebResultaten({ q }: { q: string }) {
 }
 
 export default async function ZoekenPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { q = "", web } = await searchParams;
+  const { q = "", web, vraag } = await searchParams;
   const db = await getDb();
   const internetMogelijk = db.instellingen.externeBronnenToegestaan;
   const metInternet = web === "1" && internetMogelijk;
@@ -85,10 +89,13 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
 
   const lokaal = q.trim() ? (
     <>
-      <h3>Uit het partnerbestand</h3>
+      <h3>
+        <span className="badge badge-blauw">Database</span> Uit het partnerbestand
+      </h3>
       {resultaten.length ? (
         <>
-          <Melding soort="info">{resultaten.length} partner(s) met semantische gelijkenis. Dit is geen matchadvies: harde eisen (status, regio, certificaten, capaciteit) zijn hier niet getoetst.</Melding>
+          <Melding soort="info">{resultaten.length} partner(s) met semantische gelijkenis, uit de database.</Melding>
+          <GeenMatchadvies />
           {resultaten.map((r, i) => (
             <div key={r.partner.id} className="kandidaatRij">
               <span className="rang">{i + 1}</span>
@@ -129,15 +136,15 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
     <>
       <PaginaKop
         eyebrow="Zoeken"
-        titel="Zoeken in het partnerbestand"
+        titel="Chat en zoeken"
         intro={
           <>
-            Links klassiek zoeken op een vrije omschrijving, rechts een AI-chat die de database doorzoekt. Kies of daarbij ook internet wordt gebruikt; elk resultaat vermeldt zijn bron. Gecombineerd filteren kan op de <Link href="/partners">partnerspagina</Link>.
+            Stel uw vraag aan de AI-chat; die doorzoekt de database en desgewenst internet en noemt altijd de bronnen. Klassiek zoeken staat ernaast als filter. Gecombineerd filteren kan op de <Link href="/partners">partnerspagina</Link>.
           </>
         }
       />
 
-      <ZoekWerkblad q={q} web={metInternet} internetMogelijk={internetMogelijk} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} resultaten={lokaal} />
+      <ZoekWerkblad q={q} web={metInternet} internetMogelijk={internetMogelijk} aiActief={aiAan()} resultaten={lokaal} beginVraag={vraag} />
 
       <Kaart titel="Snelle filters">
         <p className="muted">Gecombineerde filters op rol, regio, kenmerk, certificaat en status staan op de partnerspagina.</p>

@@ -3,6 +3,7 @@
 import type { Database, Engagement, Evaluatie, Partner, PartnerFactor, Project, Rol } from "./types";
 import { BRON_BETROUWBAARHEID } from "./types";
 import { totaalscore } from "./tevredenheid";
+import { evaluatieTelt } from "./tevredenheid";
 
 const JAAR_MS = 365.25 * 24 * 3600 * 1000;
 
@@ -37,8 +38,10 @@ export type AfgeleidResultaat = {
 };
 
 export function leidFactorenAf(partner: Partner, db: Pick<Database, "engagements" | "evaluaties" | "projecten">, nu = new Date()): AfgeleidResultaat {
-  const engagements = db.engagements.filter((e) => e.partnerId === partner.id);
-  const evaluaties = db.evaluaties.filter((e) => e.partnerId === partner.id);
+  // US-25: betrokkenheid bij externe projecten is een signaal, geen bewijs van eigen prestaties.
+  const engagements = db.engagements.filter((e) => e.partnerId === partner.id && e.bron !== "extern");
+  // US-21: alleen geaccepteerde evaluaties tellen mee.
+  const evaluaties = db.evaluaties.filter((e) => e.partnerId === partner.id && evaluatieTelt(e));
   const projectMap = new Map(db.projecten.map((p) => [p.id, p]));
   const factoren: PartnerFactor[] = [];
   const peildatum = nu.toISOString().slice(0, 10);
@@ -264,6 +267,7 @@ export function effectieveFactoren(partner: Partner, db: Pick<Database, "engagem
   const resultaat = new Map<string, PartnerFactor>();
   afgeleid.forEach((f) => resultaat.set(sleutel(f), f));
   partner.factoren.forEach((f) => {
+    if (f.status === "afgewezen") return; // US-04: afgewezen waarden tellen nergens mee
     const k = sleutel(f);
     const bestaand = resultaat.get(k);
     if (!bestaand) {
@@ -280,7 +284,7 @@ export function effectieveFactoren(partner: Partner, db: Pick<Database, "engagem
 export function samenwerking(db: Pick<Database, "engagements" | "evaluaties">, a: string, b: string) {
   const projA = new Set(db.engagements.filter((e) => e.partnerId === a).map((e) => e.projectId));
   const gezamenlijk = Array.from(new Set(db.engagements.filter((e) => e.partnerId === b && projA.has(e.projectId)).map((e) => e.projectId)));
-  const scores = db.evaluaties.filter((ev) => gezamenlijk.includes(ev.projectId) && (ev.partnerId === a || ev.partnerId === b)).map((ev) => ev.samenwerking);
+  const scores = db.evaluaties.filter((ev) => evaluatieTelt(ev) && gezamenlijk.includes(ev.projectId) && (ev.partnerId === a || ev.partnerId === b)).map((ev) => ev.samenwerking);
   return {
     projecten: gezamenlijk,
     aantal: gezamenlijk.length,
@@ -300,7 +304,7 @@ export function collaborationEdges(db: Pick<Database, "engagements" | "evaluatie
 }
 
 export function huidigeBelasting(partner: Partner, db: Pick<Database, "engagements" | "projecten">, nu = new Date()) {
-  const lopend = db.engagements.filter((e) => e.partnerId === partner.id && (!e.periode.tot || new Date(e.periode.tot) >= nu) && new Date(e.periode.van) <= nu);
+  const lopend = db.engagements.filter((e) => e.partnerId === partner.id && e.bron !== "extern" && (!e.periode.tot || new Date(e.periode.tot) >= nu) && new Date(e.periode.van) <= nu);
   return { aantal: lopend.length, contractwaarde: lopend.reduce((s, e) => s + e.contractwaarde, 0) };
 }
 

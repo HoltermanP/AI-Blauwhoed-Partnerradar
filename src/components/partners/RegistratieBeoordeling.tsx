@@ -2,10 +2,13 @@
 // Controle van een AI-registratie door de beheerder: vrijgeven (als bekend of prospect) of afwijzen.
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { beoordeelRegistratie } from "@/lib/actions";
+import Link from "next/link";
+import { beoordeelRegistratie, voegConceptSamen } from "@/lib/actions";
 import { Melding } from "@/components/ui";
 
-export default function RegistratieBeoordeling({ partnerId, blokkades, dubbel }: { partnerId: string; blokkades: string[]; dubbel: boolean }) {
+export default function RegistratieBeoordeling({ partnerId, blokkades, dubbel, dubbelId, partners = [] }: { partnerId: string; blokkades: string[]; dubbel: boolean; dubbelId?: string; partners?: Array<{ id: string; naam: string }> }) {
+  const [doel, setDoel] = useState(dubbelId ?? "");
+  const [samengevoegd, setSamengevoegd] = useState<string | null>(null);
   const router = useRouter();
   const [bezig, start] = useTransition();
   const [status, setStatus] = useState<"bekend" | "prospect">("bekend");
@@ -48,6 +51,42 @@ export default function RegistratieBeoordeling({ partnerId, blokkades, dubbel }:
         </button>
         {blokkades.length ? <span className="muted klein-tekst">Eerst aanvullen via Bewerken: {blokkades.join(" ")}</span> : null}
       </div>
+      {/* US-10: samenvoegen met een bestaande partner (bij een dubbel). */}
+      <div className="formulierActies">
+        <label style={{ minWidth: 260 }}>
+          Of samenvoegen met bestaande partner
+          <select value={doel} onChange={(e) => setDoel(e.target.value)}>
+            <option value="">– kies partner –</option>
+            {partners.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.naam}
+                {p.id === dubbelId ? " (mogelijke dubbel)" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="knop knop-secundair klein"
+          disabled={bezig || !doel}
+          onClick={() => {
+            setFout(null);
+            start(async () => {
+              const r = await voegConceptSamen(partnerId, doel, toelichting.trim());
+              if (!r.ok) return setFout(r.fout);
+              setSamengevoegd(doel);
+              router.refresh();
+            });
+          }}
+        >
+          Samenvoegen
+        </button>
+      </div>
+      {samengevoegd ? (
+        <Melding soort="succes">
+          Samengevoegd. Lege velden zijn aangevuld als voorstel. <Link href={`/partners/${samengevoegd}`}>Open de partner</Link>
+        </Melding>
+      ) : null}
     </div>
   );
 }

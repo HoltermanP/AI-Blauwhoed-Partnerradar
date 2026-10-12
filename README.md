@@ -17,6 +17,40 @@ node scripts/schermcontrole.mjs http://localhost:3000 /tmp/shots u-beheer / /par
 
 > Tip bij lokaal testen: `.env.local` kan naar de echte Neon-database wijzen. Wie lokaal wil experimenteren zonder die data te migreren of te wijzigen, start met `DATABASE_URL= ANTHROPIC_API_KEY= npm run dev` (in-memory, zonder AI-kosten).
 
+## User stories demo oktober 2026 (US-01 t/m US-33)
+
+Status per story in [docs/userstories-demo-oktober-2026.md](docs/userstories-demo-oktober-2026.md). De belangrijkste wijzigingen:
+
+- **Partnertypes houtbouwer en constructeur** met een eigen goudstandaard. Houtbouwer: MPG, Paris Proof, productietijd, levertijd, kosten per m² en productinformatie verplicht (nieuwe factoren D7, E5, E6, G6, C5); de architect heeft een kleinere vaste set. Per veld instelbaar of een beheerdersverificatie nodig is.
+- **Datakwaliteit** (`/datakwaliteit`): vullingsgraad van de verplichte velden per type en per veld met doorklik naar de partners waar iets ontbreekt (en direct verrijken), signalen voor ontbrekende, verouderde en onbetrouwbare waarden (filter op soort, type en veld) en de verouderingstermijn per veld (ook basisvelden).
+- **Status per waarde**: voorstel, gebruikersgeverifieerd, beheerdersgeverifieerd of afgewezen, met bron-URL, ophaaldatum en betrouwbaarheid. Afwijzen en corrigeren gaan met reden; een afgewezen waarde komt niet automatisch terug. Projectclassificaties zijn te corrigeren.
+- **Voorstellen**: zonder bron geen voorstel; per stuk accepteren, aanpassen of afwijzen, of in bulk. Accepteren = gebruikersgeverifieerd; kritische velden valideert een beheerder in de werklijst (`/vrijgave` → Beheerdersvalidatie).
+- **Bronbeleid**: bronnen met een kwaliteitsrang (eigen uitgave 1, branchebron 2, web 3) die meetelt in de betrouwbaarheid; gebruikers stellen bronnen voor, beheer keurt goed. Startlijst met branchebronnen en prijzen/nominaties (discovery-modus *upcoming*).
+- **Concepten**: vrijgeven, afwijzen of samenvoegen met een bestaande partner. AI-registratie werkt ook met alleen een vrije omschrijving (de app zoekt de website op).
+- **Matching**: per rol een dekkingspercentage met waarschuwing onder de drempel en links naar de ontbrekende criteria; schuifjes per criterium die de rangschikking direct herberekenen, op te slaan op het project of als profiel. De onderbouwing legt uit hoe betrouwbaarheid en eigen evaluaties meewegen en citeert de ervaringstekst.
+- **Evaluaties**: tussentijds of na oplevering, over de organisatie (geen personen), met vrije ervaringstekst; alleen geaccepteerde evaluaties tellen mee. Evaluatieoverzicht per project en verantwoordelijke ontwikkelaar met herinnering (`/evaluaties`).
+- **Verbanden**: signaal of door een beheerder bevestigde samenwerking; terugkerende teamcombinaties; bewezen teams als voorstel op de teampagina.
+- **Projecten**: import uit Business Central/ERP (CSV/Excel, projectnummer als sleutel, samenvoegen met webprojecten, bron zichtbaar); API voor de tenderapplicatie.
+- **Zoeken**: de AI-chat is de primaire ingang (ook vanaf het dashboard), klassiek zoeken staat ernaast; resultaten met label database/internet en de melding dat zoeken geen matchadvies is.
+- **Verbruik** uitgesplitst naar verrijking, discovery en chat; meldingen bij 80% en 100%.
+- **Privacy** (`/privacy`): AI-aanbieder en modellen, verwerkingslocatie, geen training, geen contactpersonen (velden verwijderd; oude registraties alleen op verzoek wissen) en inloggen via Entra ID (SSO, 2FA via Conditional Access).
+
+**Standaardweging** (Beheer → Gewichten): aandeel eigen ervaring (geaccepteerde evaluaties) per rol tegenover openbare bronnen, aandeel samenwerking in de teamscore, standaardprofiel en de correctie voor lage dekking (ontbrekende criteria tellen als neutraal, zodat een partner met weinig gegevens niet bovenaan eindigt). **Eigenaarschap evaluaties** (`/evaluaties`): ontwikkelaar per project levert, procesbewaker bewaakt, instelbare herinneringstermijn, filter op eigen projecten. **Externe projecten** (`/verbanden`): uit een openbare bron, met automatisch herkende partners; alleen samenwerkingssignaal. LinkedIn wordt niet gelezen, alleen als bronvermelding gebruikt.
+
+De database migreert automatisch naar versie 14 (nieuwe factoren, types, bronnen, evaluatiestatus); bestaande gegevens blijven staan.
+
+| Variabele | Betekenis |
+| --- | --- |
+| `TENDER_API_KEY` | sleutel voor `POST /api/tender/selectie` (header `Authorization: Bearer …`); zonder sleutel staat de koppeling uit |
+| `AI_VERWERKING_REGIO` | zet op `eu` zodra Europese AI-verwerking contractueel is vastgelegd; de privacypagina toont het dan als aangetoond |
+
+Voorbeeld tenderkoppeling:
+
+```bash
+curl -X POST https://<domein>/api/tender/selectie -H "Authorization: Bearer $TENDER_API_KEY" -H "content-type: application/json" \
+  -d '{"project":{"naam":"Tender Wijk X","plaats":"Utrecht","woningen":80,"type":"appartementen","ambitieDuurzaamheid":4,"tenderId":"T-2026-12"},"rollen":["architect","houtbouwer"]}'
+```
+
 ## Aanvulling overeenkomst v3.1 (Epic 12, US-49 t/m US-70)
 
 Zie [docs/userstories.md](docs/userstories.md) voor de status per story. Kort:

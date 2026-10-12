@@ -40,6 +40,7 @@ export default function GoudstandaardEditor({ rol, profiel, opties, magBeheren }
             <tr>
               <th>Veld</th>
               <th>Niveau</th>
+              <th title="Waarden van dit veld vragen na verificatie door een gebruiker een tweede controle door een beheerder">Beheerdersverificatie</th>
               <th>Toelichting</th>
               {magBeheren ? <th /> : null}
             </tr>
@@ -53,6 +54,12 @@ export default function GoudstandaardEditor({ rol, profiel, opties, magBeheren }
                     <option value="verplicht">verplicht</option>
                     <option value="gewenst">gewenst</option>
                   </select>
+                </td>
+                <td>
+                  <label className="vinkjes" style={{ display: "inline-flex", gap: 6 }}>
+                    <input type="checkbox" checked={Boolean(v.beheerderVerificatie)} disabled={!magBeheren} onChange={(e) => setVelden(velden.map((x, j) => (j === i ? { ...x, beheerderVerificatie: e.target.checked || undefined } : x)))} />
+                    nodig
+                  </label>
                 </td>
                 <td>
                   <input value={v.toelichting ?? ""} disabled={!magBeheren} onChange={(e) => setVelden(velden.map((x, j) => (j === i ? { ...x, toelichting: e.target.value || undefined } : x)))} placeholder="bijv. welke bron leidend is" />

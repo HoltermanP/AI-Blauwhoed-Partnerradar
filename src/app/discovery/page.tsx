@@ -11,6 +11,7 @@ import { signalenVoor } from "@/lib/domain/signalen";
 import type { DiscoveryStatus } from "@/lib/domain/types";
 import { datumTijd } from "@/lib/format";
 import { getDb } from "@/lib/store";
+import { aiAan } from "@/lib/aiplatform";
 
 // Discovery en aandragen raadplegen internetbronnen; server actions mogen tot 60 s duren (Vercel).
 export const maxDuration = 60;
@@ -62,7 +63,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
               </li>
             ) : null}
             <li>
-              <b>AI-samenvatting</b> {process.env.ANTHROPIC_API_KEY ? <Badge kleur="groen">Claude actief</Badge> : <Badge kleur="grijs">regels (ANTHROPIC_API_KEY niet gezet)</Badge>}
+              <b>AI-samenvatting</b> {aiAan() ? <Badge kleur="groen">Claude actief</Badge> : <Badge kleur="grijs">regels (geen AI ingericht)</Badge>}
               <p className="muted">Per kandidaat: wat doet het bedrijf, referenties, waarom past het, wat is onzeker — op basis van de openbare websitetekst.</p>
             </li>
           </ul>
@@ -80,7 +81,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
       </div>
 
       <Kaart titel="AI draagt partners aan">
-        <AandraagPaneel profielen={(db.zoekprofielen ?? []).map((z) => ({ id: z.id, naam: z.naam, trefwoorden: z.trefwoorden }))} magAandragen={heeftRecht(gebruiker.rol, "beheer")} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} />
+        <AandraagPaneel profielen={(db.zoekprofielen ?? []).map((z) => ({ id: z.id, naam: z.naam, trefwoorden: z.trefwoorden }))} magAandragen={heeftRecht(gebruiker.rol, "beheer")} aiActief={aiAan()} />
       </Kaart>
 
       <Kaart titel="Wachtrij kandidaten">

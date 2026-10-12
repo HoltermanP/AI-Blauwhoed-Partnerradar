@@ -78,7 +78,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <footer className="voet">
           <img src="/brand/logo.png" alt="Blauwhoed" width={188} height={20} />
           <span>AI legt uit, AI beslist niet. Prospects komen nooit zonder menselijke goedkeuring in een advies.</span>
-          <span>Alleen bedrijfsgegevens · AI-verrijking draait lokaal in een afgeschermde omgeving</span>
+          <span>
+            Alleen bedrijfsgegevens, geen contactpersonen · <Link href="/privacy">Verwerking en privacy</Link>
+          </span>
         </footer>
       </body>
     </html>

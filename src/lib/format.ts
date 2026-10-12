@@ -8,6 +8,8 @@ export const datumTijd = (d: string | undefined | null) => (d ? new Date(d).toLo
 export const ROL_LABEL: Record<Rol, string> = {
   architect: "Architect",
   aannemer: "Aannemer",
+  houtbouwer: "Houtbouwer",
+  constructeur: "Constructeur",
   installateur: "Installateur",
   adviseur: "Adviseur",
   leverancier: "Leverancier",

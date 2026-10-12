@@ -13,6 +13,20 @@ export function totaalscore(ev: Evaluatie) {
   return typeof ev.totaalscore === "number" ? ev.totaalscore : afgeleideTotaalscore(ev);
 }
 
+/** US-21: alleen geaccepteerde evaluaties tellen mee (oude evaluaties zonder status gelden als geaccepteerd). */
+export function evaluatieTelt(ev: Pick<Evaluatie, "status">) {
+  return (ev.status ?? "geaccepteerd") === "geaccepteerd";
+}
+
+export const EVALUATIE_STATUS_LABEL: Record<NonNullable<Evaluatie["status"]>, string> = { ingediend: "wacht op acceptatie", geaccepteerd: "geaccepteerd", afgewezen: "afgewezen" };
+
+/** US-18: een evaluatie gaat over de organisatie, nooit over een persoon. Eenvoudige controle op persoonsgegevens in de vrije tekst. */
+export function persoonsgegevensInTekst(tekst: string): string | null {
+  if (/[^@\s]+@[^@\s]+\.[a-z]{2,}/i.test(tekst)) return "De tekst bevat een e-mailadres. Een evaluatie gaat over de organisatie, niet over personen.";
+  if (/(\+31|\b0)[1-9](\s?-?\d){8}\b/.test(tekst)) return "De tekst bevat een telefoonnummer. Een evaluatie gaat over de organisatie, niet over personen.";
+  return null;
+}
+
 export function isBijgesteld(ev: Evaluatie) {
   return typeof ev.totaalscore === "number" && Math.abs(ev.totaalscore - afgeleideTotaalscore(ev)) > 0.049;
 }

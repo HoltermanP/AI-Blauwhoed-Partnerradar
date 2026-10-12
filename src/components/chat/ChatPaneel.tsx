@@ -3,7 +3,7 @@
 // (kopjes, opsommingen, tabellen) en hebben altijd een bronvermelding: de partnerrecords uit de database en, met
 // internet, de webpagina's waarop het antwoord steunt.
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { stelChatVraag, type ChatAntwoord } from "@/lib/actions";
 import { Melding } from "@/components/ui";
 import OpgemaaktAntwoord from "./OpgemaaktAntwoord";
@@ -39,7 +39,7 @@ function Bronnen({ b }: { b: Beurt }) {
       <b>Bronnen</b>
       <ul>
         <li>
-          <span className="muted">Partnerbestand: </span>
+          <span className="badge badge-blauw">Database</span> <span className="muted">Partnerbestand: </span>
           {b.partners.length ? <PartnerLinks partners={b.partners} /> : b.geraadpleegd.length ? <span className="muted">geen specifieke partner genoemd</span> : <span className="muted">geen passende records gevonden</span>}
           {nietGenoemd.length ? (
             <details className="uitklap">
@@ -50,7 +50,7 @@ function Bronnen({ b }: { b: Beurt }) {
         </li>
         {b.metInternet ? (
           <li>
-            <span className="muted">Internet (indicatief, niet gevalideerd): </span>
+            <span className="badge badge-geel">Internet</span> <span className="muted">indicatief, niet gevalideerd: </span>
             {b.bronnen.length ? (
               <ol>
                 {b.bronnen.map((x) => (
@@ -74,16 +74,26 @@ function Bronnen({ b }: { b: Beurt }) {
   );
 }
 
-export default function ChatPaneel({ aiActief, metInternet }: { aiActief: boolean; metInternet: boolean }) {
+/** US-30: zoekresultaten en chatantwoorden zijn geen matchadvies. */
+export function GeenMatchadvies() {
+  return (
+    <p className="geenMatchadvies klein-tekst">
+      <span>Geen matchadvies: harde eisen (regio, capaciteit, certificaten, beschikbaarheid) zijn hier niet getoetst.</span>
+      <Link href="/projecten?kies=match" className="knop knop-secundair klein">
+        Matchrun starten
+      </Link>
+    </p>
+  );
+}
+
+export default function ChatPaneel({ aiActief, metInternet, beginVraag }: { aiActief: boolean; metInternet: boolean; beginVraag?: string }) {
   const [bezig, start] = useTransition();
-  const [vraag, setVraag] = useState("");
+  const [vraag, setVraag] = useState(beginVraag ?? "");
   const [beurten, setBeurten] = useState<Beurt[]>([]);
   const [fout, setFout] = useState<string | null>(null);
+  const gesteld = useRef(false);
 
-  const verzend = (e: React.FormEvent) => {
-    e.preventDefault();
-    const v = vraag.trim();
-    if (!v) return;
+  const stel = (v: string) => {
     setFout(null);
     start(async () => {
       const r = await stelChatVraag(v, beurten.map((b) => ({ vraag: b.vraag, antwoord: b.antwoord })), metInternet);
@@ -93,9 +103,24 @@ export default function ChatPaneel({ aiActief, metInternet }: { aiActief: boolea
     });
   };
 
+  const verzend = (e: React.FormEvent) => {
+    e.preventDefault();
+    const v = vraag.trim();
+    if (v) stel(v);
+  };
+
+  // Een vraag vanaf het dashboard (/zoeken?vraag=…) wordt direct gesteld.
+  useEffect(() => {
+    if (beginVraag?.trim() && !gesteld.current) {
+      gesteld.current = true;
+      stel(beginVraag.trim());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [beginVraag]);
+
   return (
     <div className="formulier">
-      {!aiActief ? <Melding soort="info">AI staat uit (geen ANTHROPIC_API_KEY): vragen leveren de best passende partnerrecords op, zonder gegenereerd antwoord.</Melding> : null}
+      {!aiActief ? <Melding soort="info">AI staat uit (geen taalmodel ingericht): vragen leveren de best passende partnerrecords op, zonder gegenereerd antwoord.</Melding> : null}
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
       {beurten.map((b, i) => (
         <div key={i} className="chatBeurt">
@@ -106,6 +131,7 @@ export default function ChatPaneel({ aiActief, metInternet }: { aiActief: boolea
             <OpgemaaktAntwoord tekst={b.antwoord} />
             <Bronnen b={b} />
             {b.viaAI ? <p className="muted klein-tekst chatVoet">AI-antwoord (geregistreerd als AI-bewerking). Een samenvatting, geen vastgesteld gegeven: controleer het partnerdossier.</p> : null}
+            <GeenMatchadvies />
           </div>
         </div>
       ))}

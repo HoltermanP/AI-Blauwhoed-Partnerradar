@@ -23,7 +23,7 @@ export type GeimporteerdePartner = {
   ruweRijen: Array<{ titel?: string; velden: Record<string, string> }>;
 };
 
-const kolom = (r: ImportRij, ...namen: string[]) => {
+const kolomRuw = (r: ImportRij, ...namen: string[]) => {
   const sleutels = Object.keys(r);
   for (const n of namen) {
     const k = sleutels.find((s) => s.toLowerCase().trim() === n.toLowerCase());
@@ -31,6 +31,7 @@ const kolom = (r: ImportRij, ...namen: string[]) => {
   }
   return "";
 };
+const kolom = kolomRuw;
 
 const getal = (s: string) => {
   if (!s) return null;
@@ -41,15 +42,62 @@ const getal = (s: string) => {
   return m ? Number(m[0]) : null;
 };
 
+/**
+ * US-01: productkenmerken van houtbouwers en leveranciers uit een importrij (o.a. het Blauwhoed-overzicht houtbouwers):
+ * Paris Proof-score, kosten per m², productietijd, levertijd en productinformatie. Ook gebruikt om bestaande brondata te
+ * hergebruiken (migratie), zodat niets opnieuw hoeft te worden ingelezen.
+ */
+export function productFactoren(r: ImportRij): Array<{ factorId: string; waarde: PartnerFactor["waarde"]; toelichting: string }> {
+  const uit: Array<{ factorId: string; waarde: PartnerFactor["waarde"]; toelichting: string }> = [];
+  // Het overzicht gebruikt "-" voor onbekend: dat is geen waarde.
+  const kolom = (rij: ImportRij, ...namen: string[]) => {
+    const v = kolomRuw(rij, ...namen);
+    return /^[-–?]+$|^n\.?v\.?t\.?$|^onbekend$/i.test(v) ? "" : v;
+  };
+  const pp = getal(kolom(r, "paris proof - materiaalgebonden co2-uitstoot (a1 tm a5) - totaal", "paris proof", "paris proof-score", "paris proof score"));
+  if (pp !== null && pp > 0 && pp < 1000) uit.push({ factorId: "paris_proof", waarde: Math.round(pp), toelichting: "Paris Proof (materiaalgebonden CO2, A1–A5, totaal) uit import" });
+  const prijsTekst = kolom(r, "prijs per m2 bvo - vanaf prijs", "kosten per m2", "kosten per m²", "prijs per m2", "prijs per m² bvo");
+  const prijs = getal(prijsTekst);
+  if (prijs !== null && prijs >= 300 && prijs <= 6000) uit.push({ factorId: "kosten_m2", waarde: Math.round(prijs), toelichting: `Vanafprijs per m² BVO uit import (${prijsTekst})` });
+  const prodTekst = kolom(r, "productietijd fabriek (weken)", "productietijd (weken)", "productietijd");
+  const prod = getal(prodTekst);
+  if (prod !== null && prod > 0 && prod <= 104) uit.push({ factorId: "productietijd", waarde: prod, toelichting: `Productietijd fabriek uit import (${prodTekst} weken)` });
+  const leverTekst = kolom(r, "levertijd (weken)", "levertijd");
+  const lever = getal(leverTekst);
+  if (lever !== null && lever > 0 && lever <= 104) uit.push({ factorId: "levertijd", waarde: lever, toelichting: `Levertijd uit import (${leverTekst} weken)` });
+  const info = [
+    kolom(r, "productinformatie", "productomschrijving"),
+    kolom(r, "conceptnaam") ? `Woningconcept ${kolom(r, "conceptnaam")}` : "",
+    kolom(r, "mogelijke (woning)types") ? `Woningtypes: ${kolom(r, "mogelijke (woning)types")}` : "",
+    kolom(r, "specificatie woningtypes"),
+    kolom(r, "bvo m2 range per woning") ? `BVO per woning: ${kolom(r, "bvo m2 range per woning")} m²` : "",
+    kolom(r, "maximaal aantal lagen") ? `Maximaal ${kolom(r, "maximaal aantal lagen")} lagen` : "",
+    kolom(r, "2d of 3d bouw") ? `${kolom(r, "2d of 3d bouw")}-bouw` : "",
+    kolom(r, "woningscheidend / dragende wanden") ? `Dragende wanden: ${kolom(r, "woningscheidend / dragende wanden")}` : "",
+    kolom(r, "verdiepingsvloer") ? `Vloeren: ${kolom(r, "verdiepingsvloer")}` : ""
+  ]
+    .filter((x) => x && x !== "-")
+    .join(". ");
+  if (info.length >= 20) uit.push({ factorId: "productinformatie", waarde: info.slice(0, 1200), toelichting: "Productinformatie samengesteld uit de importkolommen" });
+  return uit;
+}
+
 function rollenUit(r: ImportRij): Rol[] {
   const tekst = `${kolom(r, "rol", "rollen", "ketenrol", "categorie")} ${kolom(r, "concept / maatwerk")}`.toLowerCase();
   const rollen = new Set<Rol>();
   if (/architect/.test(tekst)) rollen.add("architect");
   if (/aannemer|bouwer|bouwbedrijf/.test(tekst)) rollen.add("aannemer");
   if (/installat/.test(tekst)) rollen.add("installateur");
-  if (/advis|constructeur|ingenieur|engineer/.test(tekst)) rollen.add("adviseur");
+  if (/advis|ingenieur|engineer/.test(tekst)) rollen.add("adviseur");
+  if (/constructeur|constructief|constructie-?advies/.test(tekst)) rollen.add("constructeur");
+  // Het houtbouwersoverzicht (en elke rij met houtbouwkolommen) levert houtbouwers op.
+  const houtKolommen = `${kolom(r, "type bouw (checken site)")} ${kolom(r, "woningscheidend / dragende wanden")} ${kolom(r, "gesloten geveldelen")} ${kolom(r, "bouwsysteem")}`.toLowerCase();
+  const overzichtHoutbouwers = Object.keys(r).some((k) => /^(2d of 3d bouw|productietijd fabriek)/i.test(k.trim()));
+  if (overzichtHoutbouwers || /houtbouw/.test(tekst) || /\bhsb\b|\bclt\b|houtskelet|massief hout|hout/.test(houtKolommen)) rollen.add("houtbouwer");
   if (/leverancier|producent|fabrikant|systeem/.test(tekst)) rollen.add("leverancier");
   if (/ontwikkel/.test(tekst)) rollen.add("ontwikkelpartner");
+  // Een houtbouwer zonder andere rol is ook (concept)bouwer: zo blijft hij vindbaar als aannemer, net als vóór het type houtbouwer.
+  if (rollen.size === 1 && rollen.has("houtbouwer")) rollen.add("aannemer");
   return rollen.size ? Array.from(rollen) : ["aannemer"];
 }
 
@@ -78,6 +126,8 @@ export function rijNaarPartner(r: ImportRij, bron: Bron = "opgave", betrouwbaarh
   if (bio !== null) zet("biobased", Math.round(bio <= 1 ? bio * 100 : bio), undefined, "Biobased massa-% uit import");
   const losmaak = getal(kolom(r, "losmaakbaarheid - a1 set", "losmaakbaarheid"));
   if (losmaak !== null) zet("demontabel", Math.max(0, Math.min(5, Math.round((losmaak <= 1 ? losmaak : losmaak / 100) * 5))), undefined, `Losmaakbaarheidsindex ${losmaak}`);
+
+  productFactoren(r).forEach((x) => zet(x.factorId, x.waarde, undefined, x.toelichting));
 
   const materialen = [kolom(r, "gesloten geveldelen"), kolom(r, "woningscheidend / dragende wanden"), kolom(r, "verdiepingsvloer"), kolom(r, "bouwsysteem"), kolom(r, "type bouw")].join(" ").toLowerCase();
   if (/hsb|clt|hout/.test(materialen)) zet("bouwsysteem", 4, "houtbouw", "Materiaalopbouw uit import");

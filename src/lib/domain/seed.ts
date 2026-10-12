@@ -6,6 +6,9 @@ import { standaardAanvullingInstellingen } from "./instellingen";
 import { HUIDIGE_VERSIE } from "./migratie";
 import type { Bron, Certificaat, Database, Engagement, Evaluatie, Partner, PartnerFactor, Project, Rol } from "./types";
 import { BRON_BETROUWBAARHEID } from "./types";
+import { STANDAARD_BRANCHEBRONNEN, STANDAARD_UPCOMING_BRONNEN } from "./bronbeleid";
+import type { VerrijkingsBron } from "./types";
+import { aiAan } from "../aiplatform";
 
 const NU = "2026-08-30";
 const iso = (d: string) => `${d}T09:00:00.000Z`;
@@ -549,7 +552,8 @@ export function maakLegeDatabase(): Database {
     engagements: [],
     evaluaties: [],
     audit: [{ id: "a0", op: new Date().toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "init", actie: "lege database aangemaakt" }],
-    instellingen: { aiProvider: process.env.ANTHROPIC_API_KEY ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, ...standaardAanvullingInstellingen(), verrijkingsbronnen: [{ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true, categorie: "eigen_uitgave" }, { id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true, categorie: "eigen_uitgave" }] }
+    instellingen: { aiProvider: aiAan() ? "anthropic" : "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: true, ...standaardAanvullingInstellingen(), verrijkingsbronnen: ([{ id: "vb-conceptenboulevard", naam: "Conceptenboulevard", url: "https://conceptenboulevard.nl/aanbieders/", actief: true, categorie: "eigen_uitgave", rang: 1, status: "goedgekeurd" }, { id: "vb-woningconceptenbrochure", naam: "Woningconceptenbrochure 2026", url: "https://conceptenboulevard.nl/projecten/conceptenbrochure-2026/id=4", actief: true, categorie: "eigen_uitgave", rang: 1, status: "goedgekeurd" }, ...STANDAARD_BRANCHEBRONNEN, ...STANDAARD_UPCOMING_BRONNEN] as VerrijkingsBron[]).map((b) => ({ ...b })) },
+    samenwerkingen: []
   };
 }
 
@@ -578,7 +582,8 @@ export function maakSeedDatabase(): Database {
     gebruikers: [],
     importWachtrij: [],
     afwijsredenen: [],
-    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false, ...standaardAanvullingInstellingen(), verrijkingsbronnen: [] }
+    instellingen: { aiProvider: "uit", afgeschermdeOmgeving: true, externeBronnenToegestaan: false, ...standaardAanvullingInstellingen(), verrijkingsbronnen: [...STANDAARD_BRANCHEBRONNEN, ...STANDAARD_UPCOMING_BRONNEN].map((b) => ({ ...b })) },
+    samenwerkingen: []
   };
 }
 

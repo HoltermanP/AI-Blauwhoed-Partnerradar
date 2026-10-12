@@ -5,26 +5,26 @@ import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { effectieveFactoren, huidigeBelasting, leidFactorenAf, samenwerking } from "@/lib/domain/derive";
 import { signalenVoor } from "@/lib/domain/signalen";
 import type { Database, Partner } from "@/lib/domain/types";
-import { datum, datumTijd, euro, getal, ROL_LABEL, waardeTekst } from "@/lib/format";
+import { datum, datumTijd, euro, getal, ROL_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { Badge, Definities, GeenBronBadge, HerkomstRegel, Kaart, Knop, Leeg, Melding, Metriek, PaginaKop, StatusBadge, Tabs } from "@/components/ui";
 import BasisveldBevestigen from "@/components/partners/BasisveldBevestigen";
-import { basisveldHerkomst, basisveldWaarde, BASISVELDEN_LIJST } from "@/lib/domain/herkomst";
+import { basisveldHerkomst, basisveldWaarde, BASISVELDEN_LIJST, effectieveBasisStatus } from "@/lib/domain/herkomst";
+import WaardeAfwijzen from "@/components/partners/WaardeAfwijzen";
+import UpcomingLabel from "@/components/partners/UpcomingLabel";
 import { goudstandaardVolledigheid } from "@/lib/domain/goudstandaard";
 import { BASISVELD_LABEL } from "@/lib/domain/types";
 import { isBijgesteld, totaalscore, TEVREDENHEID_UITLEG } from "@/lib/domain/tevredenheid";
 import CapaciteitBeheer from "@/components/partners/CapaciteitBeheer";
 import CertificatenBeheer from "@/components/partners/CertificatenBeheer";
 import { certificaatStatus } from "@/components/partners/certificaten";
-import ContactBeheer from "@/components/partners/ContactBeheer";
 import FactorenBeheer from "@/components/partners/FactorenBeheer";
 import { FinancieelFormulier, KwalificatieChecklist } from "@/components/partners/KwalificatieBeheer";
 import StatusBeheer from "@/components/partners/StatusBeheer";
 import PartnerVerrijken from "@/components/partners/PartnerVerrijken";
 import HerkomstActies from "@/components/partners/HerkomstActies";
 import DocumentenBeheer from "@/components/partners/DocumentenBeheer";
-import VoorstelActies from "@/components/verrijking/VoorstelActies";
-import { VoorstelBetrouwbaarheid, VoorstelBron, VoorstelSoort } from "@/components/verrijking/VoorstelKenmerken";
+import VoorstellenLijst from "@/components/verrijking/VoorstellenLijst";
 import ConceptControle from "@/components/vrijgave/ConceptControle";
 import DefinitiefVerwijderen from "@/components/partners/DefinitiefVerwijderen";
 
@@ -38,7 +38,6 @@ const TABS = [
   { id: "capaciteit", label: "Capaciteit" },
   { id: "historie", label: "Historie" },
   { id: "kwalificatie", label: "Kwalificatie" },
-  { id: "contact", label: "Contact" },
   { id: "documenten", label: "Documenten" },
   { id: "brondata", label: "Brondata" }
 ];
@@ -65,7 +64,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
   const tabItems = TABS.map((t) => ({
     ...t,
     aantal:
-      t.id === "certificaten" ? p.certificaten.length : t.id === "historie" ? engagements.length : t.id === "contact" ? p.contactpersonen.length : t.id === "documenten" ? (p.documenten?.length ?? 0) : t.id === "factoren" ? effectieveFactoren(p, db, nu).length : t.id === "brondata" ? (p.brongegevens?.length ?? 0) : undefined
+      t.id === "certificaten" ? p.certificaten.length : t.id === "historie" ? engagements.length : t.id === "documenten" ? (p.documenten?.length ?? 0) : t.id === "factoren" ? effectieveFactoren(p, db, nu).length : t.id === "brondata" ? (p.brongegevens?.length ?? 0) : undefined
   }));
 
   return (
@@ -75,7 +74,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
         titel={p.naam}
         intro={
           <span className="partnerKopMeta">
-            <StatusBadge status={p.status} /> {p.rollen.map((r) => <Badge key={r} kleur="grijs">{ROL_LABEL[r]}</Badge>)} <span>{p.vestigingsplaats} · werkgebied {p.werkgebiedKm} km</span>
+            <StatusBadge status={p.status} /> {p.tags.includes("upcoming") ? <Badge kleur="mint" titel="Opkomende partij (bijv. na een prijs of nominatie)">upcoming</Badge> : null} {p.rollen.map((r) => <Badge key={r} kleur="grijs">{ROL_LABEL[r]}</Badge>)} <span>{p.vestigingsplaats} · werkgebied {p.werkgebiedKm} km</span>
             {p.website ? (
               <a href={p.website} target="_blank" rel="noreferrer">
                 {p.website.replace(/^https?:\/\//, "")}
@@ -99,7 +98,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
           Geblokkeerd{p.geblokkeerdTot ? ` tot ${datum(p.geblokkeerdTot)}` : ""}: {p.statusReden ?? "geen reden vastgelegd"}. Deze partner wordt in matching uitgesloten.
         </Melding>
       ) : null}
-      {p.status === "concept" ? <ConceptControle p={p} magVrijgeven={magVrijgeven} /> : null}
+      {p.status === "concept" ? <ConceptControle p={p} magVrijgeven={magVrijgeven} partners={db.partners.filter((x) => x.id !== p.id && x.status !== "concept" && x.status !== "gearchiveerd").map((x) => ({ id: x.id, naam: x.naam })).sort((a, b) => a.naam.localeCompare(b.naam, "nl"))} /> : null}
       {p.registratie?.besluit ? (
         <p className="muted klein-tekst">
           Geregistreerd door AI ({p.registratie.provider}) op verzoek van {p.registratie.aangevraagdDoor}, {datum(p.registratie.op)}; {p.registratie.besluit} door {p.registratie.beoordeeldDoor} op {datum(p.registratie.beoordeeldOp)}.
@@ -120,41 +119,8 @@ export default async function PartnerDossier({ params, searchParams }: { params:
       ) : null}
       {openVoorstellen.length ? (
         <Kaart titel={`Open verrijkingsvoorstellen (${openVoorstellen.length})`} acties={<Link href="/verrijking">Wachtrij</Link>}>
-          <p className="muted klein-tekst">Gevonden op internet of in aangeleverde tekst; bron &lsquo;web&rsquo;. Pas na acceptatie wordt een voorstel overgenomen in het dossier.</p>
-          <div className="tabelWrap">
-            <table className="tabel">
-              <thead>
-                <tr>
-                  <th>Veld</th>
-                  <th>Huidig → voorgesteld</th>
-                  <th>Soort</th>
-                  <th className="num">Betrouwb.</th>
-                  <th>Bron en citaat</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {openVoorstellen.map((v) => (
-                  <tr key={v.id}>
-                    <td>{v.veld}</td>
-                    <td>
-                      <span className="muted">{waardeTekst(v.huidig)}</span> → <b>{waardeTekst(v.voorgesteld)}</b>
-                    </td>
-                    <td>
-                      <VoorstelSoort v={v} />
-                    </td>
-                    <td className="num"><VoorstelBetrouwbaarheid v={v} /></td>
-                    <td className="citaatCel">
-                      <VoorstelBron v={v} />
-                    </td>
-                    <td>
-                      <VoorstelActies id={v.id} magBewerken={magBewerken} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="muted klein-tekst">Gevonden op internet, in registers of in aangeleverde tekst, elk met bron en onderbouwing. Accepteren (eventueel aangepast) maakt de waarde gebruikersgeverifieerd.</p>
+          <VoorstellenLijst voorstellen={openVoorstellen} factoren={db.factoren.filter((f) => openVoorstellen.some((v) => v.factorId === f.id))} magBewerken={magBewerken} open />
         </Kaart>
       ) : null}
       <Tabs items={tabItems} actief={tab} basis={`/partners/${p.id}`} />
@@ -242,11 +208,7 @@ export default async function PartnerDossier({ params, searchParams }: { params:
           )}
         </Kaart>
       ) : null}
-      {tab === "contact" ? (
-        <Kaart titel="Contactpersonen">
-          <ContactBeheer partnerId={p.id} contactpersonen={p.contactpersonen} magBewerken={magBewerken} />
-        </Kaart>
-      ) : null}
+
     </>
   );
 }
@@ -266,6 +228,7 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen, beh
               ["Laatst verrijkt", datumTijd(p.laatstVerrijktOp)]
             ]}
           />
+          {magBewerken ? <UpcomingLabel partnerId={p.id} aan={p.tags.includes("upcoming")} /> : null}
           {p.tags.length ? (
             <p style={{ marginTop: 14 }}>
               {p.tags.map((t) => (
@@ -277,23 +240,31 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen, beh
           ) : null}
         </Kaart>
         <Kaart titel="Basisgegevens en herkomst">
-          <p className="muted klein-tekst">Per veld de bron, de datum van vaststelling, de betrouwbaarheid en de status. Alleen een mens zet een gegeven op gevalideerd; een verrijking overschrijft een gevalideerd veld nooit stilzwijgend.</p>
+          <p className="muted klein-tekst">Per veld de bron (met URL), de datum waarop het is opgehaald, de betrouwbaarheid en de status: voorstel, gebruikersgeverifieerd, beheerdersgeverifieerd of afgewezen. Alleen een mens verifieert of wijst af; een verrijking overschrijft een geverifieerd veld nooit stilzwijgend. Contactpersonen worden niet vastgelegd (alleen algemene bedrijfsgegevens).</p>
           <div className="tabelWrap">
             <table className="tabel basisveldTabel">
               <tbody>
-                {BASISVELDEN_LIJST.filter((v) => basisveldWaarde(p, v) || p.geenBron?.[`basis:${v}`] || ["kvk", "vestigingsplaats", "website", "omschrijving", "rechtsvorm"].includes(v)).map((v) => {
+                {BASISVELDEN_LIJST.filter((v) => basisveldWaarde(p, v) || p.geenBron?.[`basis:${v}`] || p.veldHerkomst?.[v]?.afwijzing || ["kvk", "vestigingsplaats", "website", "omschrijving", "rechtsvorm"].includes(v)).map((v) => {
                   const w = basisveldWaarde(p, v);
                   const h = basisveldHerkomst(p, v);
+                  const status = effectieveBasisStatus(h, db.instellingen.basisveldVerval?.[v]);
+                  const afgewezen = !w ? p.veldHerkomst?.[v]?.afwijzing : undefined;
                   return (
                     <tr key={v}>
                       <td className="muted">{BASISVELD_LABEL[v]}</td>
                       <td>
                         {w ? (v === "website" ? <a href={w} target="_blank" rel="noreferrer">{w}</a> : v === "omschrijving" ? `${w.slice(0, 140)}${w.length > 140 ? "…" : ""}` : w) : <span className="muted">leeg</span>}{" "}
                         <GeenBronBadge markering={p.geenBron?.[`basis:${v}`]} />
+                        {afgewezen ? (
+                          <div className="klein-tekst">
+                            <Badge kleur="grijs">afgewezen</Badge> <s>{afgewezen.waarde.slice(0, 80)}</s> <span className="muted">door {afgewezen.door} ({afgewezen.rol}), {datum(afgewezen.op)}: {afgewezen.reden}</span>
+                          </div>
+                        ) : null}
                         {w ? (
                           <div>
-                            {h ? <HerkomstRegel bron={h.bron} detail={h.bronDetail} datum={h.vastgesteldOp} betrouwbaarheid={h.betrouwbaarheid} status={h.status} gevalideerdDoor={h.gevalideerdDoor} gevalideerdDoorRol={h.gevalideerdDoorRol} gevalideerdOp={h.gevalideerdOp} /> : <span className="muted klein-tekst">herkomst onbekend</span>}
-                            {magBewerken && (h?.status !== "gevalideerd" || (beheerder && h.gevalideerdDoorRol !== "beheerder")) ? <BasisveldBevestigen partnerId={p.id} veld={v} /> : null}
+                            {h ? <HerkomstRegel bron={h.bron} detail={h.bronDetail} datum={h.vastgesteldOp} betrouwbaarheid={h.betrouwbaarheid} status={status} gevalideerdDoor={h.gevalideerdDoor} gevalideerdDoorRol={h.gevalideerdDoorRol} gevalideerdOp={h.gevalideerdOp} /> : <span className="muted klein-tekst">herkomst onbekend</span>}
+                            {magBewerken && (status !== "gevalideerd" || (beheerder && h?.gevalideerdDoorRol !== "beheerder")) ? <BasisveldBevestigen partnerId={p.id} veld={v} /> : null}
+                            {magBewerken && v !== "vestigingsplaats" ? <WaardeAfwijzen waarde={{ partnerId: p.id, basisveld: v }} /> : null}
                           </div>
                         ) : null}
                       </td>

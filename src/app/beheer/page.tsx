@@ -70,6 +70,18 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
           <p className="muted">{db.gebruikers.length} account(s). Rollen gebruiker en beheerder toekennen, blokkeren en vooraf aanmelden.</p>
           <Link href="/beheer/gebruikers" className="knop knop-secundair klein">Gebruikers beheren</Link>
         </Kaart>
+        <Kaart titel="Datakwaliteit">
+          <p className="muted">Vullingsgraad per partnertype en veld, signalen voor ontbrekende, verouderde en onbetrouwbare waarden en de verouderingstermijn per veld.</p>
+          <Link href="/datakwaliteit" className="knop knop-secundair klein">Datakwaliteit</Link>
+        </Kaart>
+        <Kaart titel="Vrijgave en validatie">
+          <p className="muted">Concepten vrijgeven, afwijzen of samenvoegen; kritische waarden definitief valideren; evaluaties accepteren.</p>
+          <Link href="/vrijgave" className="knop knop-secundair klein">Werklijsten</Link>
+        </Kaart>
+        <Kaart titel="Verwerking en privacy">
+          <p className="muted">AI-aanbieder, verwerkingslocatie, geen training, geen contactpersonen en inloggen met SSO.</p>
+          <Link href="/privacy" className="knop knop-secundair klein">Verwerkingsinformatie</Link>
+        </Kaart>
         <Kaart titel="Auditlog">
           <p className="muted">{db.audit.length} regels. Elke wijziging aan partnergegevens en scoringsregels.</p>
           <Link href="/beheer/audit" className="knop knop-secundair klein">Audit bekijken</Link>
@@ -84,7 +96,7 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
             <details className="uitklap" style={{ marginTop: 14 }}>
               <summary>Hoe werkt de afscherming?</summary>
               <ul className="lijst klein-tekst" style={{ marginTop: 8 }}>
-                <li>Zonder ANTHROPIC_API_KEY draaien verrijking, discovery, chat en samenvattingen volledig lokaal op regels; er gaat geen data naar een modelleverancier en er worden geen AI-bewerkingen geteld.</li>
+                <li>Zonder ingericht taalmodel draaien verrijking, discovery, chat en samenvattingen volledig lokaal op regels; er gaat geen data naar een modelleverancier en er worden geen AI-bewerkingen geteld.</li>
                 <li>Met sleutel gebruikt elke functie het ingestelde model (Beheer → AI-verbruik). Alleen openbare bedrijfsteksten (website, referenties, aangeleverde documenten) gaan mee; nooit contactpersonen, financiële cijfers of evaluaties.</li>
                 <li>&ldquo;Afgeschermde omgeving&rdquo; markeert dat verwerking binnen de eigen (Blauwhoed-)omgeving blijft; &ldquo;externe bronnen&rdquo; bepaalt of partnerwebsites opgehaald mogen worden.</li>
               </ul>

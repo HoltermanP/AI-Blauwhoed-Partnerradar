@@ -133,7 +133,7 @@ export function kandidaatNaarConcept(k: DiscoveryCandidate, door: string, nu = n
   const p = kandidaatNaarPartner(k, nu);
   p.status = "concept";
   p.statusReden = `${herkomstSoort === "discovery" ? "Discovery-kandidaat geaccepteerd" : "Door AI aangedragen"} (${k.bron}); wacht op vrijgave door een beheerder.`;
-  p.tags = [herkomstSoort === "discovery" ? "discovery" : "ai-aandraag"];
+  p.tags = [herkomstSoort === "discovery" ? "discovery" : "ai-aandraag", ...(k.ruweData?.upcoming ? ["upcoming"] : [])];
   p.registratie = {
     herkomstSoort,
     aangevraagdDoor: door,

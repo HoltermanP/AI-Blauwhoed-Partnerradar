@@ -5,10 +5,15 @@ import { getDb } from "@/lib/store";
 import { datum, datumTijd, getal, hoofdletter } from "@/lib/format";
 import { Badge, Kaart, Knop, Leeg, PaginaKop } from "@/components/ui";
 import type { Projectfase } from "@/lib/domain/types";
+import ProjectImport from "@/components/projecten/ProjectImport";
+import { Melding } from "@/components/ui";
+import { PROJECTBRON_LABEL } from "@/lib/domain/projectimport";
 
 const FASE_KLEUR: Record<Projectfase, "grijs" | "blauw" | "groen" | "geel" | "rood" | "mint"> = { initiatief: "grijs", planvorming: "blauw", realisatie: "geel", opgeleverd: "groen", nazorg: "mint" };
 
-export default async function ProjectenPagina() {
+export default async function ProjectenPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const sp = await searchParams;
+  const kiesMatch = sp.kies === "match";
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
   const projecten = [...db.projecten].sort((a, b) => b.bijgewerktOp.localeCompare(a.bijgewerktOp));
@@ -18,10 +23,13 @@ export default async function ProjectenPagina() {
       <PaginaKop
         eyebrow="Projecten"
         titel="Projecten"
-        intro="Projectprofielen met rollen, eisen en gewichten; vanuit hier start u matching, teamsamenstelling en evaluaties."
+        intro="Projectprofielen met rollen, eisen en gewichten; vanuit hier start u matching, teamsamenstelling en evaluaties. Bij elk project staat of het uit het ERP of uit een webbron komt."
         acties={
           magBewerken ? (
             <>
+              <Knop href="/evaluaties" variant="secundair">
+                Evaluatieoverzicht
+              </Knop>
               <Knop href="/projecten/nieuw?bron=document" variant="secundair">
                 Uit document
               </Knop>
@@ -32,6 +40,8 @@ export default async function ProjectenPagina() {
           )
         }
       />
+      {magBewerken ? <ProjectImport /> : null}
+      {kiesMatch ? <Melding soort="info">Kies hieronder het project waarvoor u een matchrun wilt starten. Een matchrun toetst harde eisen en geeft per rol een gerangschikte, onderbouwde selectie.</Melding> : null}
       <Kaart>
         {projecten.length ? (
           <div className="tabelWrap">
@@ -58,7 +68,14 @@ export default async function ProjectenPagina() {
                         <Link href={`/projecten/${p.id}`}>
                           <b>{p.naam}</b>
                         </Link>
-                        {p.projectnummer ? <div className="muted klein-tekst">nr. {p.projectnummer}</div> : null}
+                        <div className="muted klein-tekst">
+                          {p.projectnummer ? `nr. ${p.projectnummer} · ` : ""}
+                          <Badge kleur={p.bron === "erp" ? "blauw" : p.bron === "web" ? "geel" : "grijs"} titel={p.ookWebbron ? "Ook gevonden in een webbron; samengevoegd op projectnummer of naam" : undefined}>
+                            {PROJECTBRON_LABEL[p.bron ?? (p.herkomst?.length ? "web" : "handmatig")]}
+                            {p.ookWebbron ? " + web" : ""}
+                          </Badge>
+                          {p.extern ? <Badge kleur="mint" titel="Buiten de eigen portefeuille; alleen bron voor samenwerkingssignalen">extern</Badge> : null}
+                        </div>
                       </td>
                       <td>{hoofdletter(p.type)}</td>
                       <td>{p.locatie.plaats}</td>
@@ -73,7 +90,16 @@ export default async function ProjectenPagina() {
                         {datum(p.planning.start)} – {datum(p.planning.eind)}
                       </td>
                       <td className="num">{p.eisen.length}</td>
-                      <td>{laatste ? <Link href={`/projecten/${p.id}/match?run=${laatste.id}`}>{datumTijd(laatste.gestartOp)}</Link> : <span className="muted">–</span>}</td>
+                      <td>
+                        {laatste ? <Link href={`/projecten/${p.id}/match?run=${laatste.id}`}>{datumTijd(laatste.gestartOp)}</Link> : <span className="muted">–</span>}
+                        {kiesMatch ? (
+                          <div>
+                            <Link href={`/projecten/${p.id}/match`} className="knop klein">
+                              Matchrun
+                            </Link>
+                          </div>
+                        ) : null}
+                      </td>
                     </tr>
                   );
                 })}

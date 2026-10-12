@@ -9,8 +9,8 @@ import { getDb } from "@/lib/store";
 import { Badge, Kaart, Knop, Leeg, Melding, Metriek, PaginaKop } from "@/components/ui";
 import { SignaalLijst } from "@/components/dashboard/SignaalLijst";
 import { zichtbaar } from "@/lib/domain/zichtbaarheid";
-import { goudstandaardPerRol } from "@/lib/domain/goudstandaard";
-import { statusVerdeling } from "@/lib/domain/datakwaliteit";
+import { dataSignalen, statusVerdeling, vullingPerRol } from "@/lib/domain/datakwaliteit";
+import ChatStart from "@/components/chat/ChatStart";
 import { budgetStatus } from "@/lib/domain/kosten";
 
 const SOORTEN: Array<{ id: Signaal["soort"] | "alle"; label: string }> = [
@@ -49,7 +49,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   // US-66: datakwaliteit op het overzichtsscherm (alleen zichtbare partners: geen concepten of gearchiveerde).
   const zichtbarePartners = db.partners.filter(zichtbaar);
-  const gsPerRol = goudstandaardPerRol(db, zichtbarePartners);
+  const gsPerRol = vullingPerRol(db, zichtbarePartners);
+  const dataSign = dataSignalen(db, zichtbarePartners);
   const verdeling = statusVerdeling(zichtbarePartners, db.factoren);
   const pctVan = (n: number) => (verdeling.totaal ? Math.round((n / verdeling.totaal) * 100) : 0);
   const geenBronVelden = zichtbarePartners.reduce((s, p) => s + Object.keys(p.geenBron ?? {}).length, 0);
@@ -80,6 +81,14 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         }
       />
 
+      {/* US-28: de AI-chat is de primaire zoekingang. */}
+      <ChatStart />
+      {verbruik.overschreden ? (
+        <Melding soort="fout">AI-budget bereikt: {verbruik.bewerkingen} van {verbruik.budgetBewerkingen} bewerkingen deze maand (100%). Geplande verrijkingsrondes starten niet; chat en verrijking van één partner blijven werken. <Link href="/beheer/verbruik">AI-verbruik</Link></Melding>
+      ) : verbruik.waarschuwing ? (
+        <Melding soort="waarschuwing">AI-verbruik boven 80%: {verbruik.bewerkingen} van {verbruik.budgetBewerkingen} bewerkingen deze maand. <Link href="/beheer/verbruik">AI-verbruik</Link></Melding>
+      ) : null}
+
       <div className="metriekRij">
         <Metriek waarde={perStatus("bekend")} label={`Partners ${STATUS_LABEL.bekend.toLowerCase()}`} sub={<Link href="/partners?status=bekend">Bekijk</Link>} />
         <Metriek waarde={perStatus("preferred")} label={STATUS_LABEL.preferred} sub={<Link href="/partners?status=preferred">Bekijk</Link>} />
@@ -92,17 +101,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         <Metriek waarde={<span style={{ color: kritiek ? "var(--red)" : undefined }}>{kritiek}</span>} label="Kritieke signalen" sub={<a href="#signalen">Bekijk</a>} />
       </div>
 
-      <Kaart titel="Datakwaliteit" acties={<Link href="/beheer">Details per veld</Link>}>
+      <Kaart titel="Datakwaliteit" acties={<Link href="/datakwaliteit">Details per veld en signalen</Link>}>
         <div className="kwaliteitRaster">
           <Metriek waarde={`${pctVan(verdeling.gevalideerd)}%`} label="Gevalideerd" sub={<Link href="/partners?waardestatus=gevalideerd">{verdeling.gevalideerd} waarden</Link>} />
           <Metriek waarde={`${pctVan(verdeling.voorgesteld)}%`} label="Voorgesteld" sub={<Link href="/partners?waardestatus=voorgesteld">{verdeling.voorgesteld} waarden</Link>} />
           <Metriek waarde={`${pctVan(verdeling.verouderd)}%`} label="Verouderd" sub={<Link href="/partners?waardestatus=verouderd">{verdeling.verouderd} waarden</Link>} />
           <Metriek waarde={geenBronVelden} label="Velden zonder betrouwbare bron" sub={<Link href="/partners?geenbron=1">{geenBronPartners} partner(s)</Link>} />
+          <Metriek waarde={dataSign.length} label="Datasignalen" sub={<Link href="/datakwaliteit?tab=signalen">{dataSign.filter((s) => s.soort === "ontbreekt").length} ontbreekt · {dataSign.filter((s) => s.soort === "verouderd").length} verouderd · {dataSign.filter((s) => s.soort === "onbetrouwbaar").length} onbetrouwbaar</Link>} />
           <Metriek waarde={openConcepten} label="Open concepten (AI-voorstellen)" sub={<Link href="/vrijgave">Vrijgavewachtrij</Link>} />
           <Metriek waarde={openVoorstellen} label="Open verrijkingsvoorstellen" sub={<Link href="/verrijking">Beoordelen</Link>} />
           <Metriek waarde={`${verbruik.bewerkingen} / ${verbruik.budgetBewerkingen}`} label="AI-bewerkingen deze maand" sub={<Link href="/beheer/verbruik">{Math.round(verbruik.pct)}% van het budget</Link>} />
         </div>
-        <h3>Gevulde goudstandaardvelden per partnertype</h3>
+        <h3>Vullingsgraad verplichte velden per partnertype</h3>
         {gsPerRol.length ? (
           <div className="tabelWrap">
             <table className="tabel">
@@ -110,25 +120,37 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                 <tr>
                   <th>Partnertype</th>
                   <th className="num">Partners</th>
-                  <th>Gevuld</th>
-                  <th className="num">Verplicht onvolledig</th>
+                  <th>Verplicht gevuld</th>
+                  <th>Laagst gevulde verplichte velden</th>
+                  <th className="num">Onvolledig</th>
                 </tr>
               </thead>
               <tbody>
                 {gsPerRol.map((r) => (
                   <tr key={r.rol}>
                     <td>
-                      <Link href={`/partners?rol=${r.rol}`}>{ROL_LABEL[r.rol]}</Link>
+                      <Link href={`/datakwaliteit?rol=${r.rol}`}>{ROL_LABEL[r.rol]}</Link>
                     </td>
                     <td className="num">{r.partners}</td>
                     <td>
-                      <div className="voortgang" aria-label={`${r.pct ?? 0}% gevuld`}>
-                        <span style={{ width: `${r.pct ?? 0}%` }} />
+                      <div className="voortgang" aria-label={`${r.verplichtPct ?? 0}% gevuld`}>
+                        <span style={{ width: `${r.verplichtPct ?? 0}%` }} />
                       </div>
-                      <small className="muted">{r.pct ?? 0}%</small>
+                      <small className="muted">{r.verplichtPct ?? 0}%</small>
+                    </td>
+                    <td className="klein-tekst">
+                      {r.velden
+                        .filter((v) => v.niveau === "verplicht" && v.pct < 100)
+                        .slice(0, 3)
+                        .map((v, i) => (
+                          <span key={v.sleutel}>
+                            {i ? " · " : ""}
+                            <Link href={`/datakwaliteit?tab=ontbrekend&rol=${r.rol}&veld=${v.sleutel}`}>{v.naam}</Link> <span className="muted">{v.pct}%</span>
+                          </span>
+                        ))}
                     </td>
                     <td className="num">
-                      <Link href={`/partners?rol=${r.rol}&gs=onvolledig`}>{r.onvolledig}</Link>
+                      <Link href={`/datakwaliteit?tab=signalen&soort=ontbreekt&rol=${r.rol}`}>{r.onvolledig}</Link>
                     </td>
                   </tr>
                 ))}

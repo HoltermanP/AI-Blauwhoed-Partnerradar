@@ -2,13 +2,12 @@
 import Link from "next/link";
 import ClaimsSplitser from "@/components/verrijking/ClaimsSplitser";
 import VerrijkingStart from "@/components/verrijking/VerrijkingStart";
-import VoorstelActies from "@/components/verrijking/VoorstelActies";
-import { VoorstelBetrouwbaarheid, VoorstelBron, VoorstelSoort } from "@/components/verrijking/VoorstelKenmerken";
+import VoorstellenLijst from "@/components/verrijking/VoorstellenLijst";
 import BronnenBeheer from "@/components/verrijking/BronnenBeheer";
 import { Badge, Definities, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import type { EnrichmentVoorstel } from "@/lib/domain/types";
-import { datumTijd, waardeTekst } from "@/lib/format";
+import { datumTijd } from "@/lib/format";
 import { getDb } from "@/lib/store";
 import { budgetStatus, schatVerrijkingsronde } from "@/lib/domain/kosten";
 import { kvkKoppelingActief } from "@/lib/domain/kvk";
@@ -17,6 +16,7 @@ import SchemaBeheer from "@/components/verrijking/SchemaBeheer";
 import RegisterBeheer from "@/components/verrijking/RegisterBeheer";
 import { CERTIFICAAT_TYPEN } from "@/components/partners/certificaten";
 import type { SchattingPerOmvang } from "@/components/verrijking/VerrijkingStart";
+import { aiAan } from "@/lib/aiplatform";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
 export const maxDuration = 60;
@@ -38,7 +38,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
   const budget = budgetStatus(db);
   // US-57: verwachte AI-bewerkingen per omvang (na het overslaan van ongewijzigde websites) en het effect op het budget.
   const schema = schemaVan(db);
-  const aiActief = Boolean(process.env.ANTHROPIC_API_KEY);
+  const aiActief = aiAan();
   const schattingen = Object.fromEntries(
     (["alles", "partnertype", "niet_verrijkt_sinds", "gewijzigde_website"] as const).map((o) => [o, schatVerrijkingsronde(selecteerPartners(db, { ...schema, omvang: o }), db, aiActief, { alleenGewijzigd: o === "gewijzigde_website" })])
   ) as SchattingPerOmvang;
@@ -69,7 +69,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
             ]}
           />
           <Melding soort="info">
-            Zonder ANTHROPIC_API_KEY draait de extractie op regels uit de taxonomie. Met sleutel leest het per functie ingestelde model (zie <Link href="/beheer/verbruik">AI-verbruik</Link>) uitsluitend openbare bedrijfsteksten; nooit contactpersonen. Elke verrijkte partner telt als één AI-bewerking.
+            Zonder ingericht taalmodel draait de extractie op regels uit de taxonomie. Met ANTHROPIC_API_KEY leest het per functie ingestelde model (zie <Link href="/beheer/verbruik">AI-verbruik</Link>) uitsluitend openbare bedrijfsteksten; nooit contactpersonen. Elke verrijkte partner telt als één AI-bewerking.
           </Melding>
         </Kaart>
       </div>
@@ -136,8 +136,8 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
         )}
       </Kaart>
 
-      <Kaart titel="Extra bronnen (configuratie)">
-        <BronnenBeheer bronnen={i.verrijkingsbronnen ?? []} magBeheren={heeftRecht(gebruiker.rol, "beheer")} />
+      <Kaart titel="Bronnen en kwaliteitsrang">
+        <BronnenBeheer bronnen={i.verrijkingsbronnen ?? []} magBeheren={heeftRecht(gebruiker.rol, "beheer")} magVoorstellen={magBewerken} />
       </Kaart>
 
       <Kaart titel="Keurmerk- en brancheregisters">
@@ -154,48 +154,11 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
           ))}
         </nav>
         {voorstellen.length ? (
-          <div className="tabelWrap">
-            <table className="tabel">
-              <thead>
-                <tr>
-                  <th>Partner</th>
-                  <th>Veld</th>
-                  <th>Huidig → voorgesteld</th>
-                  <th>Soort</th>
-                  <th className="num">Betrouwb.</th>
-                  <th>Bron en citaat</th>
-                  <th>Gevonden</th>
-                  {status === "open" ? <th /> : null}
-                </tr>
-              </thead>
-              <tbody>
-                {voorstellen.map((v) => (
-                  <tr key={v.id}>
-                    <td>
-                      <Link href={`/partners/${v.partnerId}`}>{partnerNaam(v.partnerId)}</Link>
-                    </td>
-                    <td>{v.veld}</td>
-                    <td>
-                      <span className="muted">{waardeTekst(v.huidig)}</span> → <b>{waardeTekst(v.voorgesteld)}</b>
-                    </td>
-                    <td>
-                      <VoorstelSoort v={v} />
-                    </td>
-                    <td className="num"><VoorstelBetrouwbaarheid v={v} /></td>
-                    <td className="citaatCel">
-                      <VoorstelBron v={v} />
-                    </td>
-                    <td>{datumTijd(v.gevondenOp)}</td>
-                    {status === "open" ? (
-                      <td>
-                        <VoorstelActies id={v.id} magBewerken={magBewerken} />
-                      </td>
-                    ) : null}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <p className="muted klein-tekst">Elk voorstel heeft een bron en een onderbouwing; zonder bron komt er geen voorstel. Accepteren (eventueel na aanpassen) maakt de waarde gebruikersgeverifieerd; afwijzen voorkomt dat dezelfde waarde opnieuw wordt voorgesteld. Selecteer meerdere voorstellen om ze in één keer af te handelen.</p>
+            <VoorstellenLijst voorstellen={voorstellen.slice(0, 500)} partnerNamen={Object.fromEntries(Array.from(new Set(voorstellen.map((v) => v.partnerId))).map((id) => [id, partnerNaam(id)]))} factoren={db.factoren.filter((f) => voorstellen.some((v) => v.factorId === f.id))} magBewerken={magBewerken} open={status === "open"} />
+            {voorstellen.length > 500 ? <p className="muted klein-tekst">De eerste 500 van {voorstellen.length} voorstellen.</p> : null}
+          </>
         ) : (
           <Leeg titel={`Geen ${STATUSSEN.find((s) => s.id === status)?.label.toLowerCase()} voorstellen`} tekst={status === "open" ? "Start een verrijkingsronde om voorstellen te verzamelen." : undefined} />
         )}

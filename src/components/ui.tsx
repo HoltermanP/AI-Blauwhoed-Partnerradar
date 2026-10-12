@@ -151,7 +151,7 @@ export function BronLabel({ bron, detail }: { bron: string | undefined; detail?:
   );
 }
 
-const STATUS_KLEUR = { gevalideerd: "groen", voorgesteld: "grijs", verouderd: "rood" } as const;
+const STATUS_KLEUR = { gevalideerd: "groen", voorgesteld: "grijs", verouderd: "rood", afgewezen: "rood" } as const;
 
 export function WaardeStatusBadge({ status }: { status: FactorWaardeStatus | undefined }) {
   if (!status) return <Badge kleur="grijs">berekend</Badge>;
@@ -160,12 +160,19 @@ export function WaardeStatusBadge({ status }: { status: FactorWaardeStatus | und
 
 /** Compacte herkomstregel: bron · vastgesteld op · betrouwbaarheid · status (· gevalideerd door). */
 export function HerkomstRegel({ bron, detail, datum, betrouwbaarheid, status, gevalideerdDoor, gevalideerdDoorRol, gevalideerdOp }: { bron?: string; detail?: string; datum?: string; betrouwbaarheid?: number; status?: FactorWaardeStatus; gevalideerdDoor?: string; gevalideerdDoorRol?: Gebruikersrol; gevalideerdOp?: string }) {
-  const verificatie = status ? basisveldVerificatie({ status, gevalideerdDoorRol } as Parameters<typeof basisveldVerificatie>[0]) : undefined;
+  const verificatie = status ? basisveldVerificatie({ status, gevalideerdDoorRol, vastgesteldOp: datum ?? "", bron: "opgave", betrouwbaarheid: 0 }) : undefined;
+  const url = detail && /^https?:\/\//.test(detail) ? detail : null;
   return (
     <span className="herkomstRegel">
       <BronLabel bron={bron} detail={detail} />
-      {datum ? <span className="muted klein-tekst">vastgesteld {new Date(datum).toLocaleDateString("nl-NL")}</span> : null}
+      {url ? (
+        <a href={url} target="_blank" rel="noreferrer" className="klein-tekst" title={url}>
+          {url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}
+        </a>
+      ) : null}
+      {datum ? <span className="muted klein-tekst">opgehaald {new Date(datum).toLocaleDateString("nl-NL")}</span> : null}
       <BetrouwbaarheidBadge waarde={betrouwbaarheid} />
+      {betrouwbaarheid !== undefined ? <span className="muted klein-tekst">{Math.round(betrouwbaarheid * 100)}%</span> : null}
       {verificatie ? <Badge kleur={VERIFICATIE_KLEUR[verificatie]}>{VERIFICATIE_LABEL[verificatie]}</Badge> : <WaardeStatusBadge status={status} />}
       {status === "gevalideerd" && gevalideerdDoor ? <span className="muted klein-tekst">door {gevalideerdDoor}{gevalideerdOp ? ` op ${new Date(gevalideerdOp).toLocaleDateString("nl-NL")}` : ""}</span> : null}
     </span>

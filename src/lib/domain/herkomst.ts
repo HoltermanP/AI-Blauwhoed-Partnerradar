@@ -143,6 +143,7 @@ export function markeerAlternatieven(voorstellen: EnrichmentVoorstel[], huidigeH
 export function effectieveStatus(pf: PartnerFactor, factor: Factor | undefined, nu = new Date()): FactorWaardeStatus | undefined {
   if (pf.afgeleid) return undefined; // berekende waarden hebben geen validatiestatus
   const basis = pf.status ?? "voorgesteld";
+  if (basis === "afgewezen") return basis;
   if (basis !== "verouderd" && factor?.vervalMaanden && pf.peildatum) {
     const grens = new Date(nu);
     grens.setMonth(grens.getMonth() - factor.vervalMaanden);
@@ -151,11 +152,26 @@ export function effectieveStatus(pf: PartnerFactor, factor: Factor | undefined, 
   return basis;
 }
 
+/** Afgewezen waarden tellen nergens mee (matching, vulling, chat); ze blijven wel zichtbaar op het dossier. */
+export function isAfgewezen(pf: Pick<PartnerFactor, "status">) {
+  return pf.status === "afgewezen";
+}
+
+/** US-03: effectieve status van een basisveld, met de per veld ingestelde verouderingstermijn. */
+export function effectieveBasisStatus(h: VeldHerkomst | undefined, vervalMaanden?: number, nu = new Date()): FactorWaardeStatus | undefined {
+  if (!h) return undefined;
+  if (h.status === "afgewezen" || h.status === "verouderd" || !vervalMaanden) return h.status;
+  const grens = new Date(nu);
+  grens.setMonth(grens.getMonth() - vervalMaanden);
+  const peil = h.gevalideerdOp && h.status === "gevalideerd" ? h.gevalideerdOp : h.vastgesteldOp;
+  return peil && new Date(peil) < grens ? "verouderd" : h.status;
+}
+
 export function isVerouderd(pf: PartnerFactor, factor: Factor | undefined, nu = new Date()) {
   return effectieveStatus(pf, factor, nu) === "verouderd";
 }
 
-export const STATUS_WAARDE_LABEL: Record<FactorWaardeStatus, string> = { voorgesteld: "voorgesteld", gevalideerd: "gevalideerd", verouderd: "verouderd" };
+export const STATUS_WAARDE_LABEL: Record<FactorWaardeStatus, string> = { voorgesteld: "voorstel", gevalideerd: "geverifieerd", verouderd: "verouderd", afgewezen: "afgewezen" };
 
 /** AVG: alle herkomstinformatie van één partner als exporteerbaar object. */
 export function herkomstExport(partner: Partner, factoren: Factor[], nu = new Date()) {

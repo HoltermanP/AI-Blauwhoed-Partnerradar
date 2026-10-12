@@ -7,6 +7,8 @@ import { ROL_LABEL, datum, datumTijd, euro, getal, hoofdletter } from "@/lib/for
 import { Badge, Definities, Kaart, Knop, PaginaKop } from "@/components/ui";
 import EisenEditor from "@/components/projecten/EisenEditor";
 import EngagementFormulier from "@/components/projecten/EngagementFormulier";
+import ProjectClassificatie from "@/components/projecten/ProjectClassificatie";
+import { PROJECTBRON_LABEL } from "@/lib/domain/projectimport";
 
 export default async function ProjectPagina({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,7 +53,23 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
         <Kaart titel="Projectprofiel">
           <Definities
             items={[
-              ["Type", hoofdletter(p.type)],
+              [
+                "Type",
+                <span key="type">
+                  {hoofdletter(p.type)}{" "}
+                  {(() => {
+                    const c = p.correcties?.filter((x) => x.veld === "type").slice(-1)[0];
+                    const h = p.herkomst?.find((x) => x.veld === "type");
+                    return c ? (
+                      <Badge kleur="blauw" titel={`Gecorrigeerd door ${c.door} op ${datum(c.op)}: ${c.reden} (was ${c.van})`}>gecorrigeerd</Badge>
+                    ) : h ? (
+                      <Badge kleur="geel" titel={`Uit projectdocument: „${h.citaat}” (betrouwbaarheid ${Math.round(h.betrouwbaarheid * 100)}%)`}>voorstel uit document</Badge>
+                    ) : null;
+                  })()}
+                </span>
+              ],
+              ["Bron", <span key="bron">{PROJECTBRON_LABEL[p.bron ?? (p.herkomst?.length ? "web" : "handmatig")]}{p.ookWebbron ? " + webbron (samengevoegd)" : ""}{p.erpImportOp ? <span className="muted klein-tekst"> · ERP-import {datum(p.erpImportOp)}</span> : null}</span>],
+              ["Verantwoordelijke ontwikkelaar", p.verantwoordelijke ?? "–"],
               ["Plaats", p.locatie.plaats],
               ["Woningen", getal(p.woningen)],
               ["Prijssegment", p.prijssegment.map(hoofdletter).join(", ") || "–"],
@@ -63,6 +81,19 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
               ["Bijgewerkt", datumTijd(p.bijgewerktOp)]
             ]}
           />
+          {magBewerken ? <ProjectClassificatie projectId={p.id} huidig={p.type} /> : null}
+          {p.correcties?.length ? (
+            <details className="uitklap">
+              <summary>Correcties van classificaties ({p.correcties.length})</summary>
+              <ul className="lijst klein-tekst">
+                {p.correcties.map((c, i) => (
+                  <li key={i}>
+                    {c.veld}: {c.van} → <b>{c.naar}</b> door {c.door} op {datum(c.op)} — {c.reden}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          ) : null}
           {p.herkomst?.length ? (
             <details className="uitklap" style={{ marginTop: 12 }}>
               <summary>Herkomst uit projectdocument ({p.herkomst.length} velden)</summary>
@@ -78,7 +109,7 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
         </Kaart>
 
         <Kaart titel="Rollen, eisen en gewichten">
-          <EisenEditor projectId={p.id} eisen={p.eisen} gewichtsprofielId={p.gewichtsprofielId} profielen={db.gewichtsprofielen} factoren={db.factoren} magBewerken={magBewerken} />
+          <EisenEditor projectId={p.id} eisen={p.eisen} gewichtsprofielId={p.gewichtsprofielId ?? (p.eisen.length ? undefined : db.instellingen.standaardGewichtsprofielId)} profielen={db.gewichtsprofielen} factoren={db.factoren} magBewerken={magBewerken} />
         </Kaart>
 
         <Kaart titel="Betrokken partners" acties={magBewerken ? <Link href={`/projecten/${p.id}/evaluaties`} className="knop knop-tekst klein">Naar evaluaties</Link> : undefined}>

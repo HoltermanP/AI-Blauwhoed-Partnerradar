@@ -28,7 +28,7 @@ export async function onderbouwMatchrun(runId: string) {
             const regel = regelOnderbouwingRol(r);
             if (!aiBeschikbaar() || !r.kandidaten.length) return regel;
             zetAanroepDoel(`match-onderbouwing ${r.rol}`);
-            const ai = await aiMatchOnderbouwing(project, r.rol, r.kandidaten.slice(0, 5).map((k) => ({ partnerId: k.partnerId, naam: k.partnerNaam, score: k.score, dekkingsgraad: k.dekkingsgraad, verificatiegraad: k.verificatiegraad ?? null, semantischeTreffers: k.semantischeTreffers.slice(0, 6), criteria: k.criteria.map((c) => `${c.factorNaam}: ${c.fit === null ? "geen gegevens (telt niet mee)" : `${c.toelichting} Bijdrage ${c.bijdrage} punten.`}`), waarschuwingen: k.waarschuwingen })));
+            const ai = await aiMatchOnderbouwing(project, r.rol, r.kandidaten.slice(0, 5).map((k) => ({ partnerId: k.partnerId, naam: k.partnerNaam, score: k.score, dekkingsgraad: k.dekkingsgraad, verificatiegraad: k.verificatiegraad ?? null, semantischeTreffers: k.semantischeTreffers.slice(0, 6), criteria: k.criteria.map((c) => `${c.factorNaam}: ${c.fit === null ? "geen gegevens (telt niet mee)" : `${c.toelichting} Bijdrage ${c.bijdrage} punten.`}`), waarschuwingen: k.waarschuwingen, ervaringUitEvaluaties: (k.ervaringen ?? []).map((e) => `${e.project} (${e.score}/5): ${e.tekst}`) })));
             if (!ai) return regel;
             provider = await providerLabel("match");
             return { rol: r.rol, samenvatting: ai.samenvatting, perKandidaat: ai.perKandidaat.filter((x) => r.kandidaten.some((k) => k.partnerId === x.partnerId)) };
@@ -63,6 +63,22 @@ export async function analyseerVerbanden(rolA?: Rol, rolB?: Rol) {
       : null;
     const uit: VerbandAnalyseUitkomst = ai ? { ...ai, provider: await providerLabel("verband") } : { ...regelVerbandAnalyse(verbanden), provider: "regels (geen externe AI)" };
     return { ok: true as const, data: uit };
+  } catch (e) {
+    return { ok: false as const, fout: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** US-22: een beheerder bevestigt een samenwerking (anders blijft het een signaal), of trekt de bevestiging in. */
+export async function bevestigSamenwerking(a: string, b: string, toelichting: string, intrekken = false) {
+  try {
+    const g = await vereisRecht("beheer");
+    if (!intrekken && !toelichting.trim()) throw new Error("Geef aan waarop de bevestiging berust (bijv. contract, projectdossier).");
+    await muteer(g, { entiteit: "samenwerking", entiteitId: `${a}|${b}`, actie: intrekken ? "bevestiging ingetrokken" : "samenwerking bevestigd", details: toelichting || undefined }, (db) => {
+      db.samenwerkingen = (db.samenwerkingen ?? []).filter((s) => !((s.a === a && s.b === b) || (s.a === b && s.b === a)));
+      if (!intrekken) db.samenwerkingen.push({ id: `sw-${Date.now().toString(36)}`, a, b, bevestigdDoor: g.naam, bevestigdOp: new Date().toISOString(), toelichting: toelichting.trim() });
+    });
+    revalidatePath("/verbanden");
+    return { ok: true as const };
   } catch (e) {
     return { ok: false as const, fout: e instanceof Error ? e.message : String(e) };
   }

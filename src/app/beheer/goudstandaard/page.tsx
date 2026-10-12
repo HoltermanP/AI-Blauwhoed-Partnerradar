@@ -1,7 +1,8 @@
 // US-49: goudstandaard per partnertype — verplichte en gewenste velden plus beoordelingscriteria. Alleen de beheerder wijzigt.
 import Link from "next/link";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
-import { goudstandaardPerRol, goudstandaardVoor } from "@/lib/domain/goudstandaard";
+import { goudstandaardVoor } from "@/lib/domain/goudstandaard";
+import { vullingPerRol } from "@/lib/domain/datakwaliteit";
 import { BASISVELD_LABEL, ROLLEN, type Rol } from "@/lib/domain/types";
 import { datumTijd, ROL_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
@@ -15,7 +16,7 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBeheren = heeftRecht(gebruiker.rol, "beheer");
   const profiel = goudstandaardVoor(db, rol);
-  const vulling = goudstandaardPerRol(db, db.partners.filter(zichtbaar));
+  const vulling = vullingPerRol(db, db.partners.filter(zichtbaar));
   const opties = [
     ...Object.entries(BASISVELD_LABEL).map(([k, label]) => ({ sleutel: `basis:${k}`, label: `Basisveld · ${label}` })),
     ...db.factoren.filter((f) => f.actief && !f.afgeleid).map((f) => ({ sleutel: `factor:${f.id}`, label: `${f.categorie.slice(0, 2)} ${f.naam}` }))
@@ -25,7 +26,7 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
       <PaginaKop
         eyebrow="Beheer"
         titel="Goudstandaard"
-        intro="Per partnertype de velden die Blauwhoed verplicht of gewenst vindt en de beoordelingscriteria. Waarden met bron goudstandaard of eigen uitgave van Blauwhoed zijn leidend: AI overschrijft ze nooit en zet er hooguit een voorstel naast."
+        intro="Per partnertype de velden die Blauwhoed verplicht of gewenst vindt, welke velden een tweede controle door een beheerder vragen, en de beoordelingscriteria. Aan te passen zonder ontwikkelaar. Waarden met bron goudstandaard of eigen uitgave van Blauwhoed zijn leidend: AI overschrijft ze nooit en zet er hooguit een voorstel naast."
         acties={<Link href="/beheer" className="knop knop-secundair">Terug naar beheer</Link>}
       />
       {!magBeheren ? <Melding soort="waarschuwing">Alleen-lezen: alleen de beheerder stelt de goudstandaard vast.</Melding> : null}
@@ -33,7 +34,7 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
         {ROLLEN.map((r) => (
           <Link key={r} href={`/beheer/goudstandaard?rol=${r}`} className={r === rol ? "active" : ""} scroll={false}>
             {ROL_LABEL[r]}
-            <span>{vulling.find((v) => v.rol === r)?.pct ?? "–"}%</span>
+            <span>{vulling.find((v) => v.rol === r)?.verplichtPct ?? "–"}%</span>
           </Link>
         ))}
       </nav>
@@ -51,7 +52,7 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
               <tr>
                 <th>Partnertype</th>
                 <th className="num">Partners</th>
-                <th className="num">Gevuld</th>
+                <th className="num">Verplicht gevuld</th>
                 <th className="num">Verplicht onvolledig</th>
               </tr>
             </thead>
@@ -60,9 +61,11 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
                 <tr key={v.rol}>
                   <td>{ROL_LABEL[v.rol]}</td>
                   <td className="num">{v.partners}</td>
-                  <td className="num">{v.pct ?? "–"}%</td>
                   <td className="num">
-                    <Link href={`/partners?rol=${v.rol}&gs=onvolledig`}>{v.onvolledig}</Link>
+                    <Link href={`/datakwaliteit?rol=${v.rol}`}>{v.verplichtPct ?? "–"}%</Link>
+                  </td>
+                  <td className="num">
+                    <Link href={`/datakwaliteit?tab=signalen&soort=ontbreekt&rol=${v.rol}`}>{v.onvolledig}</Link>
                   </td>
                 </tr>
               ))}

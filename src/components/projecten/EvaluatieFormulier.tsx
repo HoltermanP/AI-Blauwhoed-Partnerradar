@@ -15,8 +15,11 @@ const ASPECTEN: Array<{ id: "kwaliteit" | "planning" | "budget" | "samenwerking"
   { id: "duurzaamheid", label: "Duurzaamheidsprestatie" }
 ];
 
-export default function EvaluatieFormulier({ engagementId, partnerId, projectId, bestaand, magEvalueren, openStandaard }: { engagementId: string; partnerId: string; projectId: string; bestaand?: Evaluatie; magEvalueren: boolean; openStandaard: boolean }) {
+export default function EvaluatieFormulier({ engagementId, partnerId, projectId, bestaand: bestaandOplevering, tussentijds, magEvalueren, openStandaard, standaardMoment = "oplevering" }: { engagementId: string; partnerId: string; projectId: string; bestaand?: Evaluatie; tussentijds?: Evaluatie; magEvalueren: boolean; openStandaard: boolean; standaardMoment?: "tussentijds" | "oplevering" }) {
   const router = useRouter();
+  // US-18: tussentijds of na oplevering; per moment één evaluatie per betrokkenheid.
+  const [moment, setMoment] = useState<"tussentijds" | "oplevering">(bestaandOplevering ? "oplevering" : tussentijds ? "tussentijds" : standaardMoment);
+  const bestaand = moment === "tussentijds" ? tussentijds : bestaandOplevering;
   const [open, setOpen] = useState(openStandaard || !bestaand);
   const [scores, setScores] = useState({ kwaliteit: bestaand?.kwaliteit ?? 3, planning: bestaand?.planning ?? 3, budget: bestaand?.budget ?? 3, samenwerking: bestaand?.samenwerking ?? 3, duurzaamheid: bestaand?.duurzaamheid ?? 3 });
   const [toelichting, setToelichting] = useState(bestaand?.toelichting ?? "");
@@ -27,6 +30,16 @@ export default function EvaluatieFormulier({ engagementId, partnerId, projectId,
   const [fout, setFout] = useState<string | null>(null);
   const [succes, setSucces] = useState(false);
   const [bezig, start] = useTransition();
+
+  function kiesMoment(m: "tussentijds" | "oplevering") {
+    setMoment(m);
+    const b = m === "tussentijds" ? tussentijds : bestaandOplevering;
+    setScores({ kwaliteit: b?.kwaliteit ?? 3, planning: b?.planning ?? 3, budget: b?.budget ?? 3, samenwerking: b?.samenwerking ?? 3, duurzaamheid: b?.duurzaamheid ?? 3 });
+    setToelichting(b?.toelichting ?? "");
+    setBijstellen(b?.totaalscore !== undefined);
+    setTotaal(String(b?.totaalscore ?? ""));
+    setTotaalToelichting(b?.totaalToelichting ?? "");
+  }
 
   if (!magEvalueren) return <p className="muted klein-tekst">U heeft geen recht &apos;evalueren&apos;.</p>;
   if (!open)
@@ -40,7 +53,7 @@ export default function EvaluatieFormulier({ engagementId, partnerId, projectId,
     e.preventDefault();
     setFout(null);
     start(async () => {
-      const r = await slaEvaluatieOp({ engagementId, partnerId, projectId, ...scores, toelichting, totaalscore: bijstellen && totaal ? Number(totaal.replace(",", ".")) : undefined, totaalToelichting: bijstellen ? totaalToelichting : undefined });
+      const r = await slaEvaluatieOp({ engagementId, partnerId, projectId, moment, ...scores, toelichting, totaalscore: bijstellen && totaal ? Number(totaal.replace(",", ".")) : undefined, totaalToelichting: bijstellen ? totaalToelichting : undefined });
       if (!r.ok) return setFout(r.fout);
       setSucces(true);
       setOpen(false);
@@ -52,6 +65,15 @@ export default function EvaluatieFormulier({ engagementId, partnerId, projectId,
     <form className="formulier" onSubmit={opslaan}>
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
       {succes ? <Melding soort="succes">Beoordeling vastgelegd.</Melding> : null}
+      <p className="muted klein-tekst">De evaluatie geldt voor de organisatie, nooit voor een persoon. Noem geen namen of contactgegevens.</p>
+      <div className="radioRij" role="radiogroup" aria-label="Moment">
+        <label>
+          <input type="radio" name={`${engagementId}-moment`} checked={moment === "tussentijds"} onChange={() => kiesMoment("tussentijds")} /> Tussentijds
+        </label>
+        <label>
+          <input type="radio" name={`${engagementId}-moment`} checked={moment === "oplevering"} onChange={() => kiesMoment("oplevering")} /> Na oplevering
+        </label>
+      </div>
       <div className="rij">
         {ASPECTEN.map((a) => (
           <div key={a.id} className="veld">
@@ -88,8 +110,9 @@ export default function EvaluatieFormulier({ engagementId, partnerId, projectId,
         </div>
       ) : null}
       <label>
-        Toelichting
-        <textarea value={toelichting} onChange={(e) => setToelichting(e.target.value)} placeholder="Wat ging goed, wat niet; concrete voorbeelden" />
+        Ervaring in eigen woorden
+        <textarea value={toelichting} onChange={(e) => setToelichting(e.target.value)} placeholder="Wat niet in cijfers te vangen is: projectbegrip, kwaliteit van ideeën, hoe de organisatie meedacht. Wat ging goed, wat niet?" />
+        <small className="muted">Deze tekst gebruiken de AI-chat en de matchonderbouwing bij volgende selecties (alleen als de evaluatie is geaccepteerd).</small>
       </label>
       <p className="muted klein-tekst">{TEVREDENHEID_UITLEG}</p>
       <div className="formulierActies">

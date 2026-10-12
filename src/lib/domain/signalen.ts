@@ -2,6 +2,7 @@
 import { leidFactorenAf } from "./derive";
 import { budgetStatus } from "./kosten";
 import type { Database, Financieel, Partner, Signaal } from "./types";
+import { herinneringDagen, opleverdatum } from "./evaluatieproces";
 
 export function risicoklasse(f: Financieel | undefined, nu = new Date()): Financieel["risicoklasse"] {
   if (!f) return undefined;
@@ -62,9 +63,14 @@ export function signalenVoor(db: Database, nu = new Date()): Signaal[] {
     // Evaluatieherinnering (US-21)
     if (proj.fase === "opgeleverd" || proj.fase === "nazorg") {
       eng.forEach((e) => {
-        if (!db.evaluaties.some((ev) => ev.engagementId === e.id)) {
+        if (!db.evaluaties.some((ev) => ev.engagementId === e.id && (ev.moment ?? "oplevering") === "oplevering")) {
           const p = db.partners.find((x) => x.id === e.partnerId);
-          signalen.push({ id: `eval-${e.id}`, soort: "evaluatie", ernst: "waarschuwing", titel: `Beoordeling ontbreekt: ${p?.naam ?? e.partnerId}`, omschrijving: `${proj.naam} is opgeleverd; beoordeel ${p?.naam ?? "partner"} (${e.rol}) op kwaliteit, planning, budget, samenwerking en duurzaamheid.`, projectId: proj.id, partnerId: e.partnerId, link: `/projecten/${proj.id}/evaluaties?engagement=${e.id}` });
+          // US-20: herinnering na oplevering, gericht aan de verantwoordelijke ontwikkelaar.
+          const opgeleverd = opleverdatum(proj, eng);
+          const dagen = Math.floor((nu.getTime() - new Date(opgeleverd).getTime()) / dag);
+          const termijn = herinneringDagen(db);
+          const bewaker = db.instellingen.evaluatieProces?.procesbewaker;
+          signalen.push({ id: `eval-${e.id}`, soort: "evaluatie", ernst: dagen >= termijn ? "waarschuwing" : "info", titel: `${dagen >= termijn ? "Herinnering: " : ""}beoordeling ontbreekt: ${p?.naam ?? e.partnerId}`, omschrijving: `${proj.naam} is ${dagen > 0 ? `${dagen} dagen geleden ` : ""}opgeleverd; ${proj.verantwoordelijke ? `${proj.verantwoordelijke} (verantwoordelijk ontwikkelaar) ` : "de verantwoordelijke ontwikkelaar "}beoordeelt ${p?.naam ?? "de partner"} (${e.rol}) op kwaliteit, planning, budget, samenwerking en duurzaamheid.${bewaker ? ` Procesbewaker: ${bewaker}.` : ""}`, projectId: proj.id, partnerId: e.partnerId, link: `/projecten/${proj.id}/evaluaties?engagement=${e.id}` });
         }
       });
     }

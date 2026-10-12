@@ -78,6 +78,8 @@ export function automatischToepasbaar(p: Partner, v: EnrichmentVoorstel, factore
     const huidig = huidigeFactorwaarde(p, v, factoren);
     if (!huidig) return true;
     if (huidig.afgeleid || huidig.overschrijving) return false;
+    // US-04: een afgewezen waarde komt niet automatisch terug; een andere waarde mag het veld wel (opnieuw als voorstel) vullen.
+    if (huidig.status === "afgewezen") return JSON.stringify(huidig.waarde) !== JSON.stringify(v.voorgesteld);
     const st = effectieveStatus(huidig, factor, nu);
     if (st === "gevalideerd") return false;
     // Alleen vervangen door een minstens zo goede bron (lagere rang = beter).
@@ -87,6 +89,7 @@ export function automatischToepasbaar(p: Partner, v: EnrichmentVoorstel, factore
   if (!veld || !AUTOMATISCHE_BASISVELDEN.includes(veld) || basisveldWaarde(p, veld)) return false;
   const w = String(v.voorgesteld ?? "").trim();
   if (!w) return false;
+  if (p.veldHerkomst?.[veld]?.afwijzing?.waarde === w) return false;
   if (veld === "kvk") return /^\d{8}$/.test(w);
   if (veld === "website") return /^https?:\/\//.test(w);
   return true;
@@ -97,7 +100,7 @@ export function pasAutomatischToe(p: Partner, v: EnrichmentVoorstel, factoren: F
   const dag = v.gevondenOp.slice(0, 10) || nu.toISOString().slice(0, 10);
   if (v.factorId) {
     const optie = optieVanVoorstel(v, factoren);
-    const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronUrl ?? v.bron }, peildatum: dag, status: "voorgesteld", automatisch: true, toelichting: `${v.soort}: ${v.citaat}` };
+    const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronNaam ?? v.bronUrl ?? v.bron }, peildatum: dag, status: "voorgesteld", automatisch: true, toelichting: `${v.soort}: ${v.citaat}` };
     const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
     if (idx >= 0) p.factoren[idx] = record;
     else p.factoren.push(record);

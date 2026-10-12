@@ -28,6 +28,15 @@ function profiel(
   };
 }
 
+/**
+ * Houtbouwer en constructeur (demo oktober 2026, US-01/US-14): in elk standaardprofiel dezelfde startweging. Voorlopig; de
+ * definitieve standaardweging wacht op de criteriadefinitie van het team (US-17).
+ */
+export const NIEUWE_TYPES: Partial<Record<Rol, RequirementFactor[]>> = {
+  houtbouwer: [r("mpg", 15, 0.8), r("paris_proof", 20, 250), r("levertijd", 15, 26), r("productietijd", 10, 16), r("kosten_m2", 15, 1800), r("evaluatiescore", 25, 4)],
+  constructeur: [r("bouwsysteem", 35, 3, "houtbouw"), r("bim", 25, 3), r("demontabel", 15, 2), r("evaluatiescore", 25, 4)]
+};
+
 export const GEWICHTSPROFIELEN: Gewichtsprofiel[] = [
   profiel(
     "binnenstedelijk-hoogbouw",
@@ -104,4 +113,40 @@ export const GEWICHTSPROFIELEN: Gewichtsprofiel[] = [
     },
     20
   )
-];
+].map((p) => ({ ...p, perRol: { ...p.perRol, ...NIEUWE_TYPES }, versies: p.versies.map((v) => ({ ...v, snapshot: { ...v.snapshot, ...NIEUWE_TYPES } })) }));
+
+/**
+ * US-17/US-21: zet het aandeel van eigen ervaring (factor evaluatiescore, alleen geaccepteerde evaluaties) in een rol op `pct`
+ * procent; de overige gewogen criteria (openbare bronnen, opgave, historie) delen naar verhouding de rest. Harde en
+ * semantische eisen blijven ongemoeid. Het totaal van de gewogen criteria blijft 100.
+ */
+export function pasErvaringsgewichtToe(eisen: RequirementFactor[], pct: number, isGewogen: (factorId: string) => boolean): RequirementFactor[] {
+  const p = Math.max(0, Math.min(80, Math.round(pct)));
+  const lijst = eisen.map((e) => ({ ...e }));
+  let ev = lijst.find((e) => e.factorId === "evaluatiescore");
+  if (!ev && p > 0) {
+    ev = { factorId: "evaluatiescore", gevraagd: 4, gewicht: 0 };
+    lijst.push(ev);
+  }
+  const overig = lijst.filter((e) => e !== ev && isGewogen(e.factorId));
+  const somOverig = overig.reduce((s, e) => s + e.gewicht, 0);
+  if (!overig.length) {
+    if (ev) ev.gewicht = 100;
+    return lijst;
+  }
+  if (ev) ev.gewicht = p;
+  let rest = 100 - p;
+  overig.forEach((e, i) => {
+    const nieuw = i === overig.length - 1 ? rest : Math.round(((somOverig ? e.gewicht / somOverig : 1 / overig.length)) * (100 - p));
+    e.gewicht = Math.max(0, nieuw);
+    rest -= e.gewicht;
+  });
+  return lijst.filter((e) => !(e === ev && p === 0));
+}
+
+/** Aandelen van de teamscore: kwaliteit, samenwerkingshistorie, nabijheid en beschikbaarheid (som 1). */
+export function teamWeging(samenwerkingPct = 25) {
+  const s = Math.max(0, Math.min(70, samenwerkingPct)) / 100;
+  const rest = 1 - s;
+  return { kwaliteit: (rest * 50) / 75, samenwerking: s, nabijheid: (rest * 15) / 75, beschikbaarheid: (rest * 10) / 75 };
+}

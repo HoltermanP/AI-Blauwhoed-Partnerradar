@@ -6,7 +6,9 @@ const opt = (id: string, label: string): FactorOption => ({ id, label, actief: t
 const ALLE: Rol[] = [];
 const BOUWERS: Rol[] = ["aannemer", "ontwikkelpartner"];
 const ONTWERP: Rol[] = ["architect", "ontwikkelpartner"];
-const TECHNIEK: Rol[] = ["aannemer", "installateur", "leverancier", "ontwikkelpartner"];
+const TECHNIEK: Rol[] = ["aannemer", "houtbouwer", "installateur", "leverancier", "ontwikkelpartner"];
+/** Leveranciers van (hout)bouwsystemen: kenmerken van het product zelf (US-01). */
+const PRODUCT: Rol[] = ["houtbouwer", "leverancier"];
 
 export const FACTOREN: Factor[] = [
   // A. Projecttype en programma
@@ -134,7 +136,7 @@ export const FACTOREN: Factor[] = [
       opt("traditioneel", "Traditioneel"),
       opt("hybride", "Hybride")
     ],
-    rollen: TECHNIEK.concat("architect"),
+    rollen: TECHNIEK.concat("architect", "constructeur"),
     actief: true,
     versie: 1
   },
@@ -170,7 +172,7 @@ export const FACTOREN: Factor[] = [
     categorie: "C. Bouwmethode en materialen",
     type: "gewogen",
     schaal: { soort: "niveau", min: 0, max: 5 },
-    rollen: TECHNIEK.concat("architect"),
+    rollen: TECHNIEK.concat("architect", "constructeur"),
     actief: true,
     versie: 1
   },
@@ -427,6 +429,72 @@ export const FACTOREN: Factor[] = [
     type: "hard",
     schaal: { soort: "boolean" },
     rollen: ALLE,
+    actief: true,
+    versie: 1
+  },
+  // Kenmerken van houtbouwers en leveranciers (demo oktober 2026, US-01): verplicht in de goudstandaard van de houtbouwer.
+  {
+    id: "paris_proof",
+    vervalMaanden: 24,
+    code: "D7",
+    naam: "Paris Proof-score",
+    omschrijving: "Gebonden CO2-uitstoot (embodied carbon) van het product of de woning in kg CO2e per m² BVO, volgens de DGBC Paris Proof-methode (lager is beter).",
+    categorie: "D. Duurzaamheid",
+    type: "gewogen",
+    schaal: { soort: "getal", eenheid: "kg CO2e/m² BVO", lagerIsBeter: true, min: 0, max: 1000 },
+    rollen: PRODUCT.concat("aannemer", "ontwikkelpartner"),
+    actief: true,
+    versie: 1
+  },
+  {
+    id: "productietijd",
+    vervalMaanden: 12,
+    code: "E5",
+    naam: "Productietijd",
+    omschrijving: "Doorlooptijd van de productie in de fabriek, van definitieve bestelling tot gereed voor transport (lager is beter).",
+    categorie: "E. Capaciteit en continuïteit",
+    type: "gewogen",
+    schaal: { soort: "getal", eenheid: "weken", lagerIsBeter: true, min: 0, max: 104 },
+    rollen: PRODUCT,
+    actief: true,
+    versie: 1
+  },
+  {
+    id: "levertijd",
+    vervalMaanden: 6,
+    code: "E6",
+    naam: "Levertijd",
+    omschrijving: "Tijd van opdracht tot levering op de bouwplaats bij de huidige orderportefeuille (lager is beter).",
+    categorie: "E. Capaciteit en continuïteit",
+    type: "gewogen",
+    schaal: { soort: "getal", eenheid: "weken", lagerIsBeter: true, min: 0, max: 104 },
+    rollen: PRODUCT,
+    actief: true,
+    versie: 1
+  },
+  {
+    id: "kosten_m2",
+    vervalMaanden: 12,
+    code: "G6",
+    naam: "Kosten per m²",
+    omschrijving: "Indicatieve bouw- of productkosten per m² BVO, exclusief btw (lager is beter).",
+    categorie: "G. Commercieel en risico",
+    type: "gewogen",
+    schaal: { soort: "getal", eenheid: "€/m² BVO", lagerIsBeter: true, min: 300, max: 6000 },
+    rollen: PRODUCT.concat("aannemer", "ontwikkelpartner"),
+    actief: true,
+    versie: 1
+  },
+  {
+    id: "productinformatie",
+    vervalMaanden: 24,
+    code: "C5",
+    naam: "Productinformatie",
+    omschrijving: "Beschrijving van het product of woningconcept: systeem, opbouw, afmetingen, varianten en link naar productblad.",
+    categorie: "C. Bouwmethode en materialen",
+    type: "semantisch",
+    schaal: { soort: "tekst" },
+    rollen: PRODUCT,
     actief: true,
     versie: 1
   }

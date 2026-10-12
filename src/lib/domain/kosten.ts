@@ -41,14 +41,15 @@ export function kostenEur(invoerTokens: number, uitvoerTokens: number, budget: P
 }
 
 // ---------- Categorieën voor de rapportage ----------
-export type VerbruikCategorie = "verrijking" | "chat" | "match/verband" | "AI-voorstellen" | "overig";
-export const CATEGORIEEN: VerbruikCategorie[] = ["verrijking", "chat", "match/verband", "AI-voorstellen", "overig"];
+// US-31: uitgesplitst naar verrijking (incl. AI-registratie van een partner), discovery (incl. AI-aandraag) en chat.
+export type VerbruikCategorie = "verrijking" | "discovery" | "chat" | "match/verband" | "overig";
+export const CATEGORIEEN: VerbruikCategorie[] = ["verrijking", "discovery", "chat", "match/verband", "overig"];
 
 export function categorieVan(soort: AIBewerking["soort"]): VerbruikCategorie {
-  if (soort === "verrijking" || soort === "verrijkingsronde") return "verrijking";
+  if (soort === "verrijking" || soort === "verrijkingsronde" || soort === "partnerregistratie") return "verrijking";
+  if (soort === "aandraag" || soort === "discovery") return "discovery";
   if (soort === "chat") return "chat";
   if (soort === "match" || soort === "verband") return "match/verband";
-  if (soort === "aandraag" || soort === "partnerregistratie" || soort === "discovery") return "AI-voorstellen";
   return "overig";
 }
 
@@ -74,7 +75,7 @@ export function bewerkingKosten(b: AIBewerking, budget: AIBudget = STANDAARD_BUD
 export type Verbruik = { periode: string; bewerkingen: number; aanroepen: number; invoerTokens: number; uitvoerTokens: number; kostenEur: number; perCategorie: Record<VerbruikCategorie, number> };
 
 function leegVerbruik(periode: string): Verbruik {
-  return { periode, bewerkingen: 0, aanroepen: 0, invoerTokens: 0, uitvoerTokens: 0, kostenEur: 0, perCategorie: { verrijking: 0, chat: 0, "match/verband": 0, "AI-voorstellen": 0, overig: 0 } };
+  return { periode, bewerkingen: 0, aanroepen: 0, invoerTokens: 0, uitvoerTokens: 0, kostenEur: 0, perCategorie: { verrijking: 0, discovery: 0, chat: 0, "match/verband": 0, overig: 0 } };
 }
 
 function tel(v: Verbruik, b: AIBewerking, budget: AIBudget) {
@@ -238,7 +239,7 @@ export function verbruikSpecificatie(db: Pick<Database, "aiBewerkingen" | "inste
       Verrijking: v.perCategorie.verrijking,
       Chat: v.perCategorie.chat,
       "Match/verband": v.perCategorie["match/verband"],
-      "AI-voorstellen": v.perCategorie["AI-voorstellen"],
+      Discovery: v.perCategorie.discovery,
       Overig: v.perCategorie.overig,
       Invoertokens: v.invoerTokens,
       Uitvoertokens: v.uitvoerTokens,

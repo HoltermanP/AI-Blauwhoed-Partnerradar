@@ -7,6 +7,8 @@ import type { Rol } from "./types";
 
 const TERMEN: Record<Rol, string[]> = {
   aannemer: ["aannemer woningbouw", "bouwbedrijf nieuwbouw woningen"],
+  houtbouwer: ["houtbouw woningbouw CLT", "houtskeletbouw woningen producent"],
+  constructeur: ["constructeur woningbouw", "constructief adviesbureau houtbouw"],
   architect: ["architectenbureau woningbouw"],
   installateur: ["installateur woningbouw warmtepomp"],
   adviseur: ["adviesbureau duurzaamheid woningbouw", "constructeur woningbouw"],
@@ -102,6 +104,32 @@ export async function kandidaatVanWebsite(url: string, rol: Rol, bron: string, z
   } catch {
     return null;
   }
+}
+
+/**
+ * US-11: externe bedrijfswebsites die op een prijzen- of nominatiepagina worden genoemd (links naar andere domeinen), zonder
+ * sociale media, zoekmachines en portalen. Levert kandidaten voor de discovery-modus 'upcoming'.
+ */
+export function externeBedrijfsLinks(html: string, basisUrl: string, max = 8): string[] {
+  let basisHost = "";
+  try {
+    basisHost = new URL(basisUrl).hostname.replace(/^www\./, "");
+  } catch {
+    return [];
+  }
+  const uit = new Set<string>();
+  for (const m of html.matchAll(/href="(https?:\/\/[^"#?]+)[^"]*"/gi)) {
+    try {
+      const u = new URL(m[1]);
+      const host = u.hostname.replace(/^www\./, "");
+      if (host === basisHost || host.endsWith(`.${basisHost}`) || UITSLUITEN.test(u.href) || /(twitter|x\.com|tiktok|pinterest|vimeo|flickr|issuu|apple\.com|microsoft|gov\.nl|overheid|rijksoverheid|europa\.eu|cookie|privacy|mailto)/i.test(u.href)) continue;
+      uit.add(u.origin);
+      if (uit.size >= max) break;
+    } catch {
+      continue;
+    }
+  }
+  return Array.from(uit);
 }
 
 /** Diagnose van de laatste webzoekronde (voor een begrijpelijke melding bij 0 resultaten). */

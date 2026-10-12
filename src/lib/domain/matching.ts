@@ -5,6 +5,7 @@ import { afstandKm } from "./geo";
 import { zichtbaar } from "./zichtbaarheid";
 import { isGeverifieerd, VERIFICATIE_LABEL, VERIFICATIE_WEGING, verificatieVan } from "./verificatie";
 import { onderbouwKandidaat } from "./onderbouwing";
+import { evaluatieTelt, totaalscore } from "./tevredenheid";
 import type {
   CriteriumScore,
   Database,
@@ -21,6 +22,15 @@ import type {
 } from "./types";
 
 export const DEKKING_WAARSCHUWING = 60;
+
+/**
+ * Correctie voor lage dekking: criteria zonder gegevens tellen als neutraal (50) in plaats van weg te vallen. Een partner
+ * met één bekend, goed scorend criterium eindigt zo niet boven een partner van wie veel bekend is.
+ */
+export function dempVoorDekking(gewogen: number, dekkingsgraad: number) {
+  const d = Math.max(0, Math.min(100, dekkingsgraad)) / 100;
+  return Math.round(d * gewogen + (1 - d) * 50);
+}
 /** Onder deze verificatiegraad krijgt een kandidaat een waarschuwing: de score rust vooral op onbevestigde gegevens. */
 export const VERIFICATIE_WAARSCHUWING = 50;
 
@@ -260,6 +270,15 @@ export function gewogenScore(partner: Partner, eis: ProjectRequirement, ctx: Mat
   return { score: bekendGewicht ? Math.round(score * 100) : 0, dekkingsgraad, verificatiegraad, criteria };
 }
 
+/** US-19/US-21: de vrije ervaringstekst van de recentste geaccepteerde evaluaties, voor de onderbouwing en de AI-toelichting. */
+export function ervaringenVan(partnerId: string, db: Pick<Database, "evaluaties" | "projecten">, max = 2) {
+  return db.evaluaties
+    .filter((e) => e.partnerId === partnerId && evaluatieTelt(e) && e.toelichting?.trim())
+    .sort((a, b) => b.datum.localeCompare(a.datum))
+    .slice(0, max)
+    .map((e) => ({ project: db.projecten.find((p) => p.id === e.projectId)?.naam ?? e.projectId, tekst: e.toelichting.trim().slice(0, 240), score: totaalscore(e) }));
+}
+
 export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResultaat {
   const nu = ctx.nu ?? new Date();
   const { db, project } = ctx;
@@ -281,11 +300,14 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
     const gewogen = gewogenScore(partner, eis, ctx, factoren);
     const sem = semantischeGelijkenis(vraagTekst, profieltekst(partner));
     const semGewicht = Math.min(40, Math.max(0, eis.semantischGewicht)) / 100;
-    const score = Math.round(gewogen.score * (1 - semGewicht) + sem.score * 100 * semGewicht);
+    const demping = db.instellingen.dekkingDemping !== false && gewogen.criteria.length > 0;
+    const gewogenEff = demping ? dempVoorDekking(gewogen.score, gewogen.dekkingsgraad) : gewogen.score;
+    const score = Math.round(gewogenEff * (1 - semGewicht) + sem.score * 100 * semGewicht);
     const semBronnen = profielBronnen(partner);
     if ((eis.semantischGewicht > 0 || eis.vrijeOmschrijving) && sem.score > 0 && semBronnen.length) sem.treffers.push(`profiel gevoed door: ${semBronnen.join(", ")}`);
     const waarschuwingen: string[] = [];
     if (gewogen.dekkingsgraad < DEKKING_WAARSCHUWING) waarschuwingen.push(`Dekkingsgraad ${gewogen.dekkingsgraad}%: score rust op weinig bekende data.`);
+    if (demping && Math.abs(gewogenEff - gewogen.score) >= 5) waarschuwingen.push(`Gecorrigeerd voor lage dekking: gewogen ${gewogen.score} → ${gewogenEff} (ontbrekende criteria tellen als neutraal).`);
     if (gewogen.criteria.some((c) => c.fit !== null) && gewogen.verificatiegraad < VERIFICATIE_WAARSCHUWING) waarschuwingen.push(`Verificatiegraad ${gewogen.verificatiegraad}%: de score rust grotendeels op gegevens die nog niet door een gebruiker of beheerder zijn geverifieerd.`);
     // Harde eisen die alleen op een niet-geverifieerde of verouderde waarde zijn doorstaan.
     eis.eisen.forEach((e) => {
@@ -311,7 +333,8 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
       status: partner.status,
       rol: eis.rol,
       score,
-      gewogenScore: gewogen.score,
+      gewogenScore: gewogenEff,
+      ongedempteGewogenScore: demping ? gewogen.score : undefined,
       semantischeScore: eis.semantischGewicht > 0 || eis.vrijeOmschrijving ? Math.round(sem.score * 100) : null,
       dekkingsgraad: gewogen.dekkingsgraad,
       waarschuwingen,
@@ -319,7 +342,8 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
       semantischeTreffers: sem.treffers,
       afstandKm: afstandKm(partner.locatie, project.locatie),
       isProspect: partner.status === "prospect",
-      verificatiegraad: gewogen.verificatiegraad
+      verificatiegraad: gewogen.verificatiegraad,
+      ervaringen: ervaringenVan(partner.id, db)
     };
     kandidaat.onderbouwing = onderbouwKandidaat(kandidaat);
     (partner.status === "prospect" ? prospects : kandidaten).push(kandidaat);

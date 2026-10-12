@@ -8,9 +8,10 @@
  */
 export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd" | "gearchiveerd" | "concept";
 
-export type Rol = "architect" | "aannemer" | "installateur" | "adviseur" | "leverancier" | "ontwikkelpartner";
+/** Partnertypes. Houtbouwer en constructeur zijn eigen types met een eigen goudstandaard (demo oktober 2026, US-01). */
+export type Rol = "architect" | "aannemer" | "houtbouwer" | "installateur" | "adviseur" | "constructeur" | "leverancier" | "ontwikkelpartner";
 
-export const ROLLEN: Rol[] = ["architect", "aannemer", "installateur", "adviseur", "leverancier", "ontwikkelpartner"];
+export const ROLLEN: Rol[] = ["architect", "aannemer", "houtbouwer", "installateur", "adviseur", "constructeur", "leverancier", "ontwikkelpartner"];
 
 export type FactorType = "hard" | "gewogen" | "semantisch";
 
@@ -132,8 +133,17 @@ export type Bewijs = {
 
 export type FactorWaarde = number | string | boolean | string[] | { min: number; max: number };
 
-/** Dwarsdoorsnijdende eis 1: status per veldwaarde. Alleen een mens zet een waarde op 'gevalideerd'. */
-export type FactorWaardeStatus = "voorgesteld" | "gevalideerd" | "verouderd";
+/**
+ * Dwarsdoorsnijdende eis 1: status per veldwaarde. Alleen een mens zet een waarde op 'gevalideerd' of 'afgewezen'.
+ * Een afgewezen waarde blijft zichtbaar (met wie, wanneer en waarom) maar telt nergens mee en wordt niet opnieuw automatisch ingevuld.
+ */
+export type FactorWaardeStatus = "voorgesteld" | "gevalideerd" | "verouderd" | "afgewezen";
+
+/** Afwijzing van een waarde door een mens (US-04). */
+export type Afwijzing = { door: string; rol: Gebruikersrol; op: string; reden: string };
+
+/** US-06: correctie van een (AI-)classificatie door een mens; geldt boven het AI-label. */
+export type Correctie = { door: string; rol: Gebruikersrol; op: string; reden: string; vorigeWaarde: FactorWaarde | null; vorigeBron?: string };
 
 export type PartnerFactor = {
   factorId: string;
@@ -157,6 +167,12 @@ export type PartnerFactor = {
   /** Handmatige overschrijving van een afgeleide waarde. */
   overschrijving?: boolean;
   toelichting?: string;
+  /** US-04: afgewezen door een mens (status 'afgewezen'). */
+  afwijzing?: Afwijzing;
+  /** US-06: gecorrigeerd door een mens, met reden; de vorige (AI-)waarde blijft herleidbaar. */
+  correctie?: Correctie;
+  /** US-07: bij acceptatie van een voorstel aangepast door de gebruiker. */
+  aangepast?: boolean;
 };
 
 export type CertificaatType =
@@ -290,6 +306,8 @@ export type VeldHerkomst = {
   gevalideerdDoorRol?: Gebruikersrol;
   gevalideerdOp?: string;
   automatisch?: boolean;
+  /** US-04: afgewezen waarde (het veld zelf is dan leeg gemaakt). */
+  afwijzing?: Afwijzing & { waarde: string };
 };
 
 /** US-53: expliciete markering dat er voor een veld geen betrouwbare bron is gevonden (het veld blijft leeg). */
@@ -310,7 +328,9 @@ export type PartnerRegistratie = {
   waarschuwingen: string[];
   /** "partnerId|reden" van een mogelijk bestaande partner. */
   mogelijkeDubbelVan?: string;
-  besluit?: "vrijgegeven" | "afgewezen";
+  /** US-10: 'samengevoegd' = opgegaan in een bestaande partner (samengevoegdIn). */
+  besluit?: "vrijgegeven" | "afgewezen" | "samengevoegd";
+  samengevoegdIn?: string;
   beoordeeldDoor?: string;
   beoordeeldOp?: string;
   toelichting?: string;
@@ -404,10 +424,25 @@ export type ProjectRequirement = {
 
 export type Herkomst = { veld: string; citaat: string; betrouwbaarheid: number };
 
+/** US-26: herkomst van een project. Het ERP (Business Central) is leidend; webbronnen vullen aan. */
+export type ProjectBron = "erp" | "web" | "handmatig" | "tender";
+
 export type Project = {
   id: string;
   /** US-63: Blauwhoed-projectnummer (uniek, doorzoekbaar, importeerbaar via de historie-CSV). */
   projectnummer?: string;
+  /** US-26: waar het project vandaan komt; ontbreekt = handmatig. */
+  bron?: ProjectBron;
+  /** US-26: ook gevonden in een webbron (samengevoegd op projectnummer of naam). */
+  ookWebbron?: boolean;
+  /** US-26: moment van de laatste ERP-import. */
+  erpImportOp?: string;
+  /** US-25: project buiten de eigen portefeuille (openbare bron); levert alleen samenwerkingssignalen op. */
+  extern?: boolean;
+  /** US-20: verantwoordelijke ontwikkelaar (levert de evaluaties). Organisatie legt het eigenaarschap nog vast. */
+  verantwoordelijke?: string;
+  /** US-06: correcties van classificaties (bijv. projecttype), met reden en gebruiker. */
+  correcties?: Array<{ veld: string; van: string; naar: string; reden: string; door: string; op: string }>;
   naam: string;
   type: Projecttype;
   locatie: Geo & { plaats: string; adres?: string };
@@ -438,7 +473,9 @@ export type Engagement = {
   werkelijkeOplevering?: string;
   bouwsysteem?: string;
   crediteurnummer?: string;
-  bron: "handmatig" | "csv-import";
+  /** 'extern' (US-25): betrokkenheid bij een project buiten de eigen portefeuille, uit een openbare bron; alleen een samenwerkingssignaal, geen bewijs van eigen prestaties. */
+  bron: "handmatig" | "csv-import" | "extern";
+  bronUrl?: string;
 };
 
 export type Evaluatie = {
@@ -448,6 +485,15 @@ export type Evaluatie = {
   projectId: string;
   datum: string;
   door: string;
+  /** US-18: tussentijds of na oplevering. Ontbreekt = na oplevering. */
+  moment?: "tussentijds" | "oplevering";
+  /**
+   * US-21: alleen geaccepteerde evaluaties tellen mee in afgeleide factoren, matching en onderbouwing.
+   * 'ingediend' wacht op acceptatie door een beheerder; ontbreekt = geaccepteerd (van vóór US-21).
+   */
+  status?: "ingediend" | "geaccepteerd" | "afgewezen";
+  beoordeeldDoor?: string;
+  beoordeeldOp?: string;
   kwaliteit: number;
   planning: number;
   budget: number;
@@ -540,8 +586,12 @@ export type Kandidaat = {
   isProspect: boolean;
   /** Aandeel (in gewicht) van de gebruikte waarden dat geverifieerd of uit historie berekend is. */
   verificatiegraad?: number;
+  /** Gewogen score vóór de correctie voor lage dekking (alleen als die correctie aan staat). */
+  ongedempteGewogenScore?: number;
   /** Onderbouwing in gewone taal, bij elke kandidaat opgesteld tijdens de matching (regels; AI-tekst staat bij de run). */
   onderbouwing?: { tekst: string; aandachtspunten: string[] };
+  /** US-19/US-21: ervaring uit geaccepteerde evaluaties (vrije tekst), voor de onderbouwing. */
+  ervaringen?: Array<{ project: string; tekst: string; score: number }>;
 };
 
 export type RolResultaat = {
@@ -631,6 +681,13 @@ export type EnrichmentVoorstel = {
   /** US-49: de huidige waarde komt uit de goudstandaard/eigen uitgave van Blauwhoed; AI overschrijft die nooit. */
   goudstandaardGaatVoor?: boolean;
   citaat: string;
+  /** US-12: naam en rang van de aangewezen bron waartoe de bron-URL behoort (rang telt mee in de betrouwbaarheid). */
+  bronNaam?: string;
+  bronRangLijst?: 1 | 2 | 3;
+  /** US-07: bij acceptatie aangepaste waarde en wie het voorstel beoordeelde. */
+  aangepasteWaarde?: FactorWaarde;
+  beoordeeldDoor?: string;
+  beoordeeldOp?: string;
   status: "open" | "geaccepteerd" | "afgewezen";
   /** Automatisch in het profiel gezet als 'niet geverifieerd' (leeg of niet-geverifieerd veld, geen conflict). */
   automatischToegepast?: boolean;
@@ -673,8 +730,20 @@ export type VerrijkingsBron = {
   naam: string;
   url: string;
   actief: boolean;
-  /** US-50: categorie van de bron. Eigen uitgaven van Blauwhoed (Conceptenboulevard, woningconceptenbrochure) hebben rang 1; overige webbronnen zijn indicatief. */
-  categorie?: "eigen_uitgave" | "web";
+  /** US-50: categorie van de bron. Eigen uitgaven van Blauwhoed (Conceptenboulevard, woningconceptenbrochure) hebben rang 1; branchebronnen (beroepsverenigingen, registers, platforms) rang 2; overige webbronnen zijn indicatief. */
+  categorie?: "eigen_uitgave" | "branche" | "web";
+  /** US-12: kwaliteitsrang (1 = hoogst). Telt mee in de betrouwbaarheid van waarden van dit domein. Ontbreekt = afgeleid uit de categorie. */
+  rang?: 1 | 2 | 3;
+  omschrijving?: string;
+  /** US-13: een gebruiker stelt een bron voor; pas na goedkeuring gebruiken verrijking en discovery hem. Ontbreekt = goedgekeurd. */
+  status?: "voorgesteld" | "goedgekeurd" | "afgewezen";
+  voorgesteldDoor?: string;
+  voorgesteldOp?: string;
+  beoordeeldDoor?: string;
+  beoordeeldOp?: string;
+  afwijsreden?: string;
+  /** US-11: bron voor prijzen en nominaties (discovery-modus 'upcoming'). */
+  upcoming?: boolean;
 };
 
 /** US-59: functies waarvoor per functie een model wordt ingesteld (lichtste passende model, art. 8.9). */
@@ -744,7 +813,7 @@ export type VerrijkingsSchema = {
 export type Gebruikersrol = "gebruiker" | "beheerder";
 
 /** Verificatielabel per waarde: door wie bevestigd, nog niet bevestigd, verouderd of berekend uit projecthistorie. */
-export type Verificatie = "beheerder" | "gebruiker" | "niet" | "verouderd" | "berekend";
+export type Verificatie = "beheerder" | "gebruiker" | "niet" | "verouderd" | "berekend" | "afgewezen";
 
 export type Gebruiker = {
   id: string;
@@ -788,6 +857,8 @@ export type GoudstandaardVeld = {
   sleutel: string;
   niveau: "verplicht" | "gewenst";
   toelichting?: string;
+  /** US-08: waarden van dit veld vragen een tweede controle door een beheerder. */
+  beheerderVerificatie?: boolean;
 };
 
 export type Beoordelingscriterium = { id: string; naam: string; omschrijving: string; factorId?: string };
@@ -801,8 +872,13 @@ export type GoudstandaardProfiel = {
   door: string;
 };
 
+/** US-22: een door een beheerder bevestigde samenwerking tussen twee partners (anders blijft het een signaal). */
+export type Samenwerking = { id: string; a: string; b: string; bevestigdDoor: string; bevestigdOp: string; toelichting?: string };
+
 export type Database = {
   versie: number;
+  /** US-22: bevestigde samenwerkingen. */
+  samenwerkingen?: Samenwerking[];
   /** US-49: goudstandaard per partnertype. */
   goudstandaard: Partial<Record<Rol, GoudstandaardProfiel>>;
   factoren: Factor[];
@@ -840,5 +916,23 @@ export type Database = {
     verrijkingsbronnen: VerrijkingsBron[];
     /** Verrijking vult lege en niet-geverifieerde velden direct in (label 'niet geverifieerd'); standaard aan. */
     automatischInvullen?: boolean;
+    /** US-03: verouderingstermijn (maanden) per basisveld; factoren hebben hun eigen termijn (Factor.vervalMaanden). */
+    basisveldVerval?: Partial<Record<BasisVeld, number>>;
+    /** US-03: onder deze betrouwbaarheid (0–1) geldt een niet-geverifieerde waarde als 'onbetrouwbaar'. Standaard 0,5. */
+    betrouwbaarheidDrempel?: number;
+    /** US-15: onder dit dekkingspercentage per rol is een matchuitkomst indicatief. Standaard 60. */
+    dekkingDrempel?: number;
+    /** US-17: het gewichtsprofiel dat als standaardweging geldt (voorlopig, wacht op criteriadefinitie). */
+    standaardGewichtsprofielId?: string;
+    /**
+     * US-17/US-21: standaardweging. eigenErvaring = aandeel (%) van eigen, geaccepteerde evaluaties in elke rol van de
+     * standaardprofielen (de overige criteria — openbare bronnen en opgave — delen de rest); samenwerking = aandeel (%) van
+     * de samenwerkingshistorie in de teamscore.
+     */
+    standaardweging?: { eigenErvaring: number; samenwerking: number; vastgesteldDoor?: string; vastgesteldOp?: string };
+    /** Lage dekking drukt de rangschikking: de gewogen score schuift naar neutraal (50) naarmate er minder bekend is. Standaard aan. */
+    dekkingDemping?: boolean;
+    /** US-20: eigenaarschap evaluaties — de ontwikkelaar (per project) levert, de procesbewaker bewaakt. */
+    evaluatieProces?: { procesbewaker?: string; herinneringDagen?: number };
   };
 };

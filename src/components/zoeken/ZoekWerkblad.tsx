@@ -1,6 +1,6 @@
 "use client";
-// Eén zoekpagina met twee ingangen naast elkaar: klassiek zoeken (links) en de AI-chat (rechts). De keuze
-// "alleen database" of "database + internet" geldt voor beide; bronnen worden altijd vermeld.
+// Eén zoekpagina met twee ingangen naast elkaar: de AI-chat als primaire ingang (US-28, links en breed) en klassiek zoeken als
+// filter ernaast. De keuze "alleen database" of "database + internet" geldt voor beide; bronnen worden altijd vermeld.
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
@@ -17,7 +17,7 @@ function zoekUrl(pad: string, q: string, web: boolean) {
   return s ? `${pad}?${s}` : pad;
 }
 
-export default function ZoekWerkblad({ q, web, internetMogelijk, aiActief, resultaten }: { q: string; web: boolean; internetMogelijk: boolean; aiActief: boolean; resultaten: ReactNode }) {
+export default function ZoekWerkblad({ q, web, internetMogelijk, aiActief, resultaten, beginVraag }: { q: string; web: boolean; internetMogelijk: boolean; aiActief: boolean; resultaten: ReactNode; beginVraag?: string }) {
   const router = useRouter();
   const pad = usePathname();
   const [bezig, start] = useTransition();
@@ -46,9 +46,14 @@ export default function ZoekWerkblad({ q, web, internetMogelijk, aiActief, resul
       </div>
       {metInternet ? <Disclaimer>Informatie van internet is indicatief en niet gevalideerd; ze wordt apart getoond met bron en nooit in het partnerbestand overgenomen. Partijen die alleen op internet staan, zijn geen partners van Blauwhoed.</Disclaimer> : null}
 
-      <div className="raster raster-2 zoekWerkblad">
-        <Kaart titel="Zoeken">
-          <p className="muted klein-tekst">Klassiek zoeken op een vrije omschrijving, zonder AI. Treffers zijn geen matchadvies: harde eisen worden hier niet getoetst.</p>
+      <div className="zoekWerkblad chatPrimair">
+        <Kaart titel="Vraag het de partnerdatabase (AI-chat)" className="chatKaart">
+          <p className="muted klein-tekst">Stel een vraag in gewone taal; de AI doorzoekt de database{metInternet ? " en internet" : ""} en vermeldt bij elk antwoord de bronnen, gescheiden in database en internet. Elke vraag telt als AI-bewerking.</p>
+          <ChatPaneel aiActief={aiActief} metInternet={metInternet && internetMogelijk} beginVraag={beginVraag} />
+        </Kaart>
+
+        <Kaart titel="Klassiek zoeken en filteren">
+          <p className="muted klein-tekst">Zoeken op een vrije omschrijving, zonder AI. Treffers zijn geen matchadvies: harde eisen worden hier niet getoetst. Gecombineerd filteren op rol, regio en kenmerk: <Link href="/partners">partnerspagina</Link>.</p>
           <form
             className="formulier"
             onSubmit={(e) => {
@@ -72,11 +77,6 @@ export default function ZoekWerkblad({ q, web, internetMogelijk, aiActief, resul
             </div>
           </form>
           <div aria-busy={bezig}>{resultaten}</div>
-        </Kaart>
-
-        <Kaart titel="Chat">
-          <p className="muted klein-tekst">Stel een vraag in gewone taal; de AI doorzoekt de database{metInternet ? " en internet" : ""} en vermeldt bij elk antwoord de bronnen. Elke vraag telt als AI-bewerking.</p>
-          <ChatPaneel aiActief={aiActief} metInternet={metInternet && internetMogelijk} />
         </Kaart>
       </div>
     </>

@@ -7,15 +7,17 @@ import type { TeamVoorstel } from "@/lib/domain/types";
 import { ROL_LABEL, datum, datumTijd } from "@/lib/format";
 import { Badge, Kaart, Knop, Leeg, PaginaKop, ScoreBalk } from "@/components/ui";
 import TeamPaneel from "@/components/projecten/TeamPaneel";
+import { bewezenTeams } from "@/lib/domain/team";
+import { teamWeging } from "@/lib/domain/gewichten";
 
-function TeamKaart({ team, ander }: { team: TeamVoorstel; ander?: TeamVoorstel }) {
+function TeamKaart({ team, ander, w }: { team: TeamVoorstel; ander?: TeamVoorstel; w: ReturnType<typeof teamWeging> }) {
   const verschilt = (rol: string, partnerId: string) => Boolean(ander && ander.leden.find((l) => l.rol === rol)?.partnerId !== partnerId);
   return (
     <Kaart titel={team.variant === "voorkeur" ? "Voorkeursteam" : "Alternatief team"} className="teamKaart">
       <p className="muted klein-tekst">Gemaakt {datumTijd(team.gemaaktOp)}</p>
       <div className="teamScore">
         <ScoreBalk score={team.teamScore} label="Teamscore" />
-        <span className="muted klein-tekst">Teamscore: kwaliteit 50%, samenwerkingshistorie 25%, nabijheid 15%, beschikbaarheid 10%</span>
+        <span className="muted klein-tekst">Teamscore: kwaliteit {Math.round(w.kwaliteit * 100)}%, samenwerkingshistorie {Math.round(w.samenwerking * 100)}%, nabijheid {Math.round(w.nabijheid * 100)}%, beschikbaarheid {Math.round(w.beschikbaarheid * 100)}%</span>
       </div>
       <div className="raster raster-2 teamOnderdelen">
         <div>
@@ -81,6 +83,7 @@ export default async function TeamPagina({ params, searchParams }: { params: Pro
   const teams = run ? db.teams.filter((t) => t.matchRunId === run.id) : [];
   const voorkeur = teams.find((t) => t.variant === "voorkeur");
   const alternatief = teams.find((t) => t.variant === "alternatief");
+  const bewezen = run ? bewezenTeams(run, db, p) : [];
 
   return (
     <>
@@ -119,10 +122,39 @@ export default async function TeamPagina({ params, searchParams }: { params: Pro
               <TeamPaneel runId={run.id} heeftVoorkeur={Boolean(voorkeur)} />
             </div>
           </Kaart>
+          <Kaart titel={`Bewezen teams: eerder samen aan vergelijkbare projecten (${bewezen.length})`}>
+            <p className="muted klein-tekst">Naast losse partners: complete teams (architect, adviseur, installatieadviseur, constructeur) die eerder samenwerkten. Teamscore = matchscore van de leden in deze run, aantal gedeelde projecten (gewicht volgens de standaardweging voor samenwerking) en vergelijkbaarheid van die projecten met dit project (25%). Een voorstel, geen advies om te contracteren.</p>
+            {bewezen.length ? (
+              <div className="raster raster-2">
+                {bewezen.map((t) => (
+                  <section key={t.sleutel} className="kaart teamKaart">
+                    <ScoreBalk score={t.teamScore} label="Teamscore" />
+                    <ul className="lijst klein-tekst">
+                      {t.leden.map((l) => (
+                        <li key={l.id}>
+                          <Link href={`/partners/${l.id}`}>{l.naam}</Link> <span className="muted">{ROL_LABEL[l.rol]}</span> {l.score !== null ? <Badge kleur="blauw">match {l.score}</Badge> : <Badge>niet in run</Badge>}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="klein-tekst muted">
+                      Match {t.onderdelen.match} · historie {t.onderdelen.historie} · vergelijkbaarheid {t.onderdelen.vergelijkbaarheid}
+                    </p>
+                    <ul className="lijst klein-tekst">
+                      {t.onderbouwing.map((o, i) => (
+                        <li key={i}>{o}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Geen teams die eerder samenwerkten en in deze run als kandidaat voorkomen. Zodra projecthistorie vastligt (wie werkte samen op welk project), verschijnen ze hier.</p>
+            )}
+          </Kaart>
           {teams.length ? (
             <div className={`raster ${voorkeur && alternatief ? "raster-2" : ""}`}>
-              {voorkeur ? <TeamKaart team={voorkeur} ander={alternatief} /> : null}
-              {alternatief ? <TeamKaart team={alternatief} ander={voorkeur} /> : null}
+              {voorkeur ? <TeamKaart team={voorkeur} ander={alternatief} w={teamWeging(db.instellingen.standaardweging?.samenwerking)} /> : null}
+              {alternatief ? <TeamKaart team={alternatief} ander={voorkeur} w={teamWeging(db.instellingen.standaardweging?.samenwerking)} /> : null}
             </div>
           ) : (
             <Kaart>

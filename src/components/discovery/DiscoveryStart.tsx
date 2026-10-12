@@ -30,6 +30,8 @@ export default function DiscoveryStart({ projecten, profielen, magStarten }: { p
   };
 
   const [regio, setRegio] = useState("");
+  // US-11: zoekmodus 'upcoming' voor opkomende partijen (opvallend project, prijs of nominatie).
+  const [modus, setModus] = useState<"regulier" | "upcoming">("regulier");
   const [profielNaam, setProfielNaam] = useState("");
   const toggleRol = (rol: Rol) => setRollen((r) => (r.includes(rol) ? r.filter((x) => x !== rol) : [...r, rol]));
 
@@ -58,7 +60,7 @@ export default function DiscoveryStart({ projecten, profielen, magStarten }: { p
     setSucces(null);
     if (!rollen.length) return setFout("Kies minstens één rol.");
     start(async () => {
-      const r = await startDiscovery(projectId || null, rollen, trefwoorden, regio);
+      const r = await startDiscovery(projectId || null, rollen, trefwoorden, regio, modus);
       if (!r.ok) return setFout(r.fout);
       const u = r.data!;
       if (u.gevonden === 0 && u.melding) {
@@ -102,6 +104,17 @@ export default function DiscoveryStart({ projecten, profielen, magStarten }: { p
           ))}
         </select>
       </label>
+      <div className="veld">
+        Zoekmodus
+        <div className="radioRij" role="radiogroup" aria-label="Zoekmodus">
+          <label>
+            <input type="radio" name="modus" checked={modus === "regulier"} onChange={() => setModus("regulier")} /> Gevestigde partijen
+          </label>
+          <label title="Zoekt ook op prijzen- en nominatiebronnen (instelbaar onder Verrijking → Bronnen); kandidaten krijgen het label upcoming">
+            <input type="radio" name="modus" checked={modus === "upcoming"} onChange={() => setModus("upcoming")} /> Upcoming: nieuw talent (prijzen, nominaties, opvallende projecten)
+          </label>
+        </div>
+      </div>
       <div className="veld">
         Rollen
         <div className="vinkjes">

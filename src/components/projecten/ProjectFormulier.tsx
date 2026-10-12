@@ -15,6 +15,8 @@ const FASEN: Projectfase[] = ["initiatief", "planvorming", "realisatie", "opgele
 
 export type ProjectFormWaarden = {
   projectnummer?: string;
+  /** US-20: verantwoordelijke ontwikkelaar (levert de evaluaties). */
+  verantwoordelijke?: string;
   naam: string;
   type: Projecttype;
   plaats: string;
@@ -111,6 +113,7 @@ export default function ProjectFormulier({ id, initieel, plaatsen, herkomstBesta
     if (w.eind < w.start) return setFout("Einddatum ligt vóór de startdatum.");
     const invoer: ProjectInvoer = {
       projectnummer: w.projectnummer?.trim() || undefined,
+      verantwoordelijke: w.verantwoordelijke?.trim() || undefined,
       naam: w.naam.trim(),
       type: w.type,
       plaats: w.plaats,
@@ -216,6 +219,10 @@ export default function ProjectFormulier({ id, initieel, plaatsen, herkomstBesta
           <label>
             Projectnummer (Blauwhoed)
             <input value={w.projectnummer ?? ""} onChange={(e) => zet("projectnummer", e.target.value)} placeholder="bijv. 2024-017" />
+          </label>
+          <label>
+            Verantwoordelijke ontwikkelaar
+            <input value={w.verantwoordelijke ?? ""} onChange={(e) => zet("verantwoordelijke", e.target.value)} placeholder="naam (levert de evaluaties)" />
           </label>
           <label>
             Naam

@@ -5,25 +5,37 @@ import { basisveldWaarde } from "./herkomst";
 import { BASISVELD_LABEL, ROLLEN } from "./types";
 import type { BasisVeld, Database, Factor, GoudstandaardProfiel, GoudstandaardVeld, Partner, Rol } from "./types";
 
-/** Startpunt zolang Blauwhoed de eigen goudstandaard nog niet heeft aangeleverd (volledig aan te passen in Beheer). */
-const STANDAARD_FACTOREN: Record<Rol, string[]> = {
-  architect: ["projecttype", "architectuurstijl", "welstand", "biobased", "circulariteit"],
-  aannemer: ["projecttype", "bouwsysteem", "prefabricage", "mpg", "co2_ladder", "bouwteam"],
-  installateur: ["projecttype", "beng", "co2_ladder", "bim"],
-  adviseur: ["projecttype", "circulariteit", "bim"],
-  leverancier: ["bouwsysteem", "prefabricage", "biobased", "demontabel"],
-  ontwikkelpartner: ["projecttype", "prijssegment", "conceptbouw"]
+/**
+ * Startpunt zolang Blauwhoed de eigen goudstandaard nog niet heeft vastgesteld (volledig aan te passen in Beheer, zonder
+ * ontwikkelaar). Per type eigen verplichte en gewenste kenmerken (US-01); de architect heeft bewust een kleinere vaste set.
+ */
+const STANDAARD_FACTOREN: Record<Rol, { verplicht: string[]; gewenst: string[] }> = {
+  houtbouwer: { verplicht: ["mpg", "paris_proof", "productietijd", "levertijd", "kosten_m2", "productinformatie"], gewenst: ["bouwsysteem", "prefabricage", "biobased", "demontabel"] },
+  architect: { verplicht: ["projecttype"], gewenst: ["architectuurstijl", "biobased"] },
+  aannemer: { verplicht: ["projecttype", "bouwsysteem"], gewenst: ["prefabricage", "mpg", "co2_ladder", "bouwteam"] },
+  installateur: { verplicht: ["projecttype", "beng"], gewenst: ["co2_ladder", "bim"] },
+  adviseur: { verplicht: ["projecttype"], gewenst: ["circulariteit", "bim"] },
+  constructeur: { verplicht: ["projecttype", "bouwsysteem"], gewenst: ["demontabel", "bim"] },
+  leverancier: { verplicht: ["bouwsysteem", "productinformatie"], gewenst: ["prefabricage", "biobased", "levertijd", "kosten_m2"] },
+  ontwikkelpartner: { verplicht: ["projecttype"], gewenst: ["prijssegment", "conceptbouw"] }
 };
+
+/** Basisvelden per type: de architect heeft een kleinere vaste set (geen rechtsvorm als gewenst veld). */
+const STANDAARD_BASIS = (rol: Rol): GoudstandaardVeld[] => [
+  { sleutel: "basis:kvk", niveau: "verplicht" },
+  { sleutel: "basis:vestigingsplaats", niveau: "verplicht" },
+  { sleutel: "basis:website", niveau: "verplicht" },
+  { sleutel: "basis:omschrijving", niveau: rol === "architect" ? "gewenst" : "verplicht" },
+  ...(rol === "architect" ? [] : [{ sleutel: "basis:rechtsvorm", niveau: "gewenst" as const }])
+];
 
 export function standaardGoudstandaard(rol: Rol, factoren: Factor[], nu = new Date()): GoudstandaardProfiel {
   const bestaand = new Set(factoren.map((f) => f.id));
+  const set = STANDAARD_FACTOREN[rol];
   const velden: GoudstandaardVeld[] = [
-    { sleutel: "basis:kvk", niveau: "verplicht" },
-    { sleutel: "basis:vestigingsplaats", niveau: "verplicht" },
-    { sleutel: "basis:website", niveau: "verplicht" },
-    { sleutel: "basis:omschrijving", niveau: "verplicht" },
-    { sleutel: "basis:rechtsvorm", niveau: "gewenst" },
-    ...STANDAARD_FACTOREN[rol].filter((id) => bestaand.has(id)).map((id, i) => ({ sleutel: `factor:${id}`, niveau: (i < 2 ? "verplicht" : "gewenst") as GoudstandaardVeld["niveau"] }))
+    ...STANDAARD_BASIS(rol),
+    ...set.verplicht.filter((id) => bestaand.has(id)).map((id) => ({ sleutel: `factor:${id}`, niveau: "verplicht" as const })),
+    ...set.gewenst.filter((id) => bestaand.has(id)).map((id) => ({ sleutel: `factor:${id}`, niveau: "gewenst" as const }))
   ];
   return {
     rol,
@@ -53,7 +65,7 @@ export function veldnaam(sleutel: string, factoren: Factor[]) {
 export function veldGevuld(p: Partner, sleutel: string) {
   if (sleutel.startsWith("basis:")) return Boolean(basisveldWaarde(p, sleutel.slice(6) as BasisVeld));
   const fid = sleutel.slice(7);
-  return p.factoren.some((f) => f.factorId === fid);
+  return p.factoren.some((f) => f.factorId === fid && f.status !== "afgewezen");
 }
 
 export type GoudstandaardRegel = GoudstandaardVeld & { naam: string; gevuld: boolean; geenBron: boolean; rollen: Rol[] };

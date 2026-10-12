@@ -2,7 +2,7 @@
 import { VERIFICATIE_LABEL, verificatieVan } from "./verificatie";
 import { semantischZoeken } from "./matching";
 import type { Database, Partner } from "./types";
-import { totaalscore } from "./tevredenheid";
+import { evaluatieTelt, totaalscore } from "./tevredenheid";
 import { zichtbaar } from "./zichtbaarheid";
 
 export function chatRecord(p: Partner, db: Database) {
@@ -25,11 +25,12 @@ export function chatRecord(p: Partner, db: Database) {
     // US-63: projecthistorie met projectnummer en tevredenheid (oordeel van Blauwhoed, op organisatieniveau).
     projecten: db.engagements.filter((e) => e.partnerId === p.id).map((e) => {
       const proj = db.projecten.find((x) => x.id === e.projectId);
-      const ev = db.evaluaties.find((x) => x.engagementId === e.id) ?? db.evaluaties.find((x) => x.partnerId === p.id && x.projectId === e.projectId);
+      const telt = db.evaluaties.filter(evaluatieTelt);
+      const ev = telt.find((x) => x.engagementId === e.id) ?? telt.find((x) => x.partnerId === p.id && x.projectId === e.projectId);
       return { projectnummer: proj?.projectnummer, project: proj?.naam ?? e.projectId, rol: e.rol, periode: e.periode, tevredenheid: ev ? totaalscore(ev) : null, toelichting: ev ? [ev.toelichting, ev.totaalToelichting].filter(Boolean).join(" ").slice(0, 300) : null };
     }),
     evaluatiegemiddelde: (() => {
-      const ev = db.evaluaties.filter((e) => e.partnerId === p.id);
+      const ev = db.evaluaties.filter((e) => e.partnerId === p.id && evaluatieTelt(e));
       return ev.length ? Math.round((ev.reduce((s, e) => s + totaalscore(e), 0) / ev.length) * 10) / 10 : null;
     })()
   };

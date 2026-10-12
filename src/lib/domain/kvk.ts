@@ -13,6 +13,8 @@ type KvkResultaat = {
 
 const ZOEKTERMEN: Record<Rol, string[]> = {
   aannemer: ["bouwbedrijf", "aannemer woningbouw", "bouwgroep"],
+  houtbouwer: ["houtbouw", "houtskeletbouw", "houtconstructies"],
+  constructeur: ["constructeur", "constructief adviesbureau", "ingenieursbureau constructies"],
   architect: ["architectenbureau", "architecten"],
   installateur: ["installatiebedrijf", "installatietechniek"],
   adviseur: ["bouwadvies", "ingenieursbureau bouw", "duurzaamheidsadvies"],

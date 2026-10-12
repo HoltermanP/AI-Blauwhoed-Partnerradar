@@ -9,7 +9,10 @@ import { Disclaimer, Kaart, Knop, Leeg, PaginaKop } from "@/components/ui";
 import MatchOnderbouwing from "@/components/projecten/MatchOnderbouwing";
 import { MATCH_DISCLAIMER } from "@/lib/domain/export";
 import MatchRunFormulier from "@/components/projecten/MatchRunFormulier";
-import RolResultaatWeergave, { type RunOnderbouwing, type Verschil } from "@/components/projecten/RolResultaatWeergave";
+import { type RunOnderbouwing, type Verschil } from "@/components/projecten/RolResultaatWeergave";
+import MatchResultaten from "@/components/projecten/MatchResultaten";
+import { STANDAARD_DEKKING_DREMPEL } from "@/lib/domain/herweging";
+import { aiAan } from "@/lib/aiplatform";
 
 /** US-16: verschillen per rol t.o.v. de vorige run: nieuw, scorewijziging >= 5, weggevallen. */
 function verschillen(run: MatchRun, vorige: MatchRun | undefined): Record<string, Verschil> {
@@ -115,11 +118,18 @@ export default async function MatchPagina({ params, searchParams }: { params: Pr
           </Kaart>
           <Kaart titel="Samenvatting per rol">
             <Disclaimer>{MATCH_DISCLAIMER}</Disclaimer>
-            <MatchOnderbouwing run={run} namen={Object.fromEntries(run.resultaat.flatMap((r) => [...r.kandidaten, ...r.prospects].map((k) => [k.partnerId, k.partnerNaam])))} aiActief={Boolean(process.env.ANTHROPIC_API_KEY)} />
+            <MatchOnderbouwing run={run} namen={Object.fromEntries(run.resultaat.flatMap((r) => [...r.kandidaten, ...r.prospects].map((k) => [k.partnerId, k.partnerNaam])))} aiActief={aiAan()} />
           </Kaart>
-          {run.resultaat.map((r) => (
-            <RolResultaatWeergave key={r.rol} resultaat={r} runId={run.id} projectId={p.id} feedback={feedback} magFeedback={magFeedback} verschil={vorige ? diff[r.rol] : undefined} onderbouwing={runOnderbouwing(run, r.rol)} />
-          ))}
+          <MatchResultaten
+            run={run}
+            projectId={p.id}
+            feedback={feedback}
+            magFeedback={magFeedback}
+            magBewerken={magFeedback}
+            verschillen={vorige ? diff : {}}
+            onderbouwingen={Object.fromEntries(run.resultaat.map((r) => [r.rol, runOnderbouwing(run, r.rol)]))}
+            dekkingDrempel={db.instellingen.dekkingDrempel ?? STANDAARD_DEKKING_DREMPEL}
+          />
         </>
       ) : (
         <Kaart>

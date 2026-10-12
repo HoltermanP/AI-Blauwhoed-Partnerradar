@@ -1,7 +1,9 @@
 // Epic 8: teamsamenstelling. Je matcht een team, geen losse partij (uitgangspunt 5).
 import { samenwerking } from "./derive";
 import { afstandKm } from "./geo";
-import type { Database, Kandidaat, MatchRun, Project, RolResultaat, TeamLid, TeamVoorstel } from "./types";
+import { teamCombinaties } from "./verbanden";
+import { teamWeging } from "./gewichten";
+import type { Database, Kandidaat, MatchRun, Project, Rol, RolResultaat, TeamLid, TeamVoorstel } from "./types";
 
 type Optie = { rol: RolResultaat["rol"]; kandidaat: Kandidaat };
 
@@ -41,7 +43,9 @@ export function scoreTeam(leden: Optie[], db: Database, project: Project) {
       Math.max(partners.length, 1)) *
     100;
 
-  const teamScore = Math.round(gemiddeldeKwaliteit * 0.5 + samenwerkingshistorie * 0.25 + nabijheid * 0.15 + beschikbaarheid * 0.1);
+  // US-17: het aandeel van samenwerkingsverbanden in de teamscore is onderdeel van de standaardweging.
+  const w = teamWeging(db.instellingen.standaardweging?.samenwerking);
+  const teamScore = Math.round(gemiddeldeKwaliteit * w.kwaliteit + samenwerkingshistorie * w.samenwerking + nabijheid * w.nabijheid + beschikbaarheid * w.beschikbaarheid);
   return {
     teamScore,
     onderdelen: {
@@ -95,4 +99,64 @@ export function stelTeamSamen(run: MatchRun, db: Database, project: Project, var
     onderbouwing,
     gemaaktOp: new Date().toISOString()
   };
+}
+
+// ---------- US-24: teamvoorstel uit eerder samenwerkende teams ----------
+export type BewezenTeam = {
+  sleutel: string;
+  leden: Array<{ id: string; naam: string; rol: Rol; score: number | null }>;
+  teamScore: number;
+  onderdelen: { match: number; historie: number; vergelijkbaarheid: number };
+  gedeeldeProjecten: Array<{ id: string; naam: string; gelijkenis: number }>;
+  evaluatie: number | null;
+  onderbouwing: string[];
+};
+
+/** Hoe vergelijkbaar is een eerder project met het nieuwe project (0–1): type, omvang en duurzaamheidsambitie. */
+export function projectGelijkenis(a: Project, b: Project) {
+  const type = a.type === b.type ? 1 : 0;
+  const omvang = a.woningen && b.woningen ? Math.min(a.woningen, b.woningen) / Math.max(a.woningen, b.woningen) : 0.5;
+  const ambitie = 1 - Math.abs(a.ambitieDuurzaamheid - b.ambitieDuurzaamheid) / 4;
+  return Math.round((0.5 * type + 0.3 * omvang + 0.2 * ambitie) * 100) / 100;
+}
+
+/**
+ * Teams die eerder samen aan projecten werkten (US-23), gescoord voor dit project: matchscore van de leden in de run (50%),
+ * aantal gedeelde projecten (25%) en vergelijkbaarheid van die projecten met dit project (25%). Alleen teams waarvan minstens
+ * twee leden in de run als kandidaat voorkomen.
+ */
+export function bewezenTeams(run: MatchRun, db: Database, project: Project, max = 3): BewezenTeam[] {
+  const scoreVan = (id: string) => {
+    const scores = run.resultaat.flatMap((r) => [...r.kandidaten, ...r.prospects]).filter((k) => k.partnerId === id).map((k) => k.score);
+    return scores.length ? Math.max(...scores) : null;
+  };
+  return teamCombinaties(db)
+    .map((t) => {
+      const leden = t.leden.map((l) => ({ ...l, score: scoreVan(l.id) }));
+      const inRun = leden.filter((l) => l.score !== null);
+      if (inRun.length < 2) return null;
+      const gedeeld = t.projecten
+        .filter((p) => p.id !== project.id)
+        .map((p) => {
+          const pr = db.projecten.find((x) => x.id === p.id);
+          return { id: p.id, naam: p.naam, gelijkenis: pr ? projectGelijkenis(pr, project) : 0 };
+        });
+      if (!gedeeld.length) return null;
+      const match = Math.round(inRun.reduce((s, l) => s + (l.score ?? 0), 0) / inRun.length);
+      const historie = Math.min(100, gedeeld.length * 25);
+      const vergelijkbaarheid = Math.round((gedeeld.reduce((s, p) => s + p.gelijkenis, 0) / gedeeld.length) * 100);
+      const sam = Math.min(50, db.instellingen.standaardweging?.samenwerking ?? 25) / 100;
+      const teamScore = Math.round((0.75 - sam) * match + sam * historie + 0.25 * vergelijkbaarheid);
+      const meest = [...gedeeld].sort((a, b) => b.gelijkenis - a.gelijkenis)[0];
+      const onderbouwing = [
+        `${t.leden.map((l) => l.naam).join(", ")} werkten samen aan ${gedeeld.length} project${gedeeld.length === 1 ? "" : "en"} (${gedeeld.map((p) => p.naam).join(", ")}).`,
+        `Meest vergelijkbaar: ${meest.naam} (${Math.round(meest.gelijkenis * 100)}% op type, omvang en duurzaamheidsambitie).`,
+        `Gemiddelde matchscore van de leden in deze run: ${match}${inRun.length < leden.length ? ` (${leden.length - inRun.length} lid/leden niet in de run)` : ""}.`,
+        t.evaluatie !== null ? `Gemiddelde evaluatie op de gedeelde projecten: ${t.evaluatie.toLocaleString("nl-NL")}/5 (${t.evaluaties} geaccepteerde evaluaties).` : "Nog geen geaccepteerde evaluaties van deze projecten."
+      ];
+      return { sleutel: t.sleutel, leden, teamScore, onderdelen: { match, historie, vergelijkbaarheid }, gedeeldeProjecten: gedeeld, evaluatie: t.evaluatie, onderbouwing };
+    })
+    .filter((x): x is BewezenTeam => Boolean(x))
+    .sort((a, b) => b.teamScore - a.teamScore)
+    .slice(0, max);
 }

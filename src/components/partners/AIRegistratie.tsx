@@ -33,7 +33,7 @@ export default function AIRegistratie({ aiActief, externeBronnen }: { aiActief: 
   return (
     <form className="formulier" onSubmit={verzend}>
       <p className="muted klein-tekst">
-        Geef een bedrijfsnaam, website of een stuk tekst (brochure, e-mail, projectblad). {aiActief ? "Claude" : "De regelgebaseerde extractie (geen AI-sleutel ingesteld)"} vult de basisgegevens met herkomst per veld. De partner wordt een <b>concept</b> (voorstel, geen vastgesteld gegeven) en telt pas mee in zoeken en matching nadat een beheerder hem heeft vrijgegeven in de vrijgavewachtrij.
+        Geef een bedrijfsnaam, een website of een vrije omschrijving (bijv. &ldquo;houtbouwer uit Friesland die CLT-woningen maakt&rdquo;), of plak een stuk tekst (brochure, projectblad). Bij alleen een korte omschrijving zoekt de app eerst de website van het bedrijf op. {aiActief ? "Claude" : "De regelgebaseerde extractie (geen AI-sleutel ingesteld)"} vult de basisgegevens met herkomst per veld. De partner wordt een <b>concept</b> (voorstel, geen vastgesteld gegeven) en telt pas mee in zoeken en matching nadat een beheerder hem heeft vrijgegeven in de vrijgavewachtrij.
       </p>
       {!externeBronnen ? <Melding soort="info">Externe bronnen staan uit: de website wordt niet gelezen, alleen de geplakte tekst.</Melding> : null}
       {fout ? (
@@ -52,8 +52,8 @@ export default function AIRegistratie({ aiActief, externeBronnen }: { aiActief: 
         </label>
       </div>
       <label>
-        Tekst over de partner (optioneel)
-        <textarea value={tekst} onChange={(e) => setTekst(e.target.value)} rows={5} placeholder="Plak hier openbare informatie. Geen persoonsgegevens: contactpersonen legt u na vrijgave vast in het dossier." />
+        Vrije omschrijving of tekst over de partner (optioneel)
+        <textarea value={tekst} onChange={(e) => setTekst(e.target.value)} rows={5} placeholder="Een korte omschrijving (de app zoekt dan de website op) of geplakte openbare informatie. Geen persoonsgegevens: contactpersonen worden niet vastgelegd." />
       </label>
       <div className="formulierActies">
         <button type="submit" className="knop" disabled={bezig}>

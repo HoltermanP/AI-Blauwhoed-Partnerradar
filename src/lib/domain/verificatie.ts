@@ -1,23 +1,29 @@
 // Verificatielabel per waarde: geverifieerd door een beheerder, door een gebruiker, nog niet geverifieerd, verouderd of
 // berekend uit projecthistorie. Het label weegt mee in de matchscore: een niet-geverifieerde waarde telt minder zwaar.
-import { effectieveStatus } from "./herkomst";
+import { effectieveBasisStatus, effectieveStatus } from "./herkomst";
 import type { Factor, FactorWaarde, Gebruiker, Gebruikersrol, PartnerFactor, VeldHerkomst, Verificatie } from "./types";
 
+/** US-04: de statussen per waarde zoals Blauwhoed ze benoemt (voorstel, gebruikers- of beheerdersgeverifieerd, afgewezen). */
 export const VERIFICATIE_LABEL: Record<Verificatie, string> = {
-  beheerder: "geverifieerd door beheerder",
-  gebruiker: "geverifieerd door gebruiker",
-  niet: "niet geverifieerd",
+  beheerder: "beheerdersgeverifieerd",
+  gebruiker: "gebruikersgeverifieerd",
+  niet: "voorstel",
   verouderd: "verouderd",
-  berekend: "berekend uit historie"
+  berekend: "berekend uit historie",
+  afgewezen: "afgewezen"
 };
 
-export const VERIFICATIE_KLEUR: Record<Verificatie, "groen" | "blauw" | "geel" | "rood" | "mint"> = { beheerder: "groen", gebruiker: "blauw", niet: "geel", verouderd: "rood", berekend: "mint" };
+export const VERIFICATIE_KLEUR: Record<Verificatie, "groen" | "blauw" | "geel" | "rood" | "mint" | "grijs"> = { beheerder: "groen", gebruiker: "blauw", niet: "geel", verouderd: "rood", berekend: "mint", afgewezen: "grijs" };
 
 /**
  * Weging in de matchscore: hoe sterk de fit van een waarde doorwerkt (1 = volledig, 0 = telt als neutraal).
  * Projecthistorie is bewijs en telt volledig; een waarde die niemand heeft bevestigd telt half.
  */
-export const VERIFICATIE_WEGING: Record<Verificatie, number> = { beheerder: 1, gebruiker: 0.85, berekend: 1, niet: 0.5, verouderd: 0.3 };
+export const VERIFICATIE_WEGING: Record<Verificatie, number> = { beheerder: 1, gebruiker: 0.85, berekend: 1, niet: 0.5, verouderd: 0.3, afgewezen: 0 };
+
+/** Uitleg van de weging in gewone taal (US-05), voor de matchonderbouwing en de factorenpagina. */
+export const WEGING_UITLEG =
+  "Hoe zeker een waarde is, telt mee in de score. Een waarde die een beheerder heeft geverifieerd of die uit projecthistorie komt, telt volledig; gebruikersgeverifieerd telt voor 85%, een voorstel (bijvoorbeeld door AI gevonden) voor 50% en een verouderde waarde voor 30%. Daarnaast dempt een lage bronbetrouwbaarheid (de rang van de bron) de waarde richting neutraal. Afgewezen waarden tellen niet mee.";
 
 /** Telt als geverifieerd voor de verificatiegraad van een match. */
 export function isGeverifieerd(v: Verificatie | undefined) {
@@ -27,14 +33,17 @@ export function isGeverifieerd(v: Verificatie | undefined) {
 export function verificatieVan(pf: PartnerFactor, factor: Factor | undefined, nu = new Date()): Verificatie {
   const st = effectieveStatus(pf, factor, nu);
   if (!st) return "berekend";
+  if (st === "afgewezen") return "afgewezen";
   if (st === "verouderd") return "verouderd";
   if (st === "voorgesteld") return "niet";
   return pf.gevalideerdDoorRol === "beheerder" ? "beheerder" : "gebruiker";
 }
 
-export function basisveldVerificatie(h: VeldHerkomst | undefined): Verificatie {
-  if (!h || h.status === "voorgesteld") return "niet";
-  if (h.status === "verouderd") return "verouderd";
+export function basisveldVerificatie(h: VeldHerkomst | undefined, vervalMaanden?: number, nu = new Date()): Verificatie {
+  const st = effectieveBasisStatus(h, vervalMaanden, nu);
+  if (!h || !st || st === "voorgesteld") return "niet";
+  if (st === "afgewezen") return "afgewezen";
+  if (st === "verouderd") return "verouderd";
   return h.gevalideerdDoorRol === "beheerder" ? "beheerder" : "gebruiker";
 }
 

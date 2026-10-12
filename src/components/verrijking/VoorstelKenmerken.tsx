@@ -25,6 +25,7 @@ export function VoorstelBron({ v }: { v: EnrichmentVoorstel }) {
   return (
     <>
       <BronLabel bron={v.bron} />
+      {v.bronNaam ? <Badge kleur={v.bronRangLijst === 1 ? "blauw" : v.bronRangLijst === 2 ? "groen" : "grijs"} titel="Aangewezen bron uit de bronnenlijst; de rang telt mee in de betrouwbaarheid">{v.bronNaam} · rang {v.bronRangLijst}</Badge> : null}
       {v.bronUrl ? (
         <>
           {" · "}
@@ -38,7 +39,7 @@ export function VoorstelBron({ v }: { v: EnrichmentVoorstel }) {
         </>
       ) : null}
       <blockquote>{v.citaat}</blockquote>
-      <span className="muted klein-tekst">Voorstel, geen vastgesteld gegeven.</span>
+      <span className="muted klein-tekst">{v.status === "open" ? "Voorstel, geen vastgesteld gegeven." : v.status === "geaccepteerd" ? (v.automatischToegepast ? "Automatisch ingevuld als voorstel (niet geverifieerd)." : "Geaccepteerd: gebruikersgeverifieerd.") : "Afgewezen: wordt niet opnieuw voorgesteld."}</span>
     </>
   );
 }

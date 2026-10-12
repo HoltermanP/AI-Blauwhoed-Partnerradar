@@ -5,7 +5,7 @@
 const DIM = 256;
 
 const STOPWOORDEN = new Set(
-  "de het een en van in op met voor aan bij door is zijn wordt worden als dat die dit er ook naar uit om te tot of over onze ons wij we je jij u hun hen zij ze niet geen meer al nog wel dan zoals per ca circa m2 m² the and of to a".split(" ")
+  "de het een en van in op met voor aan bij door is zijn wordt worden als dat die dit er ook naar uit om te tot of over onze ons wij we je jij u hun hen zij ze niet geen meer al nog wel dan zoals per ca circa m2 m² the and of to a https http www html bron com".split(" ")
 );
 
 // Synoniemen zodat verschillende benamingen op dezelfde dimensies landen (US-15).

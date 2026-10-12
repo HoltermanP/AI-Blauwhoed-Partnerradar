@@ -1420,3 +1420,49 @@ a:not(.knop):not(.chip):not(.badge) { color: var(--blue); }
 .factorUitlegTabel td:nth-child(2) > div + div { margin-top: 4px; }
 details.rekenregels { margin: 20px 0; }
 details.rekenregels > summary { font-size: 15px; margin-bottom: 14px; }
+
+/* ---------- User stories demo oktober 2026 ---------- */
+/* US-28: chat als primaire zoekingang */
+.zoekWerkblad.chatPrimair { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; }
+.zoekWerkblad.chatPrimair > * { min-width: 0; }
+.chatKaart { border-top: 3px solid var(--blue); }
+@media (max-width: 1040px) { .zoekWerkblad.chatPrimair { grid-template-columns: 1fr; } }
+.chatStart { background: var(--blue-soft); border: 1px solid var(--blue-line); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 20px; }
+.chatStart label { display: block; font-weight: var(--font-heavy); margin-bottom: 8px; }
+.chatStart input { font: inherit; border: 1px solid var(--blue-line); padding: 9px 12px; border-radius: var(--radius); }
+/* US-30: geen matchadvies */
+.geenMatchadvies { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: var(--soft); border-left: 3px solid var(--orange); padding: 8px 12px; margin: 10px 0; }
+.geenMatchadvies span { flex: 1; min-width: 200px; }
+/* US-15: dekking per rol */
+.dekkingBlok { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 14px; }
+.dekkingBlok.indicatief { border-color: var(--yellow); background: #fffaeb; }
+.dekkingKop { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; margin-bottom: 6px; }
+.dekkingBlok p { margin: 8px 0 0; }
+/* US-16: weging */
+.wegingRaster { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 12px 0; }
+.wegingRol h3 { font-size: 15px; margin: 0 0 6px; }
+.schuif { display: grid; gap: 2px; margin: 6px 0; font-size: 13px; }
+.schuif span { display: flex; justify-content: space-between; gap: 8px; }
+.schuif input[type="range"] { width: 100%; }
+/* US-07/US-08: bulkafhandeling */
+.bulkBalk { background: var(--soft); padding: 8px 10px; border-radius: var(--radius); margin-bottom: 8px; }
+.redenVeld { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.redenVeld input { font: inherit; border: 1px solid var(--line); padding: 5px 8px; min-width: 200px; }
+.correctieRegel { color: var(--blue-deep); margin-top: 2px; }
+/* US-03: verouderingstermijnen */
+.termijnRaster { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 6px 16px; margin: 8px 0 12px; }
+.termijnRaster label { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+.termijnRaster input { width: 70px; }
+tr.geselecteerd td { background: var(--blue-soft); }
+.evaluatieItem { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.importPaneel { margin-bottom: 16px; }
+@media (max-width: 720px) {
+  .redenVeld input { min-width: 0; width: 100%; }
+  .wegingRaster { grid-template-columns: 1fr; }
+}
+/* Een fieldset krijgt standaard min-width: min-content; lange opties in een select duwden de pagina op een telefoon te breed. */
+fieldset { min-width: 0; }
+.formulier select { max-width: 100%; }
+.formulier label, .veld { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 720px) { .rij { grid-template-columns: minmax(0, 1fr) !important; } }
+.formulier > * { min-width: 0; }

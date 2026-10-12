@@ -53,6 +53,32 @@ import { basisVeldKwaliteit, statusVerdeling } from "../src/lib/domain/datakwali
 import { BASISVELDEN } from "../src/lib/domain/webverrijking";
 import { BRON_BETROUWBAARHEID, type Bron, type EnrichmentVoorstel } from "../src/lib/domain/types";
 
+import { ROLLEN } from "../src/lib/domain/types";
+import { standaardGoudstandaard, veldGevuld } from "../src/lib/domain/goudstandaard";
+import { productFactoren } from "../src/lib/domain/partnerimport";
+import { NIEUWE_TYPES } from "../src/lib/domain/gewichten";
+import { dataSignalen, filterSignalen, vullingPerRol, wachtOpBeheerder } from "../src/lib/domain/datakwaliteit";
+import { effectieveFactoren } from "../src/lib/domain/derive";
+import { VERIFICATIE_LABEL } from "../src/lib/domain/verificatie";
+import { onderbouwKandidaat } from "../src/lib/domain/onderbouwing";
+import { bronVoorUrl, heeftBronEnOnderbouwing, pasBronrangToe, STANDAARD_BRANCHEBRONNEN } from "../src/lib/domain/bronbeleid";
+import { dekkingVanRol, herweegResultaat, normaliseerGewichten, wegingVanEis } from "../src/lib/domain/herweging";
+import { ervaringenVan } from "../src/lib/domain/matching";
+import { persoonsgegevensInTekst } from "../src/lib/domain/tevredenheid";
+import { openstaandeEvaluaties } from "../src/lib/domain/evaluatieproces";
+import { teamCombinaties } from "../src/lib/domain/verbanden";
+import { bewezenTeams } from "../src/lib/domain/team";
+import { importeerProjecten } from "../src/lib/domain/projectimport";
+import { migreerV14 } from "../src/lib/domain/migratie";
+import { externeBedrijfsLinks } from "../src/lib/domain/webzoek";
+import { CATEGORIEEN, categorieVan } from "../src/lib/domain/kosten";
+
+import { aiVerwerking } from "../src/lib/aiplatform";
+import { dempVoorDekking } from "../src/lib/domain/matching";
+import { pasErvaringsgewichtToe, teamWeging } from "../src/lib/domain/gewichten";
+import { herinneringDagen, isVerantwoordelijke } from "../src/lib/domain/evaluatieproces";
+import { genoemdePartners, isLinkedIn } from "../src/lib/domain/externprojecten";
+
 let fouten = 0;
 function check(naam: string, ok: boolean, detail?: unknown) {
   console.log(`${ok ? "OK " : "FOUT"} ${naam}${detail !== undefined ? ` — ${typeof detail === "string" ? detail : JSON.stringify(detail)}` : ""}`);
@@ -175,7 +201,7 @@ check("US-30 claims gesplitst", claims.aantoonbaar.length === 1 && claims.geclai
   const b1 = bewerking("verrijking");
   check("US-58 één bewerking met meerdere aanroepen", b1.aanroepen.length === 2 && Math.abs(b1.kostenEur - b1.aanroepen[0].kostenEur - b1.aanroepen[1].kostenEur) < 1e-9);
   const v = maandVerbruik([b1, bewerking("chat"), bewerking("match"), bewerking("aandraag"), bewerking("verrijking", "2026-08-01T00:00:00Z")], nu);
-  check("US-58 maandverbruik per categorie", v.bewerkingen === 4 && v.perCategorie.verrijking === 1 && v.perCategorie.chat === 1 && v.perCategorie["match/verband"] === 1 && v.perCategorie["AI-voorstellen"] === 1, v.perCategorie);
+  check("US-58 maandverbruik per categorie", v.bewerkingen === 4 && v.perCategorie.verrijking === 1 && v.perCategorie.chat === 1 && v.perCategorie["match/verband"] === 1 && v.perCategorie.discovery === 1, v.perCategorie);
   const kw = verbruikPerPeriode([b1, bewerking("chat", "2026-08-01T00:00:00Z"), bewerking("chat", "2026-03-01T00:00:00Z")], "kwartaal");
   check("US-58 verbruik per kwartaal", kw.length === 2 && kw[0].periode === "2026-K3" && kw[0].bewerkingen === 2);
   const dbK = maakLegeDatabase();
@@ -631,6 +657,201 @@ check("OTAP overige previews zijn test", bepaalOmgeving({ VERCEL_ENV: "preview",
 check("OTAP OMGEVING gaat voor", bepaalOmgeving({ OMGEVING: "Acceptatie", VERCEL_ENV: "production" }) === "acceptatie");
 check("OTAP lokaal is ontwikkeling", bepaalOmgeving({ NODE_ENV: "development" }) === "ontwikkeling");
 check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("postgresql://u:p@ep-cool-bird-123-pooler.eu-central-1.aws.neon.tech/db") === "ep-cool-bird-123" && databaseAanduiding(undefined) === "in-memory");
+
+// ---------- User stories demo oktober 2026 ----------
+{
+  // US-01: partnertypes en goudstandaard per type
+  const dbU = maakSeedDatabase();
+  check("US-01 houtbouwer en constructeur zijn partnertypes", ROLLEN.includes("houtbouwer") && ROLLEN.includes("constructeur"));
+  const gsHout = standaardGoudstandaard("houtbouwer", dbU.factoren);
+  const verplichtHout = gsHout.velden.filter((v) => v.niveau === "verplicht").map((v) => v.sleutel);
+  check("US-01 houtbouwer: MPG, Paris Proof, productietijd, levertijd, kosten per m² en productinformatie verplicht", ["mpg", "paris_proof", "productietijd", "levertijd", "kosten_m2", "productinformatie"].every((id) => verplichtHout.includes(`factor:${id}`)), verplichtHout);
+  const gsArch = standaardGoudstandaard("architect", dbU.factoren);
+  check("US-01 architect heeft een kleinere vaste set", gsArch.velden.filter((v) => v.niveau === "verplicht").length < verplichtHout.length);
+  const pf = productFactoren({ "Paris Proof - Materiaalgebonden CO2-uitstoot (A1 tm A5) - Totaal": 159.28, "Prijs per m2 BVO - vanaf prijs": "€ 1.087 - € 1.202", "Productietijd fabriek (weken)": "> 39", Conceptnaam: "Woonkas", "Mogelijke (woning)types": "Grondgebonden, appartementen" });
+  check("US-01 productkenmerken uit importkolommen", pf.some((x) => x.factorId === "paris_proof" && x.waarde === 159) && pf.some((x) => x.factorId === "kosten_m2" && x.waarde === 1087) && pf.some((x) => x.factorId === "productietijd" && x.waarde === 39) && pf.some((x) => x.factorId === "productinformatie"), pf.map((x) => `${x.factorId}=${x.waarde}`));
+  check("US-01 een '-' in het overzicht is geen waarde", productFactoren({ "Paris Proof - Materiaalgebonden CO2-uitstoot (A1 tm A5) - Totaal": "-", Conceptnaam: "-", "BVO m2 range per woning": "-", "Maximaal aantal lagen": "-" }).length === 0);
+  const hb = rijNaarPartner((houtbouwers as { partners: Array<{ values: Record<string, string | number | boolean> }> }).partners[0].values);
+  check("US-01 rij uit het houtbouwersoverzicht wordt type houtbouwer", Boolean(hb?.rollen.includes("houtbouwer")), hb?.rollen);
+  check("US-01 standaardgewichten voor houtbouwer tellen op tot 100", valideerGewichten(NIEUWE_TYPES.houtbouwer!, dbU.factoren).geldig && valideerGewichten(NIEUWE_TYPES.constructeur!, dbU.factoren).geldig);
+
+  // US-02: vullingsgraad verplichte velden per type en per veld
+  const vulling = vullingPerRol(dbU, dbU.partners);
+  const aann = vulling.find((v) => v.rol === "aannemer");
+  check("US-02 vullingsgraad per type en per veld", Boolean(aann) && aann!.verplichtPct !== null && aann!.verplichtPct >= 0 && aann!.verplichtPct <= 100 && aann!.velden.length > 0 && aann!.velden.every((v) => v.totaal === aann!.partners), aann && { pct: aann.verplichtPct, velden: aann.velden.length });
+
+  // US-03: signalen voor ontbrekend, verouderd en onbetrouwbaar
+  const p0 = structuredClone(dbU.partners[0]);
+  p0.factoren = [
+    { factorId: "mpg", waarde: 0.7, bron: "web", betrouwbaarheid: 0.35, peildatum: new Date().toISOString().slice(0, 10), status: "voorgesteld" },
+    { factorId: "co2_ladder", waarde: 3, bron: "opgave", betrouwbaarheid: 0.6, peildatum: "2019-01-01", status: "gevalideerd", gevalideerdDoorRol: "gebruiker" }
+  ];
+  const sig = dataSignalen(dbU, [p0]);
+  check("US-03 onbetrouwbare waarde gesignaleerd", sig.some((s) => s.soort === "onbetrouwbaar" && s.sleutel === "factor:mpg"), sig.map((s) => `${s.soort}:${s.sleutel}`));
+  check("US-03 verouderde waarde gesignaleerd (vervaltermijn)", sig.some((s) => s.soort === "verouderd" && s.sleutel === "factor:co2_ladder"));
+  check("US-03 ontbrekend verplicht veld gesignaleerd", sig.some((s) => s.soort === "ontbreekt"));
+  check("US-03 filter op soort, type en veld", filterSignalen(sig, { soort: "onbetrouwbaar", rol: p0.rollen[0], veld: "factor:mpg" }).length === 1 && filterSignalen(sig, { rol: "houtbouwer" }).length === 0);
+  const dbT = { ...dbU, instellingen: { ...dbU.instellingen, basisveldVerval: { website: 1 } } };
+  const p1 = structuredClone(dbU.partners[0]);
+  p1.website = "https://voorbeeld.nl";
+  p1.veldHerkomst = { website: { bron: "web", vastgesteldOp: "2020-01-01", betrouwbaarheid: 0.4, status: "voorgesteld" } };
+  check("US-03 verouderingstermijn per basisveld", dataSignalen(dbT, [p1]).some((s) => s.soort === "verouderd" && s.sleutel === "basis:website"));
+
+  // US-04: afgewezen waarde telt nergens mee en komt niet automatisch terug
+  const p2 = structuredClone(dbU.partners[0]);
+  p2.factoren = [{ factorId: "projecttype", optieId: "zorgwonen", waarde: 4, bron: "web", betrouwbaarheid: 0.4, peildatum: "2026-09-01", status: "afgewezen", afwijzing: { door: "t", rol: "gebruiker", op: "2026-10-01", reden: "geen zorgwoningen" } }];
+  check("US-04 afgewezen waarde niet in effectief profiel", !effectieveFactoren(p2, dbU).some((f) => f.factorId === "projecttype" && f.optieId === "zorgwonen"));
+  check("US-04 afgewezen waarde telt niet als gevuld", !veldGevuld(p2, "factor:projecttype"));
+  check("US-04 label afgewezen", verificatieVan(p2.factoren[0], dbU.factoren.find((f) => f.id === "projecttype")) === "afgewezen" && VERIFICATIE_LABEL.gebruiker === "gebruikersgeverifieerd" && VERIFICATIE_LABEL.beheerder === "beheerdersgeverifieerd" && VERIFICATIE_LABEL.niet === "voorstel");
+  const vZelfde: EnrichmentVoorstel = { id: "v1", partnerId: p2.id, factorId: "projecttype", optieId: "zorgwonen", veld: "Projecttype: Zorgwonen", huidig: 4, voorgesteld: 4, bron: "web", bronUrl: "https://x.nl", betrouwbaarheid: 0.5, soort: "geclaimd", citaat: "zorg", status: "open", gevondenOp: "2026-10-02" };
+  check("US-04 afgewezen waarde wordt niet automatisch opnieuw ingevuld", !automatischToepasbaar(p2, vZelfde, dbU.factoren) && automatischToepasbaar(p2, { ...vZelfde, voorgesteld: 2 }, dbU.factoren));
+
+  // US-05: uitleg van de weging in de onderbouwing
+  const runU = matchProject({ db: dbU, project: dbU.projecten[0] });
+  const kU = runU.flatMap((r) => r.kandidaten).find((k) => k.criteria.some((c) => c.verificatie === "niet" || c.verificatie === "gebruiker"));
+  check("US-05 onderbouwing legt de weging van betrouwbaarheid uit", !kU || /weegt mee/.test(onderbouwKandidaat(kU).tekst));
+
+  // US-07/US-12: zonder bron geen voorstel; bronrang telt mee in de betrouwbaarheid
+  check("US-07 zonder bron geen voorstel", !heeftBronEnOnderbouwing({ bronUrl: "", citaat: "x", bron: "web" }) && heeftBronEnOnderbouwing({ bronUrl: "https://x.nl", citaat: "x", bron: "web" }));
+  const vb: EnrichmentVoorstel = { ...vZelfde, id: "v2", bronUrl: "https://bna.nl/leden/abc", betrouwbaarheid: 0.4 };
+  pasBronrangToe(vb, STANDAARD_BRANCHEBRONNEN);
+  check("US-12 branchebron verhoogt betrouwbaarheid en wordt bij naam genoemd", vb.betrouwbaarheid >= 0.7 && vb.bronRangLijst === 2 && /BNA/.test(vb.bronNaam ?? ""), vb);
+  check("US-13 voorgestelde bron telt pas na goedkeuring", !bronVoorUrl("https://bna.nl/x", [{ ...STANDAARD_BRANCHEBRONNEN[1], status: "voorgesteld" }]) && Boolean(bronVoorUrl("https://bna.nl/x", STANDAARD_BRANCHEBRONNEN)));
+
+  // US-15/US-16: dekking per rol en herweging zonder nieuwe run
+  const projU = dbU.projecten.find((pr) => matchProject({ db: dbU, project: pr }).some((r) => r.kandidaten.length >= 2)) ?? dbU.projecten[0];
+  const r0 = [...matchProject({ db: dbU, project: projU })].sort((a, b) => b.kandidaten.length - a.kandidaten.length)[0];
+  const d0 = dekkingVanRol(r0, 60);
+  check("US-15 dekking per rol met drempel en ontbrekende criteria", d0.pct >= 0 && d0.pct <= 100 && d0.indicatief === d0.pct < 60 && Array.isArray(d0.ontbrekend), { pct: d0.pct, ontbrekend: d0.ontbrekend.map((c) => c.naam) });
+  const eis0 = projU.eisen.find((e) => e.rol === r0.rol);
+  const w0 = wegingVanEis(eis0, r0);
+  const zelfde = herweegResultaat(r0, w0);
+  check("US-16 herweging met dezelfde weging geeft dezelfde scores", zelfde.kandidaten.every((k) => k.score === r0.kandidaten.find((x) => x.partnerId === k.partnerId)!.score), zelfde.kandidaten.map((k) => k.score));
+  const eerste = Object.keys(w0.gewichten)[0];
+  const anders = herweegResultaat(r0, { ...w0, gewichten: Object.fromEntries(Object.keys(w0.gewichten).map((k) => [k, k === eerste ? 60 : 1])) });
+  check("US-16 andere weging werkt direct door in de rangschikking", anders.kandidaten.length === r0.kandidaten.length && anders.kandidaten.every((k, i, a) => i === 0 || a[i - 1].score >= k.score));
+  const norm = normaliseerGewichten({ a: 10, b: 10, c: 20 });
+  check("US-16 weging wordt genormaliseerd naar 100", Object.values(norm).reduce((s, x) => s + x, 0) === 100 && norm.c === 50);
+
+  // US-18/US-21: alleen geaccepteerde evaluaties tellen mee; organisatie, geen persoon
+  const dbE = maakSeedDatabase();
+  const ev = dbE.evaluaties[0];
+  const voor = leidFactorenAf(dbE.partners.find((p) => p.id === ev.partnerId)!, dbE).statistieken.aantalEvaluaties;
+  dbE.evaluaties.filter((e) => e.partnerId === ev.partnerId).forEach((e) => (e.status = "ingediend"));
+  const na = leidFactorenAf(dbE.partners.find((p) => p.id === ev.partnerId)!, dbE).statistieken.aantalEvaluaties;
+  check("US-21 ingediende evaluaties tellen niet mee", voor > 0 && na === 0, { voor, na });
+  check("US-18 persoonsgegevens in evaluatietekst worden herkend", Boolean(persoonsgegevensInTekst("bel jan@bouw.nl")) && Boolean(persoonsgegevensInTekst("tel 06-12345678")) && !persoonsgegevensInTekst("Goed projectbegrip en sterke ideeën"));
+  check("US-19 ervaringstekst gaat mee in de matching", ervaringenVan(ev.partnerId, maakSeedDatabase()).length > 0 || !ev.toelichting);
+
+  // US-20: openstaande evaluaties per afgerond project
+  const dbO = maakSeedDatabase();
+  const opgeleverd = dbO.projecten.find((p) => p.fase === "opgeleverd" || p.fase === "nazorg");
+  if (opgeleverd) {
+    dbO.evaluaties = dbO.evaluaties.filter((e) => e.projectId !== opgeleverd.id);
+    opgeleverd.verantwoordelijke = "Ontwikkelaar A";
+    const open = openstaandeEvaluaties(dbO, new Date("2030-01-01")).find((x) => x.project.id === opgeleverd.id);
+    check("US-20 openstaande evaluaties met verantwoordelijke en herinnering", Boolean(open && open.open.length > 0 && open.verantwoordelijke === "Ontwikkelaar A" && open.herinnering));
+  }
+
+  // US-23/US-24: terugkerende teamcombinaties en bewezen teams
+  const dbC = maakSeedDatabase();
+  const arch = dbC.partners.find((p) => p.rollen.includes("architect"))!;
+  const adv = dbC.partners.find((p) => p.rollen.includes("adviseur"))!;
+  dbC.engagements = [];
+  dbC.projecten.slice(0, 2).forEach((pr, i) => {
+    dbC.engagements.push({ id: `e-a${i}`, partnerId: arch.id, projectId: pr.id, rol: "architect", periode: { van: "2024-01-01" }, contractwaarde: 1, bron: "handmatig" });
+    dbC.engagements.push({ id: `e-b${i}`, partnerId: adv.id, projectId: pr.id, rol: "adviseur", periode: { van: "2024-01-01" }, contractwaarde: 1, bron: "handmatig" });
+  });
+  dbC.evaluaties = [];
+  const combi = teamCombinaties(dbC);
+  check("US-23 terugkerende combinatie herkend en gerangschikt", combi.length === 1 && combi[0].aantal === 2 && combi[0].leden.length === 2, combi.map((c) => c.sleutel));
+  const nieuwProject = { ...dbC.projecten[2], eisen: [{ rol: "architect" as const, eisen: [], semantischGewicht: 20 }, { rol: "adviseur" as const, eisen: [], semantischGewicht: 20 }] };
+  const runC = { id: "r", projectId: nieuwProject.id, naam: "t", gestartOp: "", door: "t", input: { eisen: nieuwProject.eisen }, resultaat: matchProject({ db: dbC, project: nieuwProject }) };
+  const bt = bewezenTeams(runC, dbC, nieuwProject);
+  check("US-24 teamvoorstel met teamscore en onderbouwing", bt.length === 1 && bt[0].teamScore > 0 && bt[0].onderbouwing.length >= 3 && bt[0].gedeeldeProjecten.length === 2, { bt: bt.map((t) => t.teamScore), run: runC.resultaat.map((r) => `${r.rol}:${r.kandidaten.map((k) => k.partnerId).join("/")}:${r.uitsluitingen.map((u) => u.partnerId + "=" + u.reden).join("; ")}` ) });
+
+  // US-26: ERP-import met projectnummer als sleutel
+  const dbP = maakSeedDatabase();
+  const bestaandProj = dbP.projecten[0];
+  bestaandProj.projectnummer = "2024-001";
+  const webProj = dbP.projecten[1];
+  delete webProj.projectnummer;
+  webProj.herkomst = [{ veld: "omschrijving", citaat: "https://x", betrouwbaarheid: 0.6 }];
+  const locaties = new Map([["Utrecht", { lat: 52.09, lng: 5.12 }]]);
+  let teller = 0;
+  const u = importeerProjecten(dbP, [{ Projectnummer: "2024-001", Fase: "Opgeleverd" }, { Projectnummer: "2024-002", Projectnaam: webProj.naam }, { Projectnummer: "2025-010", Projectnaam: "Nieuw ERP-project", Plaats: "Utrecht", Startdatum: "01-03-2026", "Aantal woningen": "48" }, { Projectnaam: "zonder nummer" }], locaties, (p) => `${p}-t${++teller}`);
+  check("US-26 ERP-import: bijwerken, samenvoegen op naam, nieuw en overslaan", u.bijgewerkt === 1 && u.samengevoegd === 1 && u.nieuw === 1 && u.overgeslagen.length === 1, u);
+  check("US-26 bron zichtbaar: ERP, samengevoegd met webbron", bestaandProj.bron === "erp" && bestaandProj.fase === "opgeleverd" && webProj.projectnummer === "2024-002" && webProj.ookWebbron === true && dbP.projecten.some((p) => p.projectnummer === "2025-010" && p.woningen === 48 && p.planning.start === "2026-03-01"));
+
+  // Migratie v14
+  const dbM = maakSeedDatabase();
+  dbM.versie = 13;
+  dbM.factoren = dbM.factoren.filter((f) => !["paris_proof", "productietijd", "levertijd", "kosten_m2", "productinformatie"].includes(f.id));
+  dbM.partners[0].bronnen.push({ url: "Overzicht Houtbouwers v0.3.xlsx", opgehaaldOp: "2026-01-01", soort: "import" });
+  dbM.partners[0].brongegevens = [{ bron: "Overzicht Houtbouwers v0.3.xlsx", op: "2026-01-01", velden: { "Paris Proof - Materiaalgebonden CO2-uitstoot (A1 tm A5) - Totaal": "180" } }];
+  dbM.evaluaties.forEach((e) => delete e.status);
+  dbM.instellingen.verrijkingsbronnen = [];
+  migreerV14(dbM);
+  check("US-01 migratie v14: nieuwe factoren, type houtbouwer en productkenmerken uit brondata", dbM.factoren.some((f) => f.id === "paris_proof") && dbM.partners[0].rollen.includes("houtbouwer") && dbM.partners[0].factoren.some((f) => f.factorId === "paris_proof" && f.waarde === 180));
+  check("US-12/US-21 migratie v14: branchebronnen en evaluatiestatus", dbM.instellingen.verrijkingsbronnen.some((b) => b.categorie === "branche" && b.rang === 2) && dbM.evaluaties.every((e) => e.status === "geaccepteerd"));
+
+  // US-08: werklijst beheerdersvalidatie
+  const dbV = maakSeedDatabase();
+  const pv = dbV.partners.find((p) => p.rollen.includes("aannemer"))!;
+  dbV.goudstandaard = { aannemer: { ...standaardGoudstandaard("aannemer", dbV.factoren), velden: [{ sleutel: "factor:mpg", niveau: "verplicht", beheerderVerificatie: true }] } };
+  pv.factoren = [{ factorId: "mpg", waarde: 0.7, bron: "web", betrouwbaarheid: 0.5, peildatum: "2026-10-01", status: "gevalideerd", gevalideerdDoor: "Gebruiker", gevalideerdDoorRol: "gebruiker" }];
+  check("US-08 gebruikersgeverifieerde waarde van een kritisch veld wacht op beheerder", wachtOpBeheerder(dbV, dbV.partners).some((x) => x.partnerId === pv.id && x.factorId === "mpg"));
+  pv.factoren[0].gevalideerdDoorRol = "beheerder";
+  check("US-08 na beheerdersvalidatie niet meer in de werklijst", !wachtOpBeheerder(dbV, dbV.partners).some((x) => x.partnerId === pv.id));
+
+  // US-11: externe bedrijfslinks op een prijzenpagina
+  const links = externeBedrijfsLinks('<a href="https://www.bureau-x.nl/projecten">X</a><a href="https://abebonnemaprijs.nl/2025">intern</a><a href="https://www.linkedin.com/x">li</a>', "https://abebonnemaprijs.nl/");
+  check("US-11 prijzenpagina levert externe bedrijfswebsites", links.length === 1 && links[0] === "https://www.bureau-x.nl", links);
+
+  // US-31: verbruik uitgesplitst naar verrijking, discovery en chat
+  check("US-31 categorieën verrijking, discovery en chat", CATEGORIEEN.includes("verrijking") && CATEGORIEEN.includes("discovery") && CATEGORIEEN.includes("chat") && categorieVan("aandraag") === "discovery" && categorieVan("partnerregistratie") === "verrijking");
+}
+
+// ---------- Open punten (vervolg) ----------
+{
+  // AI via de Anthropic-API; Europese verwerking alleen als aangetoond vastgelegd
+  check("AI: Anthropic-API met sleutel, EU alleen als vastgelegd", aiVerwerking({ ANTHROPIC_API_KEY: "x" }).aan && !aiVerwerking({ ANTHROPIC_API_KEY: "x" }).europees && aiVerwerking({ ANTHROPIC_API_KEY: "x", AI_VERWERKING_REGIO: "eu" }).europees && !aiVerwerking({}).aan);
+
+  // Correctie voor lage dekking
+  check("Dekking: weinig bekend schuift naar neutraal", dempVoorDekking(98, 5) < dempVoorDekking(71, 44) && dempVoorDekking(80, 100) === 80 && dempVoorDekking(0, 0) === 50);
+  const dbD = maakSeedDatabase();
+  const prD = dbD.projecten.find((pr) => matchProject({ db: dbD, project: pr }).some((r) => r.kandidaten.length >= 2))!;
+  const metD = matchProject({ db: dbD, project: prD });
+  dbD.instellingen.dekkingDemping = false;
+  const zonderD = matchProject({ db: dbD, project: prD });
+  check("Dekking: correctie is uit te zetten", metD.flatMap((r) => r.kandidaten).some((k) => k.ongedempteGewogenScore !== undefined) && zonderD.flatMap((r) => r.kandidaten).every((k) => k.ongedempteGewogenScore === undefined));
+
+  // US-17/US-21: standaardweging
+  const isG = (id: string) => dbD.factoren.find((f) => f.id === id)?.type === "gewogen";
+  const nieuw = pasErvaringsgewichtToe(NIEUWE_TYPES.constructeur!, 30, isG);
+  check("US-21 eigen ervaring krijgt het ingestelde aandeel, totaal blijft 100", nieuw.find((e) => e.factorId === "evaluatiescore")?.gewicht === 30 && valideerGewichten(nieuw, dbD.factoren).geldig, nieuw.map((e) => `${e.factorId}:${e.gewicht}`));
+  const zonderEv = pasErvaringsgewichtToe([{ factorId: "mpg", gevraagd: 0.8, gewicht: 100 }], 20, isG);
+  check("US-21 eigen ervaring wordt toegevoegd waar ze ontbrak", zonderEv.some((e) => e.factorId === "evaluatiescore" && e.gewicht === 20) && valideerGewichten(zonderEv, dbD.factoren).geldig);
+  const tw = teamWeging(40);
+  check("US-17 samenwerking in de teamscore instelbaar", Math.abs(tw.kwaliteit + tw.samenwerking + tw.nabijheid + tw.beschikbaarheid - 1) < 1e-9 && tw.samenwerking === 0.4);
+
+  // US-20: eigenaarschap
+  check("US-20 verantwoordelijke op naam of e-mail", isVerantwoordelijke({ verantwoordelijke: "Jan Smit" }, { naam: "jan smit" }) && isVerantwoordelijke({ verantwoordelijke: "j.smit@blauwhoed.nl" }, { naam: "X", email: "J.Smit@blauwhoed.nl" }) && !isVerantwoordelijke({}, { naam: "x" }));
+  const dbH = maakSeedDatabase();
+  dbH.instellingen.evaluatieProces = { herinneringDagen: 60 };
+  check("US-20 herinneringstermijn instelbaar", herinneringDagen(dbH) === 60);
+
+  // US-25: externe projecten
+  const dbX = maakSeedDatabase();
+  const [pa, pb] = dbX.partners;
+  check("US-25 genoemde partners op een openbare pagina", genoemdePartners(`Het ontwerp is van ${pa.naam}, uitgevoerd door ${pb.naam}.`, dbX.partners).length >= 2);
+  check("US-25 LinkedIn wordt herkend en niet gelezen", isLinkedIn("https://www.linkedin.com/posts/abc") && !isLinkedIn("https://bna.nl/x"));
+  const voorX = leidFactorenAf(pa, dbX).statistieken.aantalProjecten;
+  dbX.projecten.push({ ...dbX.projecten[0], id: "proj-ext", extern: true, naam: "Extern" });
+  dbX.engagements.push({ id: "e-x1", partnerId: pa.id, projectId: "proj-ext", rol: pa.rollen[0], periode: { van: "2024-01-01" }, contractwaarde: 0, bron: "extern", bronUrl: "https://x.nl" }, { id: "e-x2", partnerId: pb.id, projectId: "proj-ext", rol: pb.rollen[0], periode: { van: "2024-01-01" }, contractwaarde: 0, bron: "extern", bronUrl: "https://x.nl" });
+  check("US-25 extern project telt niet als eigen prestatie", leidFactorenAf(pa, dbX).statistieken.aantalProjecten === voorX);
+  check("US-25 extern project levert een samenwerkingssignaal met bron", leidVerbandenAf(dbX).some((v) => [v.a.id, v.b.id].includes(pa.id) && [v.a.id, v.b.id].includes(pb.id) && v.bronnen.some((b) => /extern project, bron: https:\/\/x\.nl/.test(b.label))));
+}
 
 Promise.all([groepD, groepExport]).then(() => {
   console.log(fouten ? `\n${fouten} controle(s) mislukt` : "\nAlle controles geslaagd");

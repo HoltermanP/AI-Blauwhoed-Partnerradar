@@ -64,6 +64,11 @@ function getClient() {
   return client;
 }
 
+/** Web search: lichte modellen gebruiken de basisvariant. */
+function webZoekTool(licht: boolean): Anthropic.ToolUnion {
+  return licht ? { type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } } : { type: "web_search_20260209", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } };
+}
+
 /** Het model voor een functie: uit de lopende bewerking, anders uit de instellingen. */
 async function modelVoorFunctie(functie: AIFunctie) {
   return bewerkingContext.getStore()?.modellen[functie] ?? modelVoor(await getDb(), functie);
@@ -258,7 +263,7 @@ export async function aiZoekBedrijfswebsites(zoekvragen: string[], max = 10): Pr
   try {
     const model = await modelVoorFunctie("aandragen");
     const licht = model.startsWith("claude-haiku");
-    const tools: Anthropic.ToolUnion[] = [licht ? { type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } } : { type: "web_search_20260209", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } }];
+    const tools: Anthropic.ToolUnion[] = [webZoekTool(licht)];
     const messages: Anthropic.MessageParam[] = [{ role: "user", content: `Zoek de officiële websites van Nederlandse bedrijven voor deze zoekvragen:\n${zoekvragen.map((z) => `- ${z}`).join("\n")}\n\nAlleen bedrijfswebsites (geen vergelijkingssites, vacaturesites, social media of nieuwsartikelen) en geen personen. Antwoord met één URL per regel.` }];
     let res = await getClient().messages.create({ model, max_tokens: 2000, tools, messages, ...(licht ? {} : { output_config: { effort: "low" as const } }) });
     registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
@@ -317,7 +322,7 @@ export async function aiChatOpgemaakt(vraag: string, context: string, historie: 
       ]),
       { role: "user", content: `Partnerrecords (JSON):\n${context}\n\nVraag: ${vraag}` }
     ];
-    const tools: Anthropic.ToolUnion[] | undefined = metInternet ? [licht ? { type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } } : { type: "web_search_20260209", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } }] : undefined;
+    const tools: Anthropic.ToolUnion[] | undefined = metInternet ? [webZoekTool(licht)] : undefined;
     let res = await getClient().messages.create({ model, max_tokens: 6000, system, messages, ...(tools ? { tools } : {}), ...(licht ? {} : { output_config: { effort: "medium" as const } }) });
     registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
     const inhoud = [...res.content];
@@ -376,10 +381,10 @@ export type AIMatchOnderbouwing = { perKandidaat: Array<{ partnerId: string; ond
  * US-59/US-70: onderbouwing van een matchresultaat in gewone taal (één matchvraag = één bewerking). Het model krijgt alleen
  * de berekende criteria en bronnen mee; het is een onderbouwde eerste selectie, geen oordeel over geschiktheid.
  */
-export async function aiMatchOnderbouwing(project: Pick<Project, "naam" | "omschrijving" | "type" | "woningen">, rol: string, kandidaten: Array<{ partnerId: string; naam: string; score: number; dekkingsgraad: number; verificatiegraad: number | null; semantischeTreffers: string[]; criteria: string[]; waarschuwingen: string[] }>): Promise<AIMatchOnderbouwing | null> {
+export async function aiMatchOnderbouwing(project: Pick<Project, "naam" | "omschrijving" | "type" | "woningen">, rol: string, kandidaten: Array<{ partnerId: string; naam: string; score: number; dekkingsgraad: number; verificatiegraad: number | null; semantischeTreffers: string[]; criteria: string[]; waarschuwingen: string[]; ervaringUitEvaluaties?: string[] }>): Promise<AIMatchOnderbouwing | null> {
   return jsonAntwoord<AIMatchOnderbouwing>(
     "match",
-    "Je licht voor woningontwikkelaar Blauwhoed een berekende partnermatch toe in het Nederlands, voor een projectmanager zonder kennis van het scoremodel. Gebruik uitsluitend de meegeleverde scores, criteria en bronnen; voeg geen feiten toe. Schrijf per kandidaat 2–4 heldere, lopende zinnen (geen opsomming, geen vakjargon zoals 'fit' of 'dekkingsgraad'): waarom deze partner bij het project past, met de concrete kenmerken die het meest bijdragen, en waar hij minder sterk is. Elk criterium vermeldt of de waarde geverifieerd is door een beheerder, door een gebruiker, nog niet geverifieerd, verouderd of berekend uit projecthistorie; niet-geverifieerde waarden tellen minder zwaar mee. Benoem het in de tekst als de match vooral op niet-geverifieerde gegevens rust. Noem als aandachtspunten: ontbrekende gegevens, niet-geverifieerde of indicatieve gegevens en de waarschuwingen. Het is een onderbouwde eerste selectie, geen oordeel over geschiktheid, betrouwbaarheid of financiële gezondheid; formuleer dus niet als aanbeveling om te contracteren.",
+    "Je licht voor woningontwikkelaar Blauwhoed een berekende partnermatch toe in het Nederlands, voor een projectmanager zonder kennis van het scoremodel. Gebruik uitsluitend de meegeleverde scores, criteria en bronnen; voeg geen feiten toe. Schrijf per kandidaat 2–4 heldere, lopende zinnen (geen opsomming, geen vakjargon zoals 'fit' of 'dekkingsgraad'): waarom deze partner bij het project past, met de concrete kenmerken die het meest bijdragen, en waar hij minder sterk is. Elk criterium vermeldt of de waarde geverifieerd is door een beheerder, door een gebruiker, nog niet geverifieerd, verouderd of berekend uit projecthistorie; niet-geverifieerde waarden tellen minder zwaar mee. Benoem het in de tekst als de match vooral op niet-geverifieerde gegevens rust. Als er ervaring uit eigen evaluaties van Blauwhoed is meegegeven (ervaringUitEvaluaties, vrije tekst over de organisatie), gebruik die dan in de toelichting; noem nooit personen. Noem als aandachtspunten: ontbrekende gegevens, niet-geverifieerde of indicatieve gegevens en de waarschuwingen. Het is een onderbouwde eerste selectie, geen oordeel over geschiktheid, betrouwbaarheid of financiële gezondheid; formuleer dus niet als aanbeveling om te contracteren.",
     `Project: ${project.naam} (${project.type}, ${project.woningen} woningen). ${project.omschrijving.slice(0, 800)}\nRol: ${rol}\n\nKandidaten (JSON):\n${JSON.stringify(kandidaten).slice(0, 20000)}`,
     {
       type: "object",

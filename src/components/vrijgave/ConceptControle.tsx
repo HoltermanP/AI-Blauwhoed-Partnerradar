@@ -9,7 +9,7 @@ import { datumTijd, ROL_LABEL } from "@/lib/format";
 
 export const HERKOMST_LABEL = { "ai-registratie": "AI-registratie", discovery: "Discovery", "ai-aandraag": "AI-aandraag (zoekprofiel)" } as const;
 
-export default function ConceptControle({ p, magVrijgeven, compact = false }: { p: Partner; magVrijgeven: boolean; compact?: boolean }) {
+export default function ConceptControle({ p, magVrijgeven, compact = false, partners = [] }: { p: Partner; magVrijgeven: boolean; compact?: boolean; partners?: Array<{ id: string; naam: string }> }) {
   const r = p.registratie;
   const blokkades = vrijgaveBlokkades(p);
   const [dubbelId, dubbelReden] = r?.mogelijkeDubbelVan?.split("|") ?? [];
@@ -119,7 +119,7 @@ export default function ConceptControle({ p, magVrijgeven, compact = false }: { 
       ) : null}
       {!compact ? <p className="muted klein-tekst">Bronnen: {r?.bronnen.length ? r.bronnen.join(", ") : "–"}</p> : null}
       {magVrijgeven ? (
-        <RegistratieBeoordeling partnerId={p.id} blokkades={blokkades} dubbel={Boolean(dubbelId)} />
+        <RegistratieBeoordeling partnerId={p.id} blokkades={blokkades} dubbel={Boolean(dubbelId)} dubbelId={dubbelId} partners={partners} />
       ) : (
         <p className="muted klein-tekst">Vrijgeven of afwijzen is voorbehouden aan de beheerder.</p>
       )}

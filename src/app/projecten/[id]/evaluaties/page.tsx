@@ -6,6 +6,7 @@ import { getDb } from "@/lib/store";
 import { ROL_LABEL, datum, euro } from "@/lib/format";
 import { Badge, Kaart, Knop, Leeg, Melding, PaginaKop } from "@/components/ui";
 import EvaluatieFormulier from "@/components/projecten/EvaluatieFormulier";
+import { EVALUATIE_STATUS_LABEL } from "@/lib/domain/tevredenheid";
 
 export default async function EvaluatiesPagina({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
   const [{ id }, sp, db, gebruiker] = await Promise.all([params, searchParams, getDb(), huidigeGebruiker()]);
@@ -13,7 +14,7 @@ export default async function EvaluatiesPagina({ params, searchParams }: { param
   if (!p) notFound();
   const magEvalueren = heeftRecht(gebruiker.rol, "evalueren");
   const engagements = db.engagements.filter((e) => e.projectId === p.id).sort((a, b) => (a.id === sp.engagement ? -1 : b.id === sp.engagement ? 1 : a.periode.van.localeCompare(b.periode.van)));
-  const ontbrekend = engagements.filter((e) => !db.evaluaties.some((ev) => ev.engagementId === e.id));
+  const ontbrekend = engagements.filter((e) => !db.evaluaties.some((ev) => ev.engagementId === e.id && (ev.moment ?? "oplevering") === "oplevering"));
   const naOplevering = p.fase === "opgeleverd" || p.fase === "nazorg";
 
   return (
@@ -21,7 +22,7 @@ export default async function EvaluatiesPagina({ params, searchParams }: { param
       <PaginaKop
         eyebrow={`Projecten / ${p.naam}`}
         titel={`Evaluaties: ${p.naam}`}
-        intro="Beoordeel na oplevering elke betrokken partner op kwaliteit, planning, budget, samenwerking en duurzaamheidsprestatie. Evaluaties voeden de afgeleide factoren (bewijs boven zelfbeeld)."
+        intro="Beoordeel elke betrokken organisatie (nooit een persoon) tussentijds of na oplevering op kwaliteit, planning, budget, samenwerking en duurzaamheidsprestatie, met uw ervaring in eigen woorden. Na acceptatie door een beheerder voeden evaluaties de afgeleide factoren, de matching en de AI-chat."
         acties={
           <Knop href={`/projecten/${p.id}`} variant="secundair">
             Project
@@ -37,7 +38,8 @@ export default async function EvaluatiesPagina({ params, searchParams }: { param
       {engagements.length ? (
         engagements.map((e) => {
           const partner = db.partners.find((x) => x.id === e.partnerId);
-          const ev = db.evaluaties.find((x) => x.engagementId === e.id);
+          const ev = db.evaluaties.find((x) => x.engagementId === e.id && (x.moment ?? "oplevering") === "oplevering") ?? db.evaluaties.find((x) => x.engagementId === e.id);
+          const tussentijds = db.evaluaties.find((x) => x.engagementId === e.id && x.moment === "tussentijds");
           const gem = ev ? (ev.kwaliteit + ev.planning + ev.budget + ev.samenwerking + ev.duurzaamheid) / 5 : null;
           return (
             <Kaart
@@ -72,11 +74,17 @@ export default async function EvaluatiesPagina({ params, searchParams }: { param
                     </div>
                   ))}
                   <p className="klein-tekst" style={{ gridColumn: "1 / -1" }}>
+                    <Badge kleur="grijs">{ev.moment === "tussentijds" ? "tussentijds" : "na oplevering"}</Badge> <Badge kleur={(ev.status ?? "geaccepteerd") === "geaccepteerd" ? "groen" : ev.status === "afgewezen" ? "rood" : "geel"}>{EVALUATIE_STATUS_LABEL[ev.status ?? "geaccepteerd"]}</Badge>{" "}
                     {ev.toelichting || <span className="muted">Geen toelichting.</span>} <span className="muted">— {ev.door}, {datum(ev.datum)}</span>
                   </p>
                 </div>
               ) : null}
-              <EvaluatieFormulier engagementId={e.id} partnerId={e.partnerId} projectId={p.id} bestaand={ev} magEvalueren={magEvalueren} openStandaard={sp.engagement === e.id} />
+              {tussentijds && ev !== tussentijds ? (
+                <p className="klein-tekst">
+                  <Badge kleur="grijs">tussentijds</Badge> <Badge kleur={(tussentijds.status ?? "geaccepteerd") === "geaccepteerd" ? "groen" : "geel"}>{EVALUATIE_STATUS_LABEL[tussentijds.status ?? "geaccepteerd"]}</Badge> gemiddeld {((tussentijds.kwaliteit + tussentijds.planning + tussentijds.budget + tussentijds.samenwerking + tussentijds.duurzaamheid) / 5).toFixed(1)}/5 — {tussentijds.toelichting || "geen toelichting"} <span className="muted">({tussentijds.door}, {datum(tussentijds.datum)})</span>
+                </p>
+              ) : null}
+              <EvaluatieFormulier engagementId={e.id} partnerId={e.partnerId} projectId={p.id} bestaand={ev && (ev.moment ?? "oplevering") === "oplevering" ? ev : undefined} tussentijds={tussentijds} magEvalueren={magEvalueren} openStandaard={sp.engagement === e.id} standaardMoment={naOplevering ? "oplevering" : "tussentijds"} />
             </Kaart>
           );
         })

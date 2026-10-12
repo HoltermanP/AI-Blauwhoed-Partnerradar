@@ -88,3 +88,34 @@ export async function slaRegisterbronOp(bron: { id?: string; naam: string; url: 
     });
   }, ["/verrijking"]);
 }
+
+/**
+ * US-33: de applicatie verwerkt geen persoonsgegevens van contactpersonen. Eerder vastgelegde contactpersonen worden alleen
+ * op uitdrukkelijk verzoek van de beheerder gewist (met bevestiging); de auditlog bewaart alleen het aantal.
+ */
+export async function wisContactpersonen(bevestiging: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("beheer");
+    if (bevestiging !== "WISSEN") throw new Error("Typ WISSEN ter bevestiging.");
+    return muteer(g, { entiteit: "database", entiteitId: "contactpersonen", actie: "contactpersonen gewist (AVG)" }, (db) => {
+      let n = 0;
+      db.partners.forEach((p) => {
+        n += p.contactpersonen.length;
+        p.contactpersonen = [];
+      });
+      return n;
+    });
+  }, ["/privacy"]);
+}
+
+/** US-20: eigenaarschap van evaluaties — de ontwikkelaar per project levert, de procesbewaker bewaakt; herinneringstermijn. */
+export async function slaEvaluatieprocesOp(invoer: { procesbewaker: string; herinneringDagen: number }) {
+  return veilig(async () => {
+    const g = await vereisRecht("beheer");
+    const dagen = Math.round(invoer.herinneringDagen);
+    if (!(dagen >= 1 && dagen <= 180)) throw new Error("De herinneringstermijn ligt tussen 1 en 180 dagen.");
+    await muteer(g, { entiteit: "instellingen", entiteitId: "evaluatieproces", actie: "evaluatieproces vastgelegd", details: `procesbewaker ${invoer.procesbewaker || "–"}, herinnering na ${dagen} dagen` }, (db) => {
+      db.instellingen.evaluatieProces = { procesbewaker: invoer.procesbewaker.trim() || undefined, herinneringDagen: dagen };
+    });
+  }, ["/evaluaties"]);
+}

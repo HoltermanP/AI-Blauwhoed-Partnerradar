@@ -4,7 +4,7 @@ import type { Verband } from "./verbanden";
 import type { CriteriumScore, Kandidaat, RolResultaat, Verificatie } from "./types";
 import { ROL_LABEL } from "../format";
 
-const VERIFICATIE_KORT: Record<Verificatie, string> = { beheerder: "geverifieerd door een beheerder", gebruiker: "geverifieerd door een gebruiker", niet: "nog niet geverifieerd", verouderd: "verouderd", berekend: "uit projecthistorie" };
+const VERIFICATIE_KORT: Record<Verificatie, string> = { beheerder: "geverifieerd door een beheerder", gebruiker: "geverifieerd door een gebruiker", niet: "nog niet geverifieerd", verouderd: "verouderd", berekend: "uit projecthistorie", afgewezen: "afgewezen" };
 
 function lijst(items: string[]) {
   return items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} en ${items[items.length - 1]}`;
@@ -51,7 +51,16 @@ export function onderbouwKandidaat(k: Kandidaat): { tekst: string; aandachtspunt
         : `${vg}% van de gegevens waarop de score rust is geverifieerd of komt uit projecthistorie; ${lijst(nietGeverifieerd.slice(0, 3).map((c) => c.factorNaam.toLowerCase()))}${nietGeverifieerd.length > 3 ? " en andere" : ""} ${nietGeverifieerd.length === 1 ? "is" : "zijn"} nog niet geverifieerd en ${nietGeverifieerd.length === 1 ? "telt" : "tellen"} daarom minder zwaar mee.`
     );
   } else zinnen.push("Er zijn geen gegevens bekend voor de gewogen criteria; de score rust alleen op de inhoudelijke gelijkenis.");
+  if (k.ongedempteGewogenScore !== undefined && Math.abs(k.ongedempteGewogenScore - k.gewogenScore) >= 5) zinnen.push(`Omdat voor een deel van de criteria niets bekend is, telt dat deel als neutraal; alleen op de bekende criteria zou de gewogen score ${k.ongedempteGewogenScore} zijn.`);
   if (onbekend.length) zinnen.push(`Voor ${lijst(onbekend.slice(0, 4))}${onbekend.length > 4 ? ` en ${onbekend.length - 4} andere` : ""} zijn geen gegevens bekend; die tellen niet mee.`);
+  // US-05: hoe de betrouwbaarheid meeweegt, alleen als er onzekere waarden in de score zitten.
+  if (nietGeverifieerd.length || bekend.some((c) => c.verificatie === "gebruiker"))
+    zinnen.push("Hoe zeker een waarde is, weegt mee: beheerdersgeverifieerd of uit projecthistorie telt volledig, gebruikersgeverifieerd voor 85%, een voorstel voor 50% en verouderd voor 30%; een bron met een lage rang dempt de waarde extra.");
+  // US-21: het gewicht van eigen (geaccepteerde) evaluaties is zichtbaar.
+  const ev = k.criteria.find((c) => c.factorId === "evaluatiescore");
+  if (ev) zinnen.push(ev.fit === null ? `Eigen evaluaties wegen voor ${ev.gewicht}% mee, maar er is nog geen geaccepteerde evaluatie van deze partner.` : `Eigen evaluaties (alleen geaccepteerde) wegen voor ${ev.effectiefGewicht}% mee; de gemiddelde beoordeling is ${String(ev.waarde).replace(".", ",")} van 5.`);
+  // US-19: ervaring in vrije tekst uit eerdere projecten.
+  (k.ervaringen ?? []).slice(0, 2).forEach((e) => zinnen.push(`Ervaring ${e.project} (${e.score.toLocaleString("nl-NL")}/5): „${e.tekst}”`));
   const aandachtspunten = [...k.waarschuwingen, ...bekend.filter((c) => c.bron === "web" && c.verificatie === "niet").slice(0, 2).map((c) => `${c.factorNaam} komt uit een indicatieve internetbron en is nog niet geverifieerd`)];
   return { tekst: zinnen.join(" "), aandachtspunten };
 }

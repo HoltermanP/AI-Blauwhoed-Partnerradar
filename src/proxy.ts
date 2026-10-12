@@ -1,9 +1,10 @@
 // US-64: alleen ingelogde medewerkers. Next.js 16 'proxy' (voorheen middleware) schermt alle pagina's en API's af, behalve
-// de inlogpagina, de Auth.js-routes, de cron-route (eigen CRON_SECRET) en de Blob-uploadroute (eigen controle + webhook).
+// de inlogpagina, de Auth.js-routes, de cron-route (eigen CRON_SECRET), de Blob-uploadroute (eigen controle + webhook) en de
+// tenderkoppeling (eigen TENDER_API_KEY).
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
 import { auth, authGeconfigureerd, demoModus } from "@/authjs";
 
-const OPENBAAR = [/^\/inloggen(\/|$)/, /^\/api\/auth\//, /^\/api\/verrijking\/run$/, /^\/api\/blob\/upload$/];
+const OPENBAAR = [/^\/inloggen(\/|$)/, /^\/api\/auth\//, /^\/api\/verrijking\/run$/, /^\/api\/blob\/upload$/, /^\/api\/tender\/selectie$/];
 
 function isOpenbaar(pad: string) {
   return OPENBAAR.some((r) => r.test(pad));

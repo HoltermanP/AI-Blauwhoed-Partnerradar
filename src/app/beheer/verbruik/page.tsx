@@ -8,6 +8,7 @@ import { aiBudget, BESCHIKBARE_MODELLEN, bewerkingKosten, budgetStatus, CATEGORI
 import type { AIFunctie } from "@/lib/domain/types";
 import { datumTijd } from "@/lib/format";
 import { getDb } from "@/lib/store";
+import { aiAan, aiVerwerking } from "@/lib/aiplatform";
 
 const euro = (n: number) => `€ ${n.toLocaleString("nl-NL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -77,12 +78,16 @@ export default async function VerbruikPagina() {
       {!magBeheren ? <Melding soort="info">Alleen de beheerder wijzigt budget en modellen en exporteert de specificatie.</Melding> : null}
       {status.boven125 ? <Melding soort="fout">Verbruik boven 125% van het maandbudget: aanleiding voor overleg over nacalculatie (art. 8).</Melding> : null}
       {status.kwartaalBoven110 ? <Melding soort="fout">Gemiddeld verbruik dit kwartaal boven 110% van het maandbudget.</Melding> : null}
-      {status.overschreden ? <Melding soort="waarschuwing">Maandbudget bereikt: geplande verrijkingsrondes starten niet; interactieve functies gaan voor.</Melding> : status.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
+      {status.overschreden ? <Melding soort="fout">100% van het maandbudget bereikt: geplande verrijkingsrondes starten niet; interactieve functies gaan voor.</Melding> : status.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
       <div className="metriekRij">
         <Metriek waarde={`${status.bewerkingen} / ${status.budgetBewerkingen}`} label="AI-bewerkingen deze maand" sub={`${Math.round(status.pct)}% van het budget`} />
         <Metriek waarde={euro(status.kostenEur)} label="Tokenkosten deze maand" sub={`${Math.round(status.pctEur)}% van ${euro(status.tokenbudgetEur)}`} />
         <Metriek waarde={`${Math.round(status.kwartaalGemPct)}%`} label="Gemiddeld per maand dit kwartaal" sub="signaal boven 110%" />
-        <Metriek waarde={process.env.ANTHROPIC_API_KEY ? "actief" : "uit"} label="Extern taalmodel" sub={process.env.ANTHROPIC_API_KEY ? "ANTHROPIC_API_KEY gezet" : "regels, geen bewerkingen"} />
+        <Metriek waarde={Math.max(0, status.budgetBewerkingen - status.bewerkingen)} label="Resterende bewerkingen deze maand" sub={(() => {
+          const m = perMaand.find((x) => x.periode === new Date().toISOString().slice(0, 7));
+          return m ? `verrijking ${m.perCategorie.verrijking} · discovery ${m.perCategorie.discovery} · chat ${m.perCategorie.chat}` : "nog geen verbruik";
+        })()} />
+        <Metriek waarde={aiAan() ? "actief" : "uit"} label="Extern taalmodel" sub={aiVerwerking().label} />
       </div>
       <Kaart titel="Verbruik per maand">
         <PeriodeTabel rijen={perMaand} budget={budget.bewerkingenPerMaand} kop="Maand" />
@@ -132,7 +137,7 @@ export default async function VerbruikPagina() {
             </table>
           </div>
         ) : (
-          <p className="muted">Nog geen AI-bewerkingen. Zonder ANTHROPIC_API_KEY draaien extractie, chat en samenvattingen op regels en tellen ze niet als bewerking.</p>
+          <p className="muted">Nog geen AI-bewerkingen. Zonder ingericht taalmodel draaien extractie, chat en samenvattingen op regels en tellen ze niet als bewerking.</p>
         )}
       </Kaart>
     </>

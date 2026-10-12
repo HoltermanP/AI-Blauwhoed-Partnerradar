@@ -7,7 +7,8 @@ import { useState, useTransition } from "react";
 import { geefMatchFeedback } from "@/lib/actions";
 import { DEKKING_WAARSCHUWING, VERIFICATIE_WAARSCHUWING } from "@/lib/domain/matching";
 import { onderbouwKandidaat } from "@/lib/domain/onderbouwing";
-import { VERIFICATIE_KLEUR, VERIFICATIE_LABEL } from "@/lib/domain/verificatie";
+import { VERIFICATIE_KLEUR, VERIFICATIE_LABEL, WEGING_UITLEG } from "@/lib/domain/verificatie";
+import { dekkingVanRol, STANDAARD_DEKKING_DREMPEL } from "@/lib/domain/herweging";
 import type { CriteriumScore, Kandidaat, MatchFeedback, RolResultaat, Uitsluiting } from "@/lib/domain/types";
 import { ROL_LABEL, datumTijd, waardeTekst } from "@/lib/format";
 import { Badge, Melding, ScoreBalk, StatusBadge } from "@/components/ui";
@@ -81,6 +82,43 @@ function CriteriumTabel({ criteria }: { criteria: CriteriumScore[] }) {
           ))}
         </tbody>
       </table>
+      <p className="muted klein-tekst">{WEGING_UITLEG}</p>
+    </div>
+  );
+}
+
+/** US-15: hoeveel criteria per rol echt zijn meegewogen, met waarschuwing onder de drempel en links naar verrijking. */
+function DekkingBlok({ resultaat, drempel }: { resultaat: RolResultaat; drempel: number }) {
+  const d = dekkingVanRol(resultaat, drempel);
+  if (!d.geteld || !d.criteria.length) return null;
+  return (
+    <div className={`dekkingBlok ${d.indicatief ? "indicatief" : ""}`}>
+      <div className="dekkingKop">
+        <span>
+          Dekking <b>{d.pct}%</b> <span className="muted klein-tekst">van het gewicht is bij de beste {d.geteld} kandida{d.geteld === 1 ? "at" : "ten"} echt meegewogen</span>
+        </span>
+        {d.indicatief ? <Badge kleur="geel">indicatief: onder de drempel van {d.drempel}%</Badge> : <Badge kleur="groen">goed onderbouwd</Badge>}
+      </div>
+      <div className="voortgang" aria-label={`Dekking ${d.pct}%`}>
+        <span style={{ width: `${d.pct}%` }} />
+      </div>
+      {d.ontbrekend.length ? (
+        <p className="klein-tekst">
+          Ontbreekt bij de meeste kandidaten:{" "}
+          {d.ontbrekend.map((c, i) => (
+            <span key={c.sleutel}>
+              {i ? ", " : ""}
+              <Link href={`/datakwaliteit?tab=ontbrekend&rol=${resultaat.rol}&veld=factor:${c.factorId}`} title={`Bij ${c.totaal - c.bekend} van ${c.totaal} kandidaten onbekend; gewicht ${c.gewicht}%. Open de lijst en verrijk deze partners.`}>
+                {c.naam}
+              </Link>{" "}
+              <span className="muted">({c.totaal - c.bekend}/{c.totaal} onbekend, {c.gewicht}%)</span>
+            </span>
+          ))}
+          . Ontbrekende criteria tellen niet mee; hun gewicht gaat naar de bekende criteria.
+        </p>
+      ) : (
+        <p className="klein-tekst muted">Alle criteria zijn bij de meeste kandidaten bekend.</p>
+      )}
     </div>
   );
 }
@@ -307,7 +345,7 @@ function KandidaatKaart({ k, rang, feedback, magFeedback, geselecteerd, onSelect
   );
 }
 
-export default function RolResultaatWeergave({ resultaat, runId, projectId, feedback, magFeedback, verschil, onderbouwing }: { resultaat: RolResultaat; runId: string; projectId: string; feedback: MatchFeedback[]; magFeedback: boolean; verschil?: Verschil; onderbouwing?: RunOnderbouwing }) {
+export default function RolResultaatWeergave({ resultaat, runId, projectId, feedback, magFeedback, verschil, onderbouwing, dekkingDrempel = STANDAARD_DEKKING_DREMPEL, herwogen = false }: { resultaat: RolResultaat; runId: string; projectId: string; feedback: MatchFeedback[]; magFeedback: boolean; verschil?: Verschil; onderbouwing?: RunOnderbouwing; dekkingDrempel?: number; herwogen?: boolean }) {
   const router = useRouter();
   const [selectie, setSelectie] = useState<string[]>([]);
   const [vergelijk, setVergelijk] = useState(false);
@@ -345,6 +383,8 @@ export default function RolResultaatWeergave({ resultaat, runId, projectId, feed
         </div>
       </header>
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
+      <DekkingBlok resultaat={resultaat} drempel={dekkingDrempel} />
+      {herwogen ? <Melding soort="info">Rangschikking met de aangepaste weging (nog niet vastgelegd). De AI-toelichting hoort bij de oorspronkelijke weging.</Melding> : null}
       {verschil && (verschil.nieuw.length || verschil.weg.length || verschil.gewijzigd.length) ? (
         <Melding soort="info">
           <b>Verschil met vorige run:</b>{" "}
@@ -359,7 +399,7 @@ export default function RolResultaatWeergave({ resultaat, runId, projectId, feed
 
       {resultaat.kandidaten.length ? (
         resultaat.kandidaten.map((k, i) => (
-          <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} run={onderbouwing} />
+          <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} run={herwogen ? undefined : onderbouwing} />
         ))
       ) : (
         <p className="muted">Geen kandidaten die door de harde filters komen.</p>
@@ -369,7 +409,7 @@ export default function RolResultaatWeergave({ resultaat, runId, projectId, feed
         <>
           <h3 className="subkop">Prospects (niet in advies, nog te kwalificeren)</h3>
           {resultaat.prospects.map((k, i) => (
-            <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} run={onderbouwing} />
+            <KandidaatKaart key={k.partnerId} k={k} rang={i + 1} feedback={fbVan(k.partnerId)} magFeedback={magFeedback} geselecteerd={selectie.includes(k.partnerId)} onSelecteer={(aan) => selecteer(k.partnerId, aan)} selectieVol={selectie.length >= 4} onFeedback={(b, r) => geefFeedback(k, i + 1, b, r)} run={herwogen ? undefined : onderbouwing} />
           ))}
         </>
       ) : null}

@@ -8,6 +8,8 @@ import type { AISamenvatting, DiscoveryCandidate, Partner, Rol, Zoekprofiel } fr
 
 const ROL_TERMEN: Record<Rol, string> = {
   aannemer: "aannemer woningbouw",
+  houtbouwer: "houtbouw CLT HSB woningbouw",
+  constructeur: "constructeur constructief adviesbureau woningbouw",
   architect: "architectenbureau woningbouw",
   installateur: "installateur woningbouw",
   adviseur: "adviesbureau woningbouw",

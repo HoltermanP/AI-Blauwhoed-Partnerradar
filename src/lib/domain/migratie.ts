@@ -4,9 +4,13 @@ import { vulOntbrekendeHerkomst } from "./herkomst";
 import { rolVanNaam } from "./verificatie";
 import { standaardAanvullingInstellingen } from "./instellingen";
 import { kostenEur } from "./kosten";
-import type { Database, Geo } from "./types";
+import { FACTOREN } from "./factors";
+import { productFactoren } from "./partnerimport";
+import { STANDAARD_BRANCHEBRONNEN, STANDAARD_UPCOMING_BRONNEN, hostVan } from "./bronbeleid";
+import { NIEUWE_TYPES } from "./gewichten";
+import type { Database, Geo, Rol } from "./types";
 
-export const HUIDIGE_VERSIE = 13;
+export const HUIDIGE_VERSIE = 14;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -217,7 +221,73 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
     db.instellingen.automatischInvullen = db.instellingen.automatischInvullen ?? true;
   }
 
+  if (van < 14) migreerV14(db, nu);
+
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });
   return uitkomst;
+}
+
+/**
+ * Versie 13 → 14 (user stories demo oktober 2026):
+ * - partnertypes houtbouwer en constructeur (US-01): partners uit het houtbouwersoverzicht krijgen type houtbouwer erbij,
+ *   adviseurs die zich als constructeur profileren type constructeur; bestaande types blijven staan;
+ * - nieuwe factoren (Paris Proof, productietijd, levertijd, kosten per m², productinformatie) en de nieuwe types in de
+ *   rollen van bestaande factoren; productkenmerken worden gevuld uit de al bewaarde brondata van de import;
+ * - bronbeleid (US-12/US-11): branchebronnen met rang en bronnen voor prijzen en nominaties (standaard uit);
+ * - evaluaties krijgen expliciet status 'geaccepteerd' (US-21: alleen geaccepteerde tellen mee).
+ */
+export function migreerV14(db: Database, nu = new Date()) {
+  const dag = nu.toISOString().slice(0, 10);
+  // Factoren: ontbrekende toevoegen, nieuwe types aan bestaande factoren toevoegen (beheerwijzigingen blijven staan).
+  FACTOREN.forEach((cat) => {
+    const f = db.factoren.find((x) => x.id === cat.id);
+    if (!f) {
+      db.factoren.push({ ...cat });
+      return;
+    }
+    if (f.rollen.length) {
+      const extra = cat.rollen.filter((r) => (r === "houtbouwer" || r === "constructeur") && !f.rollen.includes(r));
+      if (extra.length) f.rollen = [...f.rollen, ...extra];
+    }
+  });
+  // Partnertypes.
+  db.partners.forEach((p) => {
+    const uitOverzicht = p.bronnen.some((b) => /houtbouw/i.test(b.url)) || (p.brongegevens ?? []).some((b) => /houtbouw/i.test(b.bron));
+    const tekst = `${p.naam} ${p.omschrijving} ${p.tags.join(" ")}`.toLowerCase();
+    if (uitOverzicht && !p.rollen.includes("houtbouwer")) p.rollen.push("houtbouwer");
+    if (!uitOverzicht && !p.rollen.includes("houtbouwer") && /\b(clt|houtbouw(er)?|houtskeletbouw|hsb)\b/.test(tekst) && p.rollen.some((r) => r === "aannemer" || r === "leverancier")) p.rollen.push("houtbouwer");
+    if (!p.rollen.includes("constructeur") && /constructeur|constructief|constructieadvies|constructief advies/.test(tekst)) p.rollen.push("constructeur");
+    // Productkenmerken uit de bewaarde importrijen (bron opgave, zoals bij de oorspronkelijke import).
+    (p.brongegevens ?? []).forEach((b) => {
+      productFactoren(b.velden).forEach((x) => {
+        if (p.factoren.some((f) => f.factorId === x.factorId)) return;
+        p.factoren.push({ factorId: x.factorId, waarde: x.waarde, bron: "opgave", betrouwbaarheid: 0.6, peildatum: b.op || dag, status: "voorgesteld", toelichting: `${x.toelichting} (${b.bron})` });
+      });
+    });
+  });
+  // Bronbeleid: startlijst branchebronnen en bronnen voor prijzen/nominaties, alleen als het domein nog niet in de lijst staat.
+  db.instellingen.verrijkingsbronnen = db.instellingen.verrijkingsbronnen ?? [];
+  const hosts = new Set(db.instellingen.verrijkingsbronnen.map((b) => `${hostVan(b.url)}${new URL(b.url).pathname.replace(/\/$/, "")}`));
+  [...STANDAARD_BRANCHEBRONNEN, ...STANDAARD_UPCOMING_BRONNEN].forEach((b) => {
+    const k = `${hostVan(b.url)}${new URL(b.url).pathname.replace(/\/$/, "")}`;
+    if (!hosts.has(k)) db.instellingen.verrijkingsbronnen.push({ ...b, beoordeeldDoor: "systeem (startlijst)", beoordeeldOp: nu.toISOString() });
+  });
+  db.instellingen.verrijkingsbronnen.forEach((b) => {
+    if (!b.rang) b.rang = b.categorie === "eigen_uitgave" ? 1 : b.categorie === "branche" ? 2 : 3;
+    if (!b.status) b.status = "goedgekeurd";
+  });
+  // Evaluaties: bestaande gelden als geaccepteerd.
+  db.evaluaties.forEach((e) => {
+    if (!e.status) e.status = "geaccepteerd";
+    if (!e.moment) e.moment = "oplevering";
+  });
+  db.samenwerkingen = db.samenwerkingen ?? [];
+  // Standaardprofielen krijgen een startweging voor de nieuwe types (eigen profielen blijven ongemoeid).
+  db.gewichtsprofielen.forEach((gp) => {
+    if (!gp.standaard) return;
+    (Object.keys(NIEUWE_TYPES) as Rol[]).forEach((rol) => {
+      if (!gp.perRol[rol]) gp.perRol[rol] = structuredClone(NIEUWE_TYPES[rol]);
+    });
+  });
 }
