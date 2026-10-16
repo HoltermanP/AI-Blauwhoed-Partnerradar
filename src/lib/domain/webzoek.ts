@@ -3,6 +3,7 @@
 // Alleen openbare bedrijfsinformatie. Zoekmachines wijzigen hun HTML; bij falen levert deze connector gewoon niets.
 import type { BronConnector } from "./discovery";
 import { striptHtml } from "./enrichment";
+import { beoordeelRelevantie, isUitgeslotenDomein, type Relevantie } from "./relevantie";
 import type { Rol } from "./types";
 
 const TERMEN: Record<Rol, string[]> = {
@@ -23,12 +24,14 @@ const UITSLUITEN = /(bouwgarant|keurmerk|nieuwbouw-in|funda|jaap\.nl|huislijn|ve
 const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
 const ZOEK_HEADERS = { "user-agent": BROWSER_UA, accept: "text/html", "accept-language": "nl-NL,nl;q=0.9,en;q=0.5" };
 
+const STOPWOORDEN = new Set(["een", "het", "de", "en", "van", "voor", "met", "in", "op", "aan", "bij", "te", "die", "dat", "woningen", "woning", "nieuwbouw", "project", "projecten", "huizen", "koop", "huur"]);
+
 export type ZoekDiagnose = { zoekmachine: string; status: number | null; resultaten: number; geblokkeerd: boolean };
 
 function verzamel(ruw: string[], max: number) {
   const urls = new Set<string>();
   for (const u of ruw) {
-    if (!/^https?:\/\//.test(u) || UITSLUITEN.test(u)) continue;
+    if (!/^https?:\/\//.test(u) || UITSLUITEN.test(u) || isUitgeslotenDomein(u)) continue;
     try {
       urls.add(new URL(u).origin);
     } catch {
@@ -92,15 +95,20 @@ export async function zoekUrls(query: string, max = 8): Promise<string[]> {
   return (await zoekUrlsMetDiagnose(query, max)).urls;
 }
 
-/** Lees een gevonden bedrijfswebsite als discovery-kandidaat (naam, KVK, plaats, profiel). */
+/**
+ * Lees een gevonden bedrijfswebsite als discovery-kandidaat (naam, KVK, plaats, profiel). De relevantietoets (is dit een
+ * bouwpartner in deze rol, of een portaal/makelaar/medium?) komt mee in ruweData.relevantie; filter met `filterRelevant`.
+ */
 export async function kandidaatVanWebsite(url: string, rol: Rol, bron: string, zoekterm: string, regio?: string): Promise<Awaited<ReturnType<BronConnector["zoek"]>>[number] | null> {
+  if (isUitgeslotenDomein(url)) return null;
   try {
     const r = await fetch(url, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BlauwhoedPartnerRadar/1.0 (discovery; alleen openbare bedrijfsinformatie)" } });
     if (!r.ok) return null;
     const html = await r.text();
     const tekst = striptHtml(html).slice(0, 20000);
     const b = leesBedrijfsgegevens(tekst, html, url);
-    return { naam: b.naam, kvk: b.kvk, vestigingsplaats: b.plaats ?? regio, website: url, rollen: [rol], bron, bronUrl: url, ruweData: { profiel: b.profiel, referenties: [], zoekterm, websiteTekst: tekst.slice(0, 8000) } } as Awaited<ReturnType<BronConnector["zoek"]>>[number];
+    const relevantie = beoordeelRelevantie(url, `${b.naam} ${tekst}`, [rol]);
+    return { naam: b.naam, kvk: b.kvk, vestigingsplaats: b.plaats ?? regio, website: url, rollen: [rol], bron, bronUrl: url, voorlopigeScore: relevantie.score, ruweData: { profiel: b.profiel, referenties: [], zoekterm, websiteTekst: tekst.slice(0, 8000), relevantie } } as Awaited<ReturnType<BronConnector["zoek"]>>[number];
   } catch {
     return null;
   }
@@ -130,6 +138,18 @@ export function externeBedrijfsLinks(html: string, basisUrl: string, max = 8): s
     }
   }
   return Array.from(uit);
+}
+
+/** Splits kandidaten in relevant en weggefilterd (met reden). Kandidaten zonder toets (KVK, demo) gelden als relevant. */
+export function filterRelevant<T extends { naam: string; ruweData: Record<string, unknown> }>(kandidaten: T[]) {
+  const relevant: T[] = [];
+  const weg: Array<{ naam: string; reden: string }> = [];
+  kandidaten.forEach((k) => {
+    const r = k.ruweData.relevantie as Relevantie | undefined;
+    if (!r || r.relevant) relevant.push(k);
+    else weg.push({ naam: k.naam, reden: r.reden });
+  });
+  return { relevant, weg };
 }
 
 /** Diagnose van de laatste webzoekronde (voor een begrijpelijke melding bij 0 resultaten). */
@@ -163,7 +183,8 @@ export const webzoekConnector: BronConnector = {
     const resultaten: Awaited<ReturnType<BronConnector["zoek"]>> = [];
     const gezien = new Set<string>();
     const diagnose: ZoekDiagnose[] = [];
-    const extra = vraag.trefwoorden.filter((w) => w.length > 4).slice(0, 3).join(" ");
+    // Vaktermen (ook korte, zoals CLT of HSB) en projecttype; stopwoorden en losse getallen niet.
+    const extra = vraag.trefwoorden.filter((w) => w.length > 2 && !/^\d+$/.test(w) && !STOPWOORDEN.has(w.toLowerCase())).slice(0, 4).join(" ");
     for (const rol of vraag.rollen) {
       for (const term of TERMEN[rol]) {
         const zoekterm = `${term} ${extra} ${vraag.regio ?? ""}`.replace(/\s+/g, " ").trim();

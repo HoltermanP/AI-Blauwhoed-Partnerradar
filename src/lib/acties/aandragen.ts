@@ -12,9 +12,10 @@ import { kvkConnector } from "../domain/kvk";
 import { semantischeGelijkenis } from "../domain/embedding";
 import { ROLLEN, type Rol } from "../domain/types";
 import { zoekMetVragen } from "../domain/webzoek";
+import { toetsKandidaten, type Weggefilterd } from "../discoveryToets";
 import { getDb, muteer, nieuwId } from "../store";
 
-export type AandraagUitkomst = { zoekvragen: string[]; bronnen: string[]; gevonden: number; ontdubbeld: Array<{ naam: string; reden: string }>; concepten: Array<{ id: string; naam: string }>; viaAI: boolean };
+export type AandraagUitkomst = { zoekvragen: string[]; bronnen: string[]; gevonden: number; ontdubbeld: Array<{ naam: string; reden: string }>; uitgefilterd: Weggefilterd[]; concepten: Array<{ id: string; naam: string }>; viaAI: boolean };
 
 const MAX_CONCEPTEN = 8;
 
@@ -74,8 +75,10 @@ export async function draagPartnersAan(zoekprofielId: string) {
         kandidaten.push(...(await zoekMetVragen(vragen, 4, 12)));
         // 3. Ontdubbelen tegen het bestaande bestand (KVK, naam, fuzzy naam, adres).
         const { nieuw, dubbel } = ontdubbel(kandidaten, db.partners);
-        // 4. Onderbouwing per kandidaat (AI binnen dezelfde bewerking, anders regels).
-        const gekozen = nieuw.slice(0, MAX_CONCEPTEN);
+        // 4. Alleen echte bouwpartners: portalen, makelaars, media en bedrijven buiten de gevraagde rol vallen af (regels + AI).
+        const { relevant, weg } = await toetsKandidaten(nieuw, profiel.rollen, `zoekprofiel ${profiel.naam}: ${profiel.trefwoorden}${profiel.regio ? `, regio ${profiel.regio}` : ""}`);
+        // 5. Onderbouwing per kandidaat (AI binnen dezelfde bewerking, anders regels).
+        const gekozen = relevant.slice(0, MAX_CONCEPTEN);
         const verrijkt = await Promise.all(
           gekozen.map(async (k) => {
             const tekst = String(k.ruweData.websiteTekst ?? k.ruweData.profiel ?? "");
@@ -85,7 +88,7 @@ export async function draagPartnersAan(zoekprofielId: string) {
             return { ...k, locatie, samenvatting: ai ?? regelOnderbouwing(k, profiel) };
           })
         );
-        return { vragen, verrijkt, dubbel, gevonden: kandidaten.length, viaAI: Boolean(aiVragen?.length) };
+        return { vragen, verrijkt, dubbel, weg, gevonden: kandidaten.length, viaAI: Boolean(aiVragen?.length) };
       },
       "aandragen"
     );
@@ -103,7 +106,7 @@ export async function draagPartnersAan(zoekprofielId: string) {
     );
     revalidatePath("/vrijgave");
     revalidatePath("/discovery");
-    const resultaat: AandraagUitkomst = { zoekvragen: uitkomst.vragen.map((v) => v.vraag), bronnen, gevonden: uitkomst.gevonden, ontdubbeld: uitkomst.dubbel, concepten, viaAI: uitkomst.viaAI };
+    const resultaat: AandraagUitkomst = { zoekvragen: uitkomst.vragen.map((v) => v.vraag), bronnen, gevonden: uitkomst.gevonden, ontdubbeld: uitkomst.dubbel, uitgefilterd: uitkomst.weg, concepten, viaAI: uitkomst.viaAI };
     return { ok: true as const, data: resultaat };
   } catch (e) {
     return { ok: false as const, fout: e instanceof Error ? e.message : String(e) };

@@ -17,6 +17,21 @@ node scripts/schermcontrole.mjs http://localhost:3000 /tmp/shots u-beheer / /par
 
 > Tip bij lokaal testen: `.env.local` kan naar de echte Neon-database wijzen. Wie lokaal wil experimenteren zonder die data te migreren of te wijzigen, start met `DATABASE_URL= ANTHROPIC_API_KEY= npm run dev` (in-memory, zonder AI-kosten).
 
+## Ontwikkelen en deployen
+
+Er is één database (Neon, productie). Werkwijze:
+
+```bash
+npm run dev            # lokaal ontwikkelen tegen de echte database (.env.local) — wijzigingen zijn direct echt
+npm run dev:los        # lokaal experimenteren zonder database en zonder AI (in-memory, niets wordt opgeslagen)
+npm run deploy         # typecheck + tests + build → back-up database → push → live → controle van de site
+npm run terugzetten    # vorige productieversie terug (database blijft staan)
+npm run terugzetten -- --database   # ook de database terug naar de back-up van vóór de laatste deploy
+npm run db -- lijst    # back-ups bekijken; npm run db -- herstel <id> zet er een terug; npm run db -- maak "reden"
+```
+
+`npm run deploy` weigert als er nog niet-gecommitte wijzigingen zijn, zodat altijd bekend is welke commit live staat; elke deploy komt in `.deploys.json` (lokaal) met commit, deployment-URL en back-up. De laatste 30 database-back-ups worden bewaard (tabel `partnerdb_backup`); terugzetten maakt eerst zelf een back-up, dus ook dat is terug te draaien. Let op: start je lokaal een nieuwe versie met een databasemigratie, dan wordt de database bij `npm run dev` direct omgezet — maak in dat geval eerst `npm run db -- maak "voor migratie"`.
+
 ## User stories demo oktober 2026 (US-01 t/m US-33)
 
 Status per story in [docs/userstories-demo-oktober-2026.md](docs/userstories-demo-oktober-2026.md). De belangrijkste wijzigingen:

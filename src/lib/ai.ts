@@ -427,9 +427,37 @@ export async function aiVerbandAnalyse(verbanden: Array<{ a: string; b: string; 
 export async function aiZoekvragen(profiel: { rollen: string[]; trefwoorden: string; regio?: string }, bronnen: string[]): Promise<string[] | null> {
   const r = await jsonAntwoord<{ zoekvragen: string[] }>(
     "aandragen",
-    "Je stelt voor woningontwikkelaar Blauwhoed gerichte zoekvragen op om bouwpartners (bedrijven) te vinden die nog niet in hun bestand staan. Geef 4 tot 8 korte Nederlandse zoekopdrachten voor een zoekmachine, gericht op bedrijfswebsites, vakmedia en openbare keurmerkregisters. Geen persoonsnamen, geen betaalde bronnen of bronnen achter een login.",
+    "Je stelt voor woningontwikkelaar Blauwhoed gerichte zoekvragen op om bouwpartners (bedrijven) te vinden die nog niet in hun bestand staan. Blauwhoed ontwikkelt nieuwbouw (grondgebonden woningen, appartementen), transformatie en gebiedsontwikkeling, met aandacht voor duurzaam en houtbouw. Geef 4 tot 8 korte Nederlandse zoekopdrachten voor een zoekmachine die bedrijfswebsites van partijen in de gevraagde rol opleveren: gebruik vaktermen van die rol (bijv. 'bouwbedrijf', 'hoofdaannemer', 'constructief adviesbureau', 'houtskeletbouw producent', 'installatiebedrijf'), referentieprojecten en keurmerkregisters. Vermijd zoekopdrachten die woningaanbod opleveren (geen 'te koop', 'te huur', 'nieuwbouwwoningen in <plaats>', 'appartement kopen'), en geen persoonsnamen, betaalde bronnen of bronnen achter een login.",
     `Rollen: ${profiel.rollen.join(", ")}\nTrefwoorden: ${profiel.trefwoorden}\nRegio: ${profiel.regio ?? "heel Nederland"}\nBeschikbare bronnen: ${bronnen.join(", ")}`,
     { type: "object", additionalProperties: false, required: ["zoekvragen"], properties: { zoekvragen: { type: "array", items: { type: "string" } } } }
   );
   return r?.zoekvragen.map((z) => z.trim()).filter((z) => z.length > 3).slice(0, 8) ?? null;
+}
+
+export type AIKandidaatToets = { index: number; relevant: boolean; reden: string };
+
+/**
+ * Discovery: toetst gevonden websites in één aanroep op het profiel van Blauwhoed (en het project). Alleen bedrijven die
+ * zelf ontwerpen, adviseren, bouwen, installeren of bouwdelen leveren voor woningbouw blijven over; portalen, makelaars,
+ * media, overheden, branchegidsen, concurrerende ontwikkelaars (tenzij ontwikkelpartner gevraagd) en webwinkels niet.
+ */
+export async function aiToetsKandidaten(kandidaten: Array<{ naam: string; url: string; tekst: string }>, context: { rollen: string[]; project?: string; profiel: string }): Promise<AIKandidaatToets[] | null> {
+  if (!kandidaten.length) return [];
+  const r = await jsonAntwoord<{ toetsing: AIKandidaatToets[] }>(
+    "aandragen",
+    `Je beoordeelt voor een inkoper of gevonden websites mogelijke bouwpartners zijn. ${context.profiel} Een kandidaat is alleen relevant als het een bedrijf is dat zelf werk levert in een van de gevraagde rollen voor woningbouwprojecten zoals die van de opdrachtgever. Niet relevant: woningportalen en makelaars (aanbod voor kopers/huurders), nieuws- en vakmedia, overheden, onderwijs, branche- en bedrijvengidsen, vergelijkings- en offertesites, vacaturesites, webwinkels voor particulieren, woningcorporaties en beleggers, en andere projectontwikkelaars (tenzij de rol ontwikkelpartner is gevraagd). Ook niet relevant: bedrijven die alleen voor particulieren verbouwen of alleen buiten de woningbouw werken. Oordeel uitsluitend op de meegegeven tekst; bij twijfel relevant = false. reden: één korte zin in het Nederlands.`,
+    `Gevraagde rollen: ${context.rollen.join(", ")}\n${context.project ? `Project: ${context.project}\n` : ""}\nKandidaten:\n${kandidaten.map((k, i) => `[${i}] ${k.naam} — ${k.url}\n${k.tekst.replace(/\s+/g, " ").slice(0, 700)}`).join("\n\n")}`,
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["toetsing"],
+      properties: {
+        toetsing: {
+          type: "array",
+          items: { type: "object", additionalProperties: false, required: ["index", "relevant", "reden"], properties: { index: { type: "integer" }, relevant: { type: "boolean" }, reden: { type: "string" } } }
+        }
+      }
+    }
+  );
+  return r?.toetsing ?? null;
 }

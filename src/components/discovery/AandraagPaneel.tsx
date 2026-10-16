@@ -23,7 +23,7 @@ export default function AandraagPaneel({ profielen, magAandragen, aiActief }: { 
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
       {uitkomst ? (
         <Melding soort="succes">
-          {uitkomst.concepten.length} concept(en) aangedragen uit {uitkomst.gevonden} gevonden kandidaat/kandidaten; {uitkomst.ontdubbeld.length} stonden al in het bestand.{" "}
+          {uitkomst.concepten.length} concept(en) aangedragen uit {uitkomst.gevonden} gevonden kandidaat/kandidaten; {uitkomst.ontdubbeld.length} stonden al in het bestand{uitkomst.uitgefilterd?.length ? `, ${uitkomst.uitgefilterd.length} vielen af als geen bouwpartner` : ""}.{" "}
           <Link href="/vrijgave?soort=ai-aandraag">Naar de vrijgavewachtrij</Link>
           <details className="uitklap">
             <summary>Zoekvragen en bronnen</summary>
@@ -35,6 +35,11 @@ export default function AandraagPaneel({ profielen, magAandragen, aiActief }: { 
               {uitkomst.ontdubbeld.map((d) => (
                 <li key={d.naam}>
                   Overgeslagen: {d.naam} — {d.reden}
+                </li>
+              ))}
+              {(uitkomst.uitgefilterd ?? []).map((d) => (
+                <li key={`weg-${d.naam}`}>
+                  Geen bouwpartner: {d.naam} — {d.reden}
                 </li>
               ))}
             </ul>

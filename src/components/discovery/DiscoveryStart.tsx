@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { slaZoekprofielOp, startDiscovery, verwijderZoekprofiel } from "@/lib/actions";
-import { ROLLEN, type Rol } from "@/lib/domain/types";
+import { ROLLEN, type Projecttype, type Rol } from "@/lib/domain/types";
 import { hoofdletter, ROL_LABEL } from "@/lib/format";
 import { PLAATSEN } from "@/lib/domain/geo";
 import { Melding } from "@/components/ui";
+import { zoektermenVoorProject } from "@/lib/domain/relevantie";
 
-type ProjectOptie = { id: string; naam: string; rollen: Rol[]; omschrijving: string };
+type ProjectOptie = { id: string; naam: string; rollen: Rol[]; omschrijving: string; type: Projecttype };
 type ProfielOptie = { id: string; naam: string; rollen: Rol[]; trefwoorden: string; regio?: string };
 
 export default function DiscoveryStart({ projecten, profielen, magStarten }: { projecten: ProjectOptie[]; profielen: ProfielOptie[]; magStarten: boolean }) {
@@ -25,7 +26,8 @@ export default function DiscoveryStart({ projecten, profielen, magStarten }: { p
     const p = projecten.find((x) => x.id === id);
     if (p) {
       setRollen(p.rollen);
-      setTrefwoorden(p.omschrijving);
+      // Vaktermen en projecttype, niet de hele omschrijving: die levert vooral woningportalen op.
+      setTrefwoorden(zoektermenVoorProject(p));
     }
   };
 
@@ -69,6 +71,7 @@ export default function DiscoveryStart({ projecten, profielen, magStarten }: { p
       }
       setSucces(
         `${u.gevonden} kandidaat(en) gevonden via ${u.bronnen.join(" + ")}${u.regio ? ` in ${u.regio}` : ""}: ${u.nieuw} nieuw in de wachtrij, ${u.alInWachtrij} stonden er al (gekoppeld aan dit project), ${u.mogelijkeDubbelen} mogelijk dubbel met een bestaande partner.` +
+          (u.uitgefilterd?.length ? ` ${u.uitgefilterd.length} gevonden website(s) vielen af als geen bouwpartner (${u.uitgefilterd.slice(0, 3).map((w) => w.naam).join(", ")}${u.uitgefilterd.length > 3 ? ", …" : ""}).` : "") +
           (u.gevonden === 0 ? " Tip: kies meer rollen of laat de regio leeg." : "") +
           (u.bronnen.some((b) => b.includes("Claude")) ? " De zoekmachines blokkeerden het verzoek; er is via Claude gezocht." : "")
       );

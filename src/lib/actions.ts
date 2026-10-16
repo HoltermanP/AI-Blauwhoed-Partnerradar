@@ -29,6 +29,8 @@ import { heeftBronEnOnderbouwing, isGoedgekeurd, pasBronrangToe } from "./domain
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
 import { aiBeschikbaar, aiChatOpgemaakt, aiZoekBedrijfswebsites, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
+import { toetsKandidaten, type Weggefilterd } from "./discoveryToets";
+import { zoektermenVoorProject } from "./domain/relevantie";
 import { zichtbaar } from "./domain/zichtbaarheid";
 import { SYSTEEM_SLEUTEL, type SysteemSleutel } from "./systeem";
 import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
@@ -938,7 +940,7 @@ export async function voegConceptSamen(conceptId: string, doelId: string, toelic
 }
 
 // ---------- Discovery (Epic 5) ----------
-export type DiscoveryUitkomst = { gevonden: number; nieuw: number; alInWachtrij: number; mogelijkeDubbelen: number; bronnen: string[]; regio?: string; melding?: string };
+export type DiscoveryUitkomst = { gevonden: number; nieuw: number; alInWachtrij: number; mogelijkeDubbelen: number; bronnen: string[]; regio?: string; melding?: string; uitgefilterd: Weggefilterd[] };
 
 export async function startDiscovery(projectId: string | null, rollen: Rol[], trefwoorden: string, regio?: string, modus: "regulier" | "upcoming" = "regulier") {
   return veilig(async (): Promise<DiscoveryUitkomst> => {
@@ -947,7 +949,8 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
     const project = projectId ? db.projecten.find((p) => p.id === projectId) : undefined;
     const upcoming = modus === "upcoming";
     // US-11: in de modus 'upcoming' zoekt discovery naar opkomende partijen: opvallende projecten, prijzen en nominaties.
-    const woorden = [trefwoorden, upcoming ? "genomineerd" : "", project?.omschrijving ?? "", project?.type ?? ""].join(" ").split(/\s+/).filter(Boolean);
+    // Zoektermen: eigen trefwoorden, anders projecttype en vaktermen uit het project (niet de hele omschrijving: dat levert woningportalen op).
+    const woorden = [trefwoorden.trim() || (project ? zoektermenVoorProject(project) : ""), upcoming ? "genomineerd" : ""].join(" ").split(/\s+/).filter(Boolean);
     const connectors: BronConnector[] = [];
     if (db.instellingen.externeBronnenToegestaan) connectors.push(webzoekConnector);
     if (process.env.KVK_API_KEY && db.instellingen.externeBronnenToegestaan) connectors.push(kvkConnector(process.env.KVK_API_KEY));
@@ -977,7 +980,7 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
     const bronnamen = [...connectors.map((c) => c.naam), ...(upcoming ? ["prijzen- en nominatiebronnen"] : [])];
     let melding: string | undefined;
     // Locatie en AI-samenvatting vóór de mutatie (async), zodat de mutatie zelf synchroon blijft. Eén discovery-run = één AI-bewerking.
-    const verrijkt = await alsAIBewerking("discovery", g.naam, `discovery ${rollen.join(",")} ${trefwoorden}`.trim(), async () => {
+    const getoetst = await alsAIBewerking("discovery", g.naam, `discovery ${rollen.join(",")} ${trefwoorden}`.trim(), async () => {
       // Terugval: blokkeren de zoekmachines het verkeer van de server, dan zoekt Claude (web search) de bedrijfswebsites op.
       if (!gevonden.length && db.instellingen.externeBronnenToegestaan && aiBeschikbaar()) {
         const extra = woorden.filter((w) => w.length > 4).slice(0, 3).join(" ");
@@ -988,15 +991,21 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
         gelezen.forEach((k) => k && gevonden.push(k));
         if (urls.length) bronnamen.push("Webzoek via Claude (terugval)");
       }
-      return Promise.all(
-        gevonden.map(async (k) => {
+      // Alleen echte bouwpartners: regeltoets (portaal, makelaar, medium) en daarna de AI-toets op Blauwhoed en het project.
+      const projectTekst = project ? `${project.naam} — ${project.type}, ${project.woningen} woningen, ${project.locatie.plaats}. ${project.omschrijving}` : undefined;
+      const { relevant, weg } = await toetsKandidaten(gevonden, rollen, projectTekst);
+      const kandidaten = await Promise.all(
+        relevant.map(async (k) => {
           const locatie = k.locatie ?? (k.vestigingsplaats ? (await geocodeer(k.vestigingsplaats))?.locatie : undefined);
           const tekst = String(k.ruweData.websiteTekst ?? k.ruweData.profiel ?? "");
           const samenvatting = aiBeschikbaar() && tekst ? await aiSamenvatting({ ...k, id: "", status: "nieuw", opgehaaldOp: "" }, project, tekst) : null;
           return { ...k, locatie, samenvatting: samenvatting ?? undefined };
         })
       );
+      return { kandidaten, weg };
     }, "aandragen");
+    const { kandidaten: verrijkt, weg: uitgefilterd } = getoetst;
+    if (gevonden.length && !verrijkt.length) melding = `Alle ${gevonden.length} gevonden websites vielen af: geen bouwpartner voor Blauwhoed (bijv. woningportaal, makelaar of geen bedrijf in de gevraagde rol). Probeer andere vaktermen of een andere rol.`;
     if (!gevonden.length) {
       const geblokkeerd = diagnose.some((d) => d.geblokkeerd);
       melding = geblokkeerd
@@ -1005,7 +1014,7 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
     }
     const nu = new Date().toISOString();
     const uitkomst = await muteer(g, { entiteit: "discovery", entiteitId: projectId ?? "algemeen", actie: "zoekopdracht gestart", details: `${rollen.join(", ")}; ${trefwoorden}${regio ? `; regio ${regio}` : ""}` }, (db) => {
-      const u: DiscoveryUitkomst = { gevonden: gevonden.length, nieuw: 0, alInWachtrij: 0, mogelijkeDubbelen: 0, bronnen: bronnamen, regio: regio || undefined, melding };
+      const u: DiscoveryUitkomst = { gevonden: verrijkt.length, nieuw: 0, alInWachtrij: 0, mogelijkeDubbelen: 0, bronnen: bronnamen, regio: regio || undefined, melding, uitgefilterd };
       verrijkt.forEach((k) => {
         const bestaand = db.kandidaten.find((x) => (x.kvk && x.kvk === k.kvk) || normaliseerNaam(x.naam) === normaliseerNaam(k.naam));
         if (bestaand) {

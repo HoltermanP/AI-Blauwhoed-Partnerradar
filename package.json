@@ -11,7 +11,11 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "dev:los": "DATABASE_URL= ANTHROPIC_API_KEY= next dev",
+    "deploy": "node --env-file=.env.local scripts/deploy.mjs",
+    "terugzetten": "node --env-file=.env.local scripts/terugzetten.mjs",
+    "db": "node --env-file=.env.local scripts/db-backup.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",

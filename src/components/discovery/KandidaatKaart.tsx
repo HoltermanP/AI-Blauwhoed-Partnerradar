@@ -72,6 +72,11 @@ export default function KandidaatKaart({ kandidaat, projectNaam, dubbelNaam, rec
           " · niet aan een project gekoppeld"
         )}
       </p>
+      {typeof (k.ruweData.relevantie as { reden?: unknown } | undefined)?.reden === "string" ? (
+        <p className="muted klein-tekst">
+          <Badge kleur="blauw" titel="Toets of dit een bouwpartner voor Blauwhoed is (regels, en met AI een inhoudelijke toets)">relevantie</Badge> {(k.ruweData.relevantie as { reden: string }).reden}
+        </p>
+      ) : null}
 
       {k.mogelijkeDubbelVan && dubbelId ? (
         <Melding soort="waarschuwing">

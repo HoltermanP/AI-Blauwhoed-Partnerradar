@@ -32,7 +32,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
     promoveren: heeftRecht(gebruiker.rol, "prospect_promoveren")
   };
   const magStarten = heeftRecht(gebruiker.rol, "bewerken");
-  const projecten = db.projecten.map((p) => ({ id: p.id, naam: p.naam, rollen: p.eisen.map((e) => e.rol), omschrijving: p.omschrijving }));
+  const projecten = db.projecten.map((p) => ({ id: p.id, naam: p.naam, rollen: p.eisen.map((e) => e.rol), omschrijving: p.omschrijving, type: p.type }));
   const kandidaten = db.kandidaten.filter((k) => k.status === status).sort((a, b) => b.opgehaaldOp.localeCompare(a.opgehaaldOp));
   const projectNaam = (id?: string) => db.projecten.find((p) => p.id === id)?.naam;
   const partnerNaam = (id?: string) => db.partners.find((p) => p.id === id)?.naam;

@@ -70,6 +70,7 @@ import { teamCombinaties } from "../src/lib/domain/verbanden";
 import { bewezenTeams } from "../src/lib/domain/team";
 import { importeerProjecten } from "../src/lib/domain/projectimport";
 import { migreerV14, migreerV15 } from "../src/lib/domain/migratie";
+import { beoordeelRelevantie, isUitgeslotenDomein, zoektermenVoorProject } from "../src/lib/domain/relevantie";
 import { externeBedrijfsLinks } from "../src/lib/domain/webzoek";
 import { CATEGORIEEN, categorieVan } from "../src/lib/domain/kosten";
 
@@ -824,6 +825,19 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
     ] as typeof pp.factoren;
     const n = migreerV15(db15);
     check("Migratie v15: niveau van internet → ingeschat; geverifieerd en letterlijk genoemd niveau blijven feitelijk", pp.factoren[0].vaststelling === "ingeschat" && Boolean(pp.factoren[0].onderbouwing) && !pp.factoren[1].vaststelling && (pp.factoren[2] ? !pp.factoren[2].vaststelling : true) && n >= 1, { n, labels: pp.factoren.map((f) => f.vaststelling) });
+  }
+
+  // Discovery: alleen echte bouwpartners
+  {
+    check("Discovery: woningportalen, media en overheid uitgesloten", ["https://www.funda.nl/koop/utrecht", "https://www.pararius.nl", "https://www.nieuwbouw-nederland.nl", "https://www.cobouw.nl/x", "https://www.gemeente.nl", "https://www.blauwhoed.nl"].every(isUitgeslotenDomein) && !isUitgeslotenDomein("https://www.bouwbedrijfjansen.nl"));
+    const portaal = beoordeelRelevantie("https://www.woonzoeker-x.nl", "Zoek je nieuwe woning? Bekijk alle woningen. Vraagprijs € 425.000 k.k. Plan een bezichtiging met de makelaar. Bereken je hypotheek en maandlasten. Bewaar je zoekopdracht.", ["aannemer"]);
+    const aannemer = beoordeelRelevantie("https://www.bouwbedrijfjansen.nl", "Bouwbedrijf Jansen is aannemer voor woningbouw en utiliteitsbouw. Onze projecten: 48 grondgebonden woningen opgeleverd in bouwteam met de ontwikkelaar. Nieuwbouw en renovatie.", ["aannemer"]);
+    const gemeente = beoordeelRelevantie("https://www.utrecht.nl", "Gemeente Utrecht. Burgerzaken: paspoort en rijbewijs aanvragen. Afvalkalender. Gemeenteraad en wethouder. Woningbouw in Utrecht: onze projecten.", ["aannemer"]);
+    check("Discovery: gemeentesite (plaatsnaam als domein) valt af op de tekst", !gemeente.relevant, gemeente);
+    const kapper = beoordeelRelevantie("https://www.kapsalon-x.nl", "Welkom bij onze kapsalon. Maak een afspraak voor knippen en kleuren.", ["aannemer"]);
+    check("Discovery: portaaltekst valt af, aannemer blijft, niet-bouwbedrijf valt af", !portaal.relevant && portaal.soort === "woningportaal of makelaar" && aannemer.relevant && aannemer.score > 50 && !kapper.relevant, { portaal, aannemer, kapper });
+    const termen = zoektermenVoorProject({ type: "appartementen", omschrijving: "Nieuwbouw van 120 appartementen in Utrecht, in CLT en houtskeletbouw, natuurinclusief." });
+    check("Discovery: zoektermen uit projecttype en vaktermen, niet de omschrijving", termen.includes("appartementenbouw") && termen.includes("clt") && termen.includes("natuurinclusief") && !/utrecht|120|nieuwbouw van/i.test(termen), termen);
   }
 
   // US-08: werklijst beheerdersvalidatie
