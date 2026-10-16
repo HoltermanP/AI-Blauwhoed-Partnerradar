@@ -5,6 +5,7 @@ import aanvulling from "@/data/aanvulling-seed.json";
 import { geocode } from "./geo";
 import { normaliseerNaam } from "./discovery";
 import { vulOntbrekendeHerkomst } from "./herkomst";
+import { niveauIsInschatting } from "./verificatie";
 import type { Bouwstijl, Database, Engagement, Geo, Partner, PartnerFactor, Prijssegment, Projectfase, Projecttype, Rol } from "./types";
 
 type AanvullingPartner = {
@@ -128,6 +129,7 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
       if (!m) return;
       const idx = factoren.findIndex((f) => f.factorId === m.factorId && (f.optieId ?? "") === (m.optieId ?? ""));
       const record: PartnerFactor = { factorId: m.factorId, optieId: m.optieId, waarde: m.waarde, bron: "web", betrouwbaarheid: 0.5, status: "voorgesteld", peildatum: AANVULLING.peildatum, bewijs: { soort: "url", ref: a.bronUrl, label: a.bronUrl }, toelichting: `geclaimd: kenmerk '${k}' op openbare bron` };
+      if (niveauIsInschatting(db.factoren.find((f) => f.id === m.factorId), k)) Object.assign(record, { vaststelling: "ingeschat", onderbouwing: `Niveau ${String(m.waarde)} ingeschat omdat de openbare bron het kenmerk '${k}' noemt; het niveau zelf staat er niet.` });
       if (idx < 0) factoren.push(record);
       else if (typeof m.waarde === "number" && m.waarde > Number(factoren[idx].waarde)) factoren[idx] = record;
     });

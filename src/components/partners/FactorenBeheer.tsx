@@ -8,7 +8,7 @@ import { herstelAfgewezen } from "@/lib/acties/waarden";
 import WaardeAfwijzen from "./WaardeAfwijzen";
 import { BRON_BETROUWBAARHEID, BRON_LABEL, BRONNEN as ALLE_BRONNEN, type Bron, type Factor, type FactorWaarde, type PartnerFactor, type Rol } from "@/lib/domain/types";
 import { datum, waardeTekst } from "@/lib/format";
-import { VERIFICATIE_KLEUR, VERIFICATIE_LABEL, VERIFICATIE_WEGING, verificatieVan, WEGING_UITLEG } from "@/lib/domain/verificatie";
+import { VASTSTELLING_UITLEG, VERIFICATIE_KLEUR, VERIFICATIE_LABEL, VERIFICATIE_WEGING, verificatieVan, WEGING_UITLEG } from "@/lib/domain/verificatie";
 import { isIndicatief } from "@/lib/domain/herkomst";
 import { Badge, BetrouwbaarheidBadge, BronLabel, Melding } from "@/components/ui";
 import { FactorWaardeVeld, standaardWaarde } from "./FactorWaardeVeld";
@@ -39,7 +39,7 @@ function WaardeStatus({ pf, factor }: { pf: PartnerFactor; factor?: Factor }) {
         ? `Ouder dan de vervaltermijn van dit veld, of door een mens vervallen verklaard. ${weging}`
         : v === "berekend"
           ? `Berekend uit projecthistorie en evaluaties; geen verificatie nodig. ${weging}`
-          : `${pf.automatisch ? "Automatisch ingevuld door de verrijking" : "Nog niet"} door een gebruiker of beheerder bevestigd. ${weging}`;
+          : `${v === "ingeschat" ? VASTSTELLING_UITLEG.ingeschat : VASTSTELLING_UITLEG.feitelijk} ${pf.automatisch ? "Automatisch ingevuld door de verrijking, nog" : "Nog"} niet door een gebruiker of beheerder bevestigd. ${weging}`;
   return (
     <Badge kleur={VERIFICATIE_KLEUR[v]} titel={titel}>
       {VERIFICATIE_LABEL[v]}
@@ -191,7 +191,7 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                   const eigen = handmatigMap.get(k);
                   const open = openRij === k;
                   const verificatie = verificatieVan(pf, f);
-                  const magVerifieren = Boolean(eigen) && (verificatie === "niet" || verificatie === "verouderd" || (beheerder && verificatie === "gebruiker"));
+                  const magVerifieren = Boolean(eigen) && (verificatie === "niet" || verificatie === "ingeschat" || verificatie === "verouderd" || (beheerder && verificatie === "gebruiker"));
                   // US-04: elke vastgelegde waarde kan worden afgewezen (een berekende waarde uit de historie niet).
                   const magAfwijzen = Boolean(eigen) && !pf.afgeleid;
                   return (
@@ -229,7 +229,15 @@ export default function FactorenBeheer({ partnerId, rollen, factoren, effectief,
                       <td className="num"><BetrouwbaarheidBadge waarde={pf.betrouwbaarheid} /> <small className="muted">{Math.round(pf.betrouwbaarheid * 100)}%</small></td>
                       <td>{datum(pf.peildatum)}</td>
                       <td>{bewijsLink(pf)}</td>
-                      <td className="klein-tekst">{pf.toelichting ?? ""}</td>
+                      <td className="klein-tekst">
+                        {pf.onderbouwing ? (
+                          <>
+                            <b>{pf.vaststelling === "ingeschat" ? "Inschatting" : "Onderbouwing"}:</b> {pf.onderbouwing}
+                            <br />
+                          </>
+                        ) : null}
+                        {pf.toelichting ?? ""}
+                      </td>
                       {magBewerken ? (
                         <td style={{ whiteSpace: "nowrap" }}>
                           {magVerifieren ? (

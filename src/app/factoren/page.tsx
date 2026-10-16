@@ -10,7 +10,7 @@ import { BRON_BETROUWBAARHEID, ROLLEN } from "@/lib/domain/types";
 import { bronRang, RANG_LABEL } from "@/lib/domain/herkomst";
 import { ROL_LABEL, waardeTekst } from "@/lib/format";
 import { CATEGORIE_UITLEG, FACTOR_UITLEG, NIVEAU_UITLEG } from "@/lib/domain/factoruitleg";
-import { VERIFICATIE_KLEUR, VERIFICATIE_LABEL, VERIFICATIE_WEGING } from "@/lib/domain/verificatie";
+import { VASTSTELLING_UITLEG, VERIFICATIE_KLEUR, VERIFICATIE_LABEL, VERIFICATIE_WEGING } from "@/lib/domain/verificatie";
 import type { Verificatie } from "@/lib/domain/types";
 import { getDb } from "@/lib/store";
 import { Badge, BronLabel, Definities, Kaart, Knop, PaginaKop } from "@/components/ui";
@@ -152,7 +152,8 @@ export default async function FactorenPagina() {
         </Kaart>
         <Kaart titel="Hoe zeker is een waarde?">
           <p className="klein-tekst">Bij elke waarde staat waar die vandaan komt en of een collega haar heeft gecontroleerd. Een gecontroleerde waarde telt zwaarder mee in de matching.</p>
-          <Definities items={(["beheerder", "gebruiker", "berekend", "niet", "verouderd"] as Verificatie[]).map((v) => [VERIFICATIE_LABEL[v].charAt(0).toUpperCase() + VERIFICATIE_LABEL[v].slice(1), <Badge key={v} kleur={VERIFICATIE_KLEUR[v]}>telt voor {Math.round(VERIFICATIE_WEGING[v] * 100)}% mee</Badge>])} />
+          <Definities items={(["beheerder", "gebruiker", "berekend", "niet", "ingeschat", "verouderd"] as Verificatie[]).map((v) => [VERIFICATIE_LABEL[v].charAt(0).toUpperCase() + VERIFICATIE_LABEL[v].slice(1), <Badge key={v} kleur={VERIFICATIE_KLEUR[v]}>telt voor {Math.round(VERIFICATIE_WEGING[v] * 100)}% mee</Badge>])} />
+          <p className="muted klein-tekst">{VASTSTELLING_UITLEG.feitelijk} {VASTSTELLING_UITLEG.ingeschat}</p>
         </Kaart>
       </div>
 

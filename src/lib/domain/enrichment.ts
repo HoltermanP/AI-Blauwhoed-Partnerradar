@@ -3,7 +3,9 @@
 import { BRON_BETROUWBAARHEID } from "./types";
 import type { Bron, EnrichmentVoorstel, FactorWaarde, Partner } from "./types";
 
-type Regel = { factorId: string; optieId?: string; patroon: RegExp; waarde: (m: RegExpMatchArray) => FactorWaarde; aantoonbaar: (m: RegExpMatchArray, context: string) => boolean; veld: string };
+type Regel = { factorId: string; optieId?: string; patroon: RegExp; waarde: (m: RegExpMatchArray) => FactorWaarde; aantoonbaar: (m: RegExpMatchArray, context: string) => boolean; veld: string;
+  /** De regel leest de waarde niet uit de tekst maar kent een niveau toe omdat het onderwerp genoemd wordt: een inschatting. */
+  ingeschat?: boolean };
 
 const AANTOONBAAR_WOORDEN = /(certificaat|gecertificeerd|iso|nmd|berekening|gemeten|meting|rapport|opgeleverd|gerealiseerd|niveau\s?[1-5]|\d+[.,]\d+)/i;
 
@@ -12,16 +14,16 @@ const REGELS: Regel[] = [
   { factorId: "beng", veld: "BENG-2", patroon: /beng[^0-9]{0,40}(\d{1,3})\s?kwh/i, waarde: (m) => Number(m[1]), aantoonbaar: (_m, ctx) => /(gemeten|opgeleverd|rapport)/i.test(ctx) },
   { factorId: "biobased", veld: "Aandeel biobased", patroon: /(\d{1,3})\s?%\s?(biobased|bio-based)/i, waarde: (m) => Number(m[1]), aantoonbaar: (_m, ctx) => /(berekening|materialenpaspoort|rapport)/i.test(ctx) },
   { factorId: "co2_ladder", veld: "CO2-prestatieladder", patroon: /co2[- ]?prestatieladder[^0-9]{0,20}(niveau|trede)?\s?([1-5])/i, waarde: (m) => Number(m[2]), aantoonbaar: () => true },
-  { factorId: "bouwsysteem", optieId: "houtbouw", veld: "Bouwsysteem: houtbouw", patroon: /(clt|kruislaaghout|houtskeletbouw|houtbouw|hsb)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
-  { factorId: "bouwsysteem", optieId: "prefab_beton", veld: "Bouwsysteem: prefab beton", patroon: /prefab\s?beton/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
-  { factorId: "prefabricage", veld: "Prefabricagegraad", patroon: /(modulair|fabrieksmatig|prefab|industrieel bouwen)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(\d{2,3}\s?%|fabriek)/i.test(ctx) },
-  { factorId: "demontabel", veld: "Demontabel bouwen", patroon: /(demontabel|remontabel|losmaakbaar)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(materialenpaspoort|madaster|losmaakbaarheidsindex)/i.test(ctx) },
-  { factorId: "circulariteit", veld: "Circulariteit", patroon: /(circulair|materialenpaspoort|madaster)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(materialenpaspoort|madaster|gerealiseerd)/i.test(ctx) },
-  { factorId: "natuurinclusief", veld: "Natuurinclusief", patroon: /(natuurinclusief|klimaatadaptief|biodiversiteit)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(gerealiseerd|opgeleverd|scan|rapport)/i.test(ctx) },
+  { factorId: "bouwsysteem", optieId: "houtbouw", veld: "Bouwsysteem: houtbouw", patroon: /(clt|kruislaaghout|houtskeletbouw|houtbouw|hsb)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
+  { factorId: "bouwsysteem", optieId: "prefab_beton", veld: "Bouwsysteem: prefab beton", patroon: /prefab\s?beton/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
+  { factorId: "prefabricage", veld: "Prefabricagegraad", patroon: /(modulair|fabrieksmatig|prefab|industrieel bouwen)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(\d{2,3}\s?%|fabriek)/i.test(ctx) },
+  { factorId: "demontabel", veld: "Demontabel bouwen", patroon: /(demontabel|remontabel|losmaakbaar)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(materialenpaspoort|madaster|losmaakbaarheidsindex)/i.test(ctx) },
+  { factorId: "circulariteit", veld: "Circulariteit", patroon: /(circulair|materialenpaspoort|madaster)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(materialenpaspoort|madaster|gerealiseerd)/i.test(ctx) },
+  { factorId: "natuurinclusief", veld: "Natuurinclusief", patroon: /(natuurinclusief|klimaatadaptief|biodiversiteit)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(gerealiseerd|opgeleverd|scan|rapport)/i.test(ctx) },
   { factorId: "bim", veld: "BIM-niveau", patroon: /bim[^0-9]{0,15}(niveau|level)\s?([0-3])/i, waarde: (m) => Number(m[2]) + 1, aantoonbaar: (_m, ctx) => /(certificaat|protocol|ilS)/i.test(ctx) },
-  { factorId: "projecttype", optieId: "hoogbouw", veld: "Projecttype: hoogbouw", patroon: /(hoogbouw|woontoren)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
-  { factorId: "projecttype", optieId: "transformatie", veld: "Projecttype: transformatie", patroon: /(transformatie|herbestemming)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
-  { factorId: "projecttype", optieId: "zorgwonen", veld: "Projecttype: zorgwonen", patroon: /(zorgwon|zorgcomplex|seniorenwon)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) }
+  { factorId: "projecttype", optieId: "hoogbouw", veld: "Projecttype: hoogbouw", patroon: /(hoogbouw|woontoren)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
+  { factorId: "projecttype", optieId: "transformatie", veld: "Projecttype: transformatie", patroon: /(transformatie|herbestemming)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
+  { factorId: "projecttype", optieId: "zorgwonen", veld: "Projecttype: zorgwonen", patroon: /(zorgwon|zorgcomplex|seniorenwon)/i, waarde: () => 3, ingeschat: true, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) }
 ];
 
 const MARKETING = /(duurzaamste|groenste|toonaangevend|marktleider|innovatief|vooruitstrevend|100% duurzaam|klimaatneutraal bedrijf)/i;
@@ -81,6 +83,10 @@ export function extraheerVoorstellen(partner: Partner, tekst: string, bronUrl: s
       bronUrl,
       betrouwbaarheid: extractieBetrouwbaarheid(bron, aantoonbaar, isMarketing),
       soort: aantoonbaar ? "aantoonbaar" : "geclaimd",
+      vaststelling: regel.ingeschat ? "ingeschat" : "feitelijk",
+      onderbouwing: regel.ingeschat
+        ? `Niveau ${voorgesteld} (ervaring) ingeschat omdat de bron '${m[0]}' noemt${aantoonbaar ? " in samenhang met een opgeleverd of gerealiseerd project" : ""}; het werkelijke niveau staat niet op de bron.`
+        : `De bron noemt '${m[0]}'.`,
       citaat: `…${context.trim()}…`,
       status: "open",
       gevondenOp: nu.toISOString()

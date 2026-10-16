@@ -2,9 +2,9 @@
 // - conflict met een door een mens gevalideerde waarde (factor én basisveld, US-52);
 // - bronrangorde: hoogste rang wint, lager is 'alternatief'; goudstandaard gaat altijd voor (US-49/US-50);
 // - velden zonder betrouwbare bron worden gemarkeerd in plaats van gevuld (US-53).
-import { basisveldWaarde, bronRang, effectieveStatus, geenBronSleutel, markeerAlternatieven, wisGeenBron, zetBasisveldHerkomst } from "./herkomst";
+import { basisveldWaarde, bronRang, effectieveStatus, vergelijkHerkomst, geenBronSleutel, markeerAlternatieven, wisGeenBron, zetBasisveldHerkomst } from "./herkomst";
 import { veldGevuld } from "./goudstandaard";
-import { waardePastBijFactor } from "./verificatie";
+import { vaststellingVan, waardePastBijFactor } from "./verificatie";
 import { BASISVELD_VAN_LABEL, leesSbi } from "./webverrijking";
 import type { BasisVeld, EnrichmentVoorstel, Factor, Partner, PartnerFactor } from "./types";
 
@@ -59,8 +59,10 @@ export function veldenZonderBron(p: Partner, voorstellen: EnrichmentVoorstel[], 
 
 // ---------- Automatisch invullen ----------
 // Zoveel mogelijk kenmerken gevuld krijgen zonder dat een mens elk voorstel eerst hoeft te accepteren: een gevonden
-// waarde gaat direct in het profiel met het label 'niet geverifieerd' (telt minder zwaar in de matching), mits
+// waarde gaat direct in het profiel met het label 'niet geverifieerd · feitelijk' of 'niet geverifieerd · ingeschat'
+// (telt minder zwaar in de matching, een inschatting het minst), mits
 // - het veld leeg is, of de huidige waarde zelf niet geverifieerd is en uit een gelijke of lagere bronrang komt;
+//   een feit vervangt altijd een inschatting, een inschatting vervangt nooit een feit;
 // - er geen conflict is met een geverifieerde waarde of de goudstandaard, en het voorstel geen alternatief is;
 // - de waarde past bij de schaal van de factor.
 // Al het andere blijft een voorstel in de wachtrij.
@@ -82,6 +84,7 @@ export function automatischToepasbaar(p: Partner, v: EnrichmentVoorstel, factore
     if (huidig.status === "afgewezen") return JSON.stringify(huidig.waarde) !== JSON.stringify(v.voorgesteld);
     const st = effectieveStatus(huidig, factor, nu);
     if (st === "gevalideerd") return false;
+    if (st !== "verouderd" && vaststellingVan(v) !== vaststellingVan(huidig)) return vaststellingVan(v) === "feitelijk";
     // Alleen vervangen door een minstens zo goede bron (lagere rang = beter).
     return bronRang(v.bron) < bronRang(huidig.bron) || (bronRang(v.bron) === bronRang(huidig.bron) && v.betrouwbaarheid >= huidig.betrouwbaarheid) || st === "verouderd";
   }
@@ -95,12 +98,17 @@ export function automatischToepasbaar(p: Partner, v: EnrichmentVoorstel, factore
   return true;
 }
 
+/** Volgorde voor automatisch invullen: feiten vóór inschattingen, daarna de beste bron. */
+export function vergelijkVoorAutomatisch(a: EnrichmentVoorstel, b: EnrichmentVoorstel) {
+  return (vaststellingVan(a) === "ingeschat" ? 1 : 0) - (vaststellingVan(b) === "ingeschat" ? 1 : 0) || vergelijkHerkomst(a, b);
+}
+
 /** Zet een toepasbaar voorstel in het profiel als 'niet geverifieerd' en markeer het voorstel als automatisch toegepast. */
 export function pasAutomatischToe(p: Partner, v: EnrichmentVoorstel, factoren: Factor[], nu = new Date()) {
   const dag = v.gevondenOp.slice(0, 10) || nu.toISOString().slice(0, 10);
   if (v.factorId) {
     const optie = optieVanVoorstel(v, factoren);
-    const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronNaam ?? v.bronUrl ?? v.bron }, peildatum: dag, status: "voorgesteld", automatisch: true, toelichting: `${v.soort}: ${v.citaat}` };
+    const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronNaam ?? v.bronUrl ?? v.bron }, peildatum: dag, status: "voorgesteld", automatisch: true, vaststelling: vaststellingVan(v), onderbouwing: v.onderbouwing, toelichting: `${v.soort}: ${v.citaat}` };
     const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
     if (idx >= 0) p.factoren[idx] = record;
     else p.factoren.push(record);

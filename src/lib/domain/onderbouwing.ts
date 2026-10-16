@@ -4,7 +4,7 @@ import type { Verband } from "./verbanden";
 import type { CriteriumScore, Kandidaat, RolResultaat, Verificatie } from "./types";
 import { ROL_LABEL } from "../format";
 
-const VERIFICATIE_KORT: Record<Verificatie, string> = { beheerder: "geverifieerd door een beheerder", gebruiker: "geverifieerd door een gebruiker", niet: "nog niet geverifieerd", verouderd: "verouderd", berekend: "uit projecthistorie", afgewezen: "afgewezen" };
+const VERIFICATIE_KORT: Record<Verificatie, string> = { beheerder: "geverifieerd door een beheerder", gebruiker: "geverifieerd door een gebruiker", niet: "nog niet geverifieerd, feitelijk van de bron", ingeschat: "ingeschat, nog niet geverifieerd", verouderd: "verouderd", berekend: "uit projecthistorie", afgewezen: "afgewezen" };
 
 function lijst(items: string[]) {
   return items.length <= 1 ? items.join("") : `${items.slice(0, -1).join(", ")} en ${items[items.length - 1]}`;
@@ -33,7 +33,7 @@ export function onderbouwKandidaat(k: Kandidaat): { tekst: string; aandachtspunt
   const sterk = [...bekend].filter((c) => basis(c) >= 0.9).sort((a, b) => b.bijdrage - a.bijdrage).slice(0, 3);
   const zwak = [...bekend].filter((c) => basis(c) < 0.6).sort((a, b) => b.effectiefGewicht - a.effectiefGewicht).slice(0, 2);
   const onbekend = k.criteria.filter((c) => c.fit === null).map((c) => c.factorNaam.toLowerCase());
-  const nietGeverifieerd = bekend.filter((c) => c.verificatie === "niet" || c.verificatie === "verouderd");
+  const nietGeverifieerd = bekend.filter((c) => c.verificatie === "niet" || c.verificatie === "ingeschat" || c.verificatie === "verouderd");
   const oordeel = k.score >= 75 ? "past daarmee goed bij dit project" : k.score >= 55 ? "past daarmee redelijk bij dit project" : "past daarmee matig bij dit project";
   const dun = bekend.length > 0 && k.dekkingsgraad < 60 ? `, al rust die score op weinig gegevens (voor ${k.dekkingsgraad}% van het gewicht is iets bekend)` : "";
   const zinnen: string[] = [`${k.partnerNaam} scoort ${k.score} van 100 als ${rol} en ${oordeel}${dun}.`];
@@ -61,7 +61,7 @@ export function onderbouwKandidaat(k: Kandidaat): { tekst: string; aandachtspunt
   if (ev) zinnen.push(ev.fit === null ? `Eigen evaluaties wegen voor ${ev.gewicht}% mee, maar er is nog geen geaccepteerde evaluatie van deze partner.` : `Eigen evaluaties (alleen geaccepteerde) wegen voor ${ev.effectiefGewicht}% mee; de gemiddelde beoordeling is ${String(ev.waarde).replace(".", ",")} van 5.`);
   // US-19: ervaring in vrije tekst uit eerdere projecten.
   (k.ervaringen ?? []).slice(0, 2).forEach((e) => zinnen.push(`Ervaring ${e.project} (${e.score.toLocaleString("nl-NL")}/5): „${e.tekst}”`));
-  const aandachtspunten = [...k.waarschuwingen, ...bekend.filter((c) => c.bron === "web" && c.verificatie === "niet").slice(0, 2).map((c) => `${c.factorNaam} komt uit een indicatieve internetbron en is nog niet geverifieerd`)];
+  const aandachtspunten = [...k.waarschuwingen, ...bekend.filter((c) => c.bron === "web" && (c.verificatie === "niet" || c.verificatie === "ingeschat")).slice(0, 2).map((c) => `${c.factorNaam} komt uit een indicatieve internetbron en is ${c.verificatie === "ingeschat" ? "ingeschat (niet feitelijk vastgesteld) en " : ""}nog niet geverifieerd`)];
   return { tekst: zinnen.join(" "), aandachtspunten };
 }
 

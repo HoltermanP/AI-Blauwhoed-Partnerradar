@@ -134,6 +134,12 @@ export type Bewijs = {
 export type FactorWaarde = number | string | boolean | string[] | { min: number; max: number };
 
 /**
+ * Hoe een niet-geverifieerde waarde is vastgesteld: feitelijk (staat zo op de bron, met citaat) of ingeschat
+ * (afgeleid uit aanwijzingen op de bron, met onderbouwing). Ingeschat telt in de matching minder zwaar.
+ */
+export type Vaststelling = "feitelijk" | "ingeschat";
+
+/**
  * Dwarsdoorsnijdende eis 1: status per veldwaarde. Alleen een mens zet een waarde op 'gevalideerd' of 'afgewezen'.
  * Een afgewezen waarde blijft zichtbaar (met wie, wanneer en waarom) maar telt nergens mee en wordt niet opnieuw automatisch ingevuld.
  */
@@ -162,6 +168,10 @@ export type PartnerFactor = {
   gevalideerdOp?: string;
   /** Door de verrijking (AI/internet/registers) automatisch ingevuld; blijft 'niet geverifieerd' tot een mens het bevestigt. */
   automatisch?: boolean;
+  /** Feitelijk vastgesteld of ingeschat; ontbreekt = feitelijk (oude en handmatige waarden). */
+  vaststelling?: Vaststelling;
+  /** Waarom deze waarde: bij een inschatting de redenering, bij een feit wat de bron precies zegt. */
+  onderbouwing?: string;
   /** true = automatisch afgeleid uit historie; false/undefined = handmatig vastgelegd. */
   afgeleid?: boolean;
   /** Handmatige overschrijving van een afgeleide waarde. */
@@ -670,6 +680,9 @@ export type EnrichmentVoorstel = {
   bronUrl?: string;
   betrouwbaarheid: number;
   soort: "aantoonbaar" | "geclaimd";
+  /** Feitelijk (staat zo op de bron) of ingeschat (afgeleid, met onderbouwing); ontbreekt = feitelijk. */
+  vaststelling?: Vaststelling;
+  onderbouwing?: string;
   /** Verschiltype in het rondeoverzicht: nieuw gevonden, gewijzigd t.o.v. huidige waarde, of niet langer bevestigd op de bron. */
   aard?: "nieuw" | "gewijzigd" | "niet_bevestigd";
   /** De huidige waarde is door een mens gevalideerd; dit voorstel is een afwijkend signaal en overschrijft nooit stilzwijgend. */
@@ -812,8 +825,11 @@ export type VerrijkingsSchema = {
 /** US-65: twee rollen conform de overeenkomst. Het aantal gebruikers is onbeperkt. */
 export type Gebruikersrol = "gebruiker" | "beheerder";
 
-/** Verificatielabel per waarde: door wie bevestigd, nog niet bevestigd, verouderd of berekend uit projecthistorie. */
-export type Verificatie = "beheerder" | "gebruiker" | "niet" | "verouderd" | "berekend" | "afgewezen";
+/**
+ * Verificatielabel per waarde: door wie bevestigd, nog niet bevestigd (feitelijk = "niet", of "ingeschat"),
+ * verouderd of berekend uit projecthistorie.
+ */
+export type Verificatie = "beheerder" | "gebruiker" | "niet" | "ingeschat" | "verouderd" | "berekend" | "afgewezen";
 
 export type Gebruiker = {
   id: string;

@@ -124,9 +124,9 @@ export async function aiSamenvatting(kandidaat: DiscoveryCandidate, project: Pro
   return { ...r, gegenereerdOp: new Date().toISOString(), provider: await providerLabel("aandragen") };
 }
 
-export type AIFactorVoorstel = { factorId: string; optieId?: string; waarde: number | string | boolean; citaat: string; aantoonbaar: boolean };
+export type AIFactorVoorstel = { factorId: string; optieId?: string; waarde: number | string | boolean; citaat: string; aantoonbaar: boolean; vaststelling: "feitelijk" | "ingeschat"; onderbouwing: string };
 
-/** US-29/30: factorwaarden uit openbare tekst volgens de taxonomie, met citaat en aantoonbaar/geclaimd. */
+/** US-29/30: factorwaarden uit openbare tekst volgens de taxonomie, met citaat, aantoonbaar/geclaimd en feitelijk/ingeschat. */
 export async function aiFactorExtractie(naam: string, tekst: string, factoren: Factor[]): Promise<AIFactorVoorstel[] | null> {
   const taxonomie = factoren
     .filter((f) => f.actief && f.type !== "semantisch" && !f.afgeleid)
@@ -134,7 +134,7 @@ export async function aiFactorExtractie(naam: string, tekst: string, factoren: F
     .join("\n");
   const r = await jsonAntwoord<{ voorstellen: AIFactorVoorstel[] }>(
     "extractie",
-    "Je extraheert kenmerken van een bouwpartner uit openbare tekst volgens een vaste taxonomie. Geef alleen kenmerken die letterlijk uit de tekst volgen, met een kort citaat. Bij twijfel vul je niets in: een ontbrekend kenmerk is beter dan een onzekere waarde (het veld wordt dan gemarkeerd als 'geen betrouwbare bron'). 'aantoonbaar' is true alleen bij certificaat, meting, berekening of concreet opgeleverd project; marketingtaal is niet aantoonbaar. Niveau-schalen zijn 0–5 (3 = aantoonbare ervaring, 4–5 = specialisme). Schrijf in het Nederlands.",
+    "Je bepaalt kenmerken van een bouwpartner uit openbare tekst volgens een vaste taxonomie. Per kenmerk geef je een vaststelling: 'feitelijk' als de waarde zo in de tekst staat (bijv. 'CO2-prestatieladder niveau 5', 'MPG 0,6'), of 'ingeschat' als de waarde niet letterlijk in de tekst staat maar redelijk volgt uit concrete aanwijzingen (bijv. zes opgeleverde houtbouwprojecten → niveau 4 houtbouw). Het citaat is altijd de letterlijke tekst waarop je de waarde baseert. De onderbouwing legt in één of twee zinnen uit waarom deze waarde: bij 'feitelijk' wat de tekst zegt, bij 'ingeschat' welke aanwijzingen je hoe hebt gewogen. Schat alleen in op basis van concrete aanwijzingen in de tekst, nooit op algemene kennis of op de bedrijfsnaam; zonder aanwijzing laat je het kenmerk weg (het veld wordt dan gemarkeerd als 'geen betrouwbare bron'). 'aantoonbaar' is true alleen bij certificaat, meting, berekening of concreet opgeleverd project; marketingtaal is niet aantoonbaar. Niveau-schalen zijn 0–5 (3 = aantoonbare ervaring, 4–5 = specialisme); een niveau is bijna altijd 'ingeschat', tenzij de tekst het niveau zelf noemt. Schrijf in het Nederlands.",
     `Bedrijf: ${naam}\n\nTaxonomie:\n${taxonomie}\n\nTekst:\n${tekst.slice(0, 20000)}`,
     {
       type: "object",
@@ -146,13 +146,15 @@ export async function aiFactorExtractie(naam: string, tekst: string, factoren: F
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["factorId", "waarde", "citaat", "aantoonbaar"],
+            required: ["factorId", "waarde", "citaat", "aantoonbaar", "vaststelling", "onderbouwing"],
             properties: {
               factorId: { type: "string" },
               optieId: { type: "string" },
               waarde: { anyOf: [{ type: "number" }, { type: "string" }, { type: "boolean" }] },
               citaat: { type: "string" },
-              aantoonbaar: { type: "boolean" }
+              aantoonbaar: { type: "boolean" },
+              vaststelling: { type: "string", enum: ["feitelijk", "ingeschat"] },
+              onderbouwing: { type: "string" }
             }
           }
         }

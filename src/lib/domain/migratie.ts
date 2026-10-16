@@ -1,7 +1,7 @@
 // Migraties van de opgeslagen database (JSONB-snapshot). Elke migratie is idempotent en verhoogt db.versie.
 import { laadAanvulling } from "./aanvulling";
 import { vulOntbrekendeHerkomst } from "./herkomst";
-import { rolVanNaam } from "./verificatie";
+import { niveauIsInschatting, rolVanNaam } from "./verificatie";
 import { standaardAanvullingInstellingen } from "./instellingen";
 import { kostenEur } from "./kosten";
 import { FACTOREN } from "./factors";
@@ -10,7 +10,7 @@ import { STANDAARD_BRANCHEBRONNEN, STANDAARD_UPCOMING_BRONNEN, hostVan } from ".
 import { NIEUWE_TYPES } from "./gewichten";
 import type { Database, Geo, Rol } from "./types";
 
-export const HUIDIGE_VERSIE = 14;
+export const HUIDIGE_VERSIE = 15;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -222,6 +222,7 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
   }
 
   if (van < 14) migreerV14(db, nu);
+  if (van < 15) migreerV15(db);
 
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });
@@ -237,6 +238,26 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
  * - bronbeleid (US-12/US-11): branchebronnen met rang en bronnen voor prijzen en nominaties (standaard uit);
  * - evaluaties krijgen expliciet status 'geaccepteerd' (US-21: alleen geaccepteerde tellen mee).
  */
+/**
+ * v15: feitelijk vs ingeschat. Bestaande niet-geverifieerde niveauwaarden uit internet of documenten (automatisch
+ * ingevuld of uit de aanvulling) zijn vrijwel altijd een inschatting: ze krijgen het label 'ingeschat' met onderbouwing.
+ * Waarden die een mens heeft geverifieerd of afgewezen, en berekende waarden, blijven ongemoeid.
+ */
+export function migreerV15(db: Database) {
+  let aantal = 0;
+  db.partners.forEach((p) =>
+    p.factoren.forEach((f) => {
+      if (f.vaststelling || f.afgeleid || f.status === "gevalideerd" || f.status === "afgewezen") return;
+      if (f.bron !== "web" && f.bron !== "document" && !f.automatisch) return;
+      if (!niveauIsInschatting(db.factoren.find((x) => x.id === f.factorId), f.toelichting)) return;
+      f.vaststelling = "ingeschat";
+      f.onderbouwing = f.onderbouwing ?? `Niveau ${String(f.waarde)} ingeschat: de bron noemt het onderwerp, niet het niveau zelf (bij de migratie zo aangemerkt).`;
+      aantal++;
+    })
+  );
+  return aantal;
+}
+
 export function migreerV14(db: Database, nu = new Date()) {
   const dag = nu.toISOString().slice(0, 10);
   // Factoren: ontbrekende toevoegen, nieuwe types aan bestaande factoren toevoegen (beheerwijzigingen blijven staan).

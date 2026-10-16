@@ -69,7 +69,7 @@ import { openstaandeEvaluaties } from "../src/lib/domain/evaluatieproces";
 import { teamCombinaties } from "../src/lib/domain/verbanden";
 import { bewezenTeams } from "../src/lib/domain/team";
 import { importeerProjecten } from "../src/lib/domain/projectimport";
-import { migreerV14 } from "../src/lib/domain/migratie";
+import { migreerV14, migreerV15 } from "../src/lib/domain/migratie";
 import { externeBedrijfsLinks } from "../src/lib/domain/webzoek";
 import { CATEGORIEEN, categorieVan } from "../src/lib/domain/kosten";
 
@@ -640,6 +640,20 @@ const groepD = (async () => {
   ingevuld.status = "voorgesteld";
   ingevuld.bron = "goudstandaard";
   check("Automatisch invullen vervangt geen betere bron (goudstandaard)", !automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4 }), dbV.factoren));
+  // Feitelijk vs ingeschat
+  ingevuld.bron = "web";
+  ingevuld.vaststelling = "ingeschat";
+  check("Verificatie: ingeschatte, niet-geverifieerde waarde krijgt label 'ingeschat' en telt minder dan feitelijk", verificatieVan(ingevuld, niveau) === "ingeschat" && VERIFICATIE_WEGING.niet > VERIFICATIE_WEGING.ingeschat && VERIFICATIE_WEGING.ingeschat > 0);
+  check("Automatisch invullen: een feit vervangt een inschatting, ook uit een zwakkere bron", automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4, vaststelling: "feitelijk", betrouwbaarheid: 0.2 }), dbV.factoren));
+  ingevuld.vaststelling = "feitelijk";
+  check("Automatisch invullen: een inschatting vervangt nooit een feit", !automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4, vaststelling: "ingeschat", betrouwbaarheid: 0.9 }), dbV.factoren));
+  const vIng = voorstel(3, { vaststelling: "ingeschat", onderbouwing: "Drie opgeleverde projecten genoemd." });
+  p.factoren = p.factoren.filter((f) => f.factorId !== niveau.id);
+  pasAutomatischToe(p, vIng, dbV.factoren);
+  const ingIngevuld = p.factoren.find((f) => f.factorId === niveau.id)!;
+  check("Automatisch ingevuld neemt vaststelling en onderbouwing over", ingIngevuld.vaststelling === "ingeschat" && ingIngevuld.onderbouwing === "Drie opgeleverde projecten genoemd." && verificatieVan(ingIngevuld, niveau) === "ingeschat");
+  const regelV = extraheerVoorstellen(p, "Wij bouwen in houtskeletbouw en CLT. MPG 0,62 volgens NMD-berekening.", "https://voorbeeld.nl");
+  check("Regelextractie: vast niveau = ingeschat, gelezen getal = feitelijk", regelV.find((v) => v.factorId === "bouwsysteem")?.vaststelling === "ingeschat" && regelV.find((v) => v.factorId === "mpg")?.vaststelling === "feitelijk", regelV.map((v) => [v.factorId, v.vaststelling]));
   // Migratie v13: rol bij bestaande validaties
   const dbM = maakSeedDatabase();
   dbM.versie = 12;
@@ -703,7 +717,7 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
   p2.factoren = [{ factorId: "projecttype", optieId: "zorgwonen", waarde: 4, bron: "web", betrouwbaarheid: 0.4, peildatum: "2026-09-01", status: "afgewezen", afwijzing: { door: "t", rol: "gebruiker", op: "2026-10-01", reden: "geen zorgwoningen" } }];
   check("US-04 afgewezen waarde niet in effectief profiel", !effectieveFactoren(p2, dbU).some((f) => f.factorId === "projecttype" && f.optieId === "zorgwonen"));
   check("US-04 afgewezen waarde telt niet als gevuld", !veldGevuld(p2, "factor:projecttype"));
-  check("US-04 label afgewezen", verificatieVan(p2.factoren[0], dbU.factoren.find((f) => f.id === "projecttype")) === "afgewezen" && VERIFICATIE_LABEL.gebruiker === "gebruikersgeverifieerd" && VERIFICATIE_LABEL.beheerder === "beheerdersgeverifieerd" && VERIFICATIE_LABEL.niet === "voorstel");
+  check("US-04 label afgewezen", verificatieVan(p2.factoren[0], dbU.factoren.find((f) => f.id === "projecttype")) === "afgewezen" && VERIFICATIE_LABEL.gebruiker === "gebruikersgeverifieerd" && VERIFICATIE_LABEL.beheerder === "beheerdersgeverifieerd" && VERIFICATIE_LABEL.niet === "niet geverifieerd · feitelijk");
   const vZelfde: EnrichmentVoorstel = { id: "v1", partnerId: p2.id, factorId: "projecttype", optieId: "zorgwonen", veld: "Projecttype: Zorgwonen", huidig: 4, voorgesteld: 4, bron: "web", bronUrl: "https://x.nl", betrouwbaarheid: 0.5, soort: "geclaimd", citaat: "zorg", status: "open", gevondenOp: "2026-10-02" };
   check("US-04 afgewezen waarde wordt niet automatisch opnieuw ingevuld", !automatischToepasbaar(p2, vZelfde, dbU.factoren) && automatischToepasbaar(p2, { ...vZelfde, voorgesteld: 2 }, dbU.factoren));
 
@@ -795,6 +809,22 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
   migreerV14(dbM);
   check("US-01 migratie v14: nieuwe factoren, type houtbouwer en productkenmerken uit brondata", dbM.factoren.some((f) => f.id === "paris_proof") && dbM.partners[0].rollen.includes("houtbouwer") && dbM.partners[0].factoren.some((f) => f.factorId === "paris_proof" && f.waarde === 180));
   check("US-12/US-21 migratie v14: branchebronnen en evaluatiestatus", dbM.instellingen.verrijkingsbronnen.some((b) => b.categorie === "branche" && b.rang === 2) && dbM.evaluaties.every((e) => e.status === "geaccepteerd"));
+
+  // Migratie v15: niet-geverifieerde niveauwaarden uit internet worden 'ingeschat'
+  {
+    const db15 = maakSeedDatabase();
+    const niv = db15.factoren.find((f) => f.schaal.soort === "niveau" && f.actief)!;
+    const co2 = db15.factoren.find((f) => f.id === "co2_ladder");
+    const pp = db15.partners[0];
+    const basis15 = { bron: "web" as const, betrouwbaarheid: 0.5, peildatum: "2026-01-01", status: "voorgesteld" as const };
+    pp.factoren = [
+      { ...basis15, factorId: niv.id, optieId: "a", waarde: 3, automatisch: true, toelichting: "geclaimd: …wij bouwen in hout…" },
+      { ...basis15, factorId: niv.id, optieId: "b", waarde: 4, status: "gevalideerd", toelichting: "geclaimd: …hout…" },
+      ...(co2?.schaal.soort === "niveau" ? [{ ...basis15, factorId: "co2_ladder", waarde: 5, toelichting: "aantoonbaar: CO2-prestatieladder trede 5" }] : [])
+    ] as typeof pp.factoren;
+    const n = migreerV15(db15);
+    check("Migratie v15: niveau van internet → ingeschat; geverifieerd en letterlijk genoemd niveau blijven feitelijk", pp.factoren[0].vaststelling === "ingeschat" && Boolean(pp.factoren[0].onderbouwing) && !pp.factoren[1].vaststelling && (pp.factoren[2] ? !pp.factoren[2].vaststelling : true) && n >= 1, { n, labels: pp.factoren.map((f) => f.vaststelling) });
+  }
 
   // US-08: werklijst beheerdersvalidatie
   const dbV = maakSeedDatabase();
