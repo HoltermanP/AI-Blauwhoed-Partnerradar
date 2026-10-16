@@ -7,6 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { aiBudget, kostenEur, modelVoor, STANDAARD_BUDGET, STANDAARD_MODELLEN } from "./domain/kosten";
 import { getDb, registreerAIBewerking } from "./store";
 import type { AIBewerking, AIBudget, AIFunctie, AISamenvatting, Bron, DiscoveryCandidate, Factor, Project } from "./domain/types";
+import { isUitgeslotenDomein } from "./domain/relevantie";
 
 // ---------- Kostenregistratie: één gebruikershandeling = één bewerking, met daaronder de losse modelaanroepen. ----------
 type Context = { bewerking: AIBewerking; budget: AIBudget; modellen: Record<AIFunctie, string>; doel?: string };
@@ -266,7 +267,7 @@ export async function aiZoekBedrijfswebsites(zoekvragen: string[], max = 10): Pr
     const model = await modelVoorFunctie("aandragen");
     const licht = model.startsWith("claude-haiku");
     const tools: Anthropic.ToolUnion[] = [webZoekTool(licht)];
-    const messages: Anthropic.MessageParam[] = [{ role: "user", content: `Zoek de officiële websites van Nederlandse bedrijven voor deze zoekvragen:\n${zoekvragen.map((z) => `- ${z}`).join("\n")}\n\nAlleen bedrijfswebsites (geen vergelijkingssites, vacaturesites, social media of nieuwsartikelen) en geen personen. Antwoord met één URL per regel.` }];
+    const messages: Anthropic.MessageParam[] = [{ role: "user", content: `Gebruik de zoektool om Nederlandse bedrijven te vinden voor deze zoekvragen:\n${zoekvragen.map((z) => `- ${z}`).join("\n")}\n\nDoel: een inkoper van een woningontwikkelaar zoekt bedrijven die zelf werk leveren voor woningbouwprojecten (bouwbedrijven, houtbouwers, installateurs, ingenieurs- en adviesbureaus, producenten). Zoek, kies uit de resultaten de bedrijven die passen en geef van elk bedrijf de homepage van de eigen website. Geen vergelijkingssites, gidsen, brancheorganisaties, vacaturesites, social media, Wikipedia of nieuwsartikelen. Maximaal ${max} bedrijven. Antwoord als lijst, één bedrijf per regel: Bedrijfsnaam — https://...` }];
     let res = await getClient().messages.create({ model, max_tokens: 2000, tools, messages, ...(licht ? {} : { output_config: { effort: "low" as const } }) });
     registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
     const inhoud = [...res.content];
@@ -275,12 +276,15 @@ export async function aiZoekBedrijfswebsites(zoekvragen: string[], max = 10): Pr
       registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
       inhoud.push(...res.content);
     }
-    const urls: string[] = [];
+    // De URL's die Claude zelf noemt, zijn de geselecteerde bedrijven; de ruwe zoekresultaten (vaak gidsen en media) alleen als er geen zijn.
+    const genoemd: string[] = [];
+    const ruw: string[] = [];
     for (const b of inhoud) {
-      if (b.type === "text") urls.push(...(b.text.match(/https?:\/\/[^\s)\]>"]+/g) ?? []));
-      else if (b.type === "web_search_tool_result" && Array.isArray(b.content)) urls.push(...b.content.map((r) => r.url));
+      if (b.type === "text") genoemd.push(...(b.text.match(/https?:\/\/[^\s)\]>"]+/g) ?? []));
+      else if (b.type === "web_search_tool_result" && Array.isArray(b.content)) ruw.push(...b.content.map((r) => r.url));
     }
-    return Array.from(new Set(urls.map((u) => { try { return new URL(u).origin; } catch { return ""; } }).filter(Boolean))).slice(0, max);
+    const urls = genoemd.length ? genoemd : ruw;
+    return Array.from(new Set(urls.map((u) => { try { return new URL(u).origin; } catch { return ""; } }).filter((u) => u && !isUitgeslotenDomein(u)))).slice(0, max);
   } catch (e) {
     console.warn("Claude-websitezoektocht mislukt:", e instanceof Error ? e.message : e);
     return null;
@@ -445,8 +449,8 @@ export async function aiToetsKandidaten(kandidaten: Array<{ naam: string; url: s
   if (!kandidaten.length) return [];
   const r = await jsonAntwoord<{ toetsing: AIKandidaatToets[] }>(
     "aandragen",
-    `Je beoordeelt voor een inkoper of gevonden websites mogelijke bouwpartners zijn. ${context.profiel} Een kandidaat is alleen relevant als het een bedrijf is dat zelf werk levert in een van de gevraagde rollen voor woningbouwprojecten zoals die van de opdrachtgever. Niet relevant: woningportalen en makelaars (aanbod voor kopers/huurders), nieuws- en vakmedia, overheden, onderwijs, branche- en bedrijvengidsen, vergelijkings- en offertesites, vacaturesites, webwinkels voor particulieren, woningcorporaties en beleggers, en andere projectontwikkelaars (tenzij de rol ontwikkelpartner is gevraagd). Ook niet relevant: bedrijven die alleen voor particulieren verbouwen of alleen buiten de woningbouw werken. Oordeel uitsluitend op de meegegeven tekst; bij twijfel relevant = false. reden: één korte zin in het Nederlands.`,
-    `Gevraagde rollen: ${context.rollen.join(", ")}\n${context.project ? `Project: ${context.project}\n` : ""}\nKandidaten:\n${kandidaten.map((k, i) => `[${i}] ${k.naam} — ${k.url}\n${k.tekst.replace(/\s+/g, " ").slice(0, 700)}`).join("\n\n")}`,
+    `Je beoordeelt voor een inkoper of gevonden websites mogelijke bouwpartners zijn. ${context.profiel} Een kandidaat is alleen relevant als het een bedrijf is dat zelf werk levert in een van de gevraagde rollen voor woningbouwprojecten zoals die van de opdrachtgever. Niet relevant: woningportalen en makelaars (aanbod voor kopers/huurders), nieuws- en vakmedia, overheden, onderwijs, branche- en bedrijvengidsen, vergelijkings- en offertesites, vacaturesites, webwinkels voor particulieren, woningcorporaties en beleggers, en pure projectontwikkelaars of beleggers zonder eigen bouw-, ontwerp- of installatietak. Bouwbedrijven die daarnaast zelf ontwikkelen (ontwikkelende bouwers, bouwconcerns met een ontwikkeltak) zijn wél relevant: als aannemer, en als ontwikkelpartner als die rol is gevraagd. Ook niet relevant: bedrijven die alleen voor particulieren verbouwen of alleen buiten de woningbouw werken. Oordeel uitsluitend op de meegegeven tekst. Is het duidelijk een bouwbedrijf, ingenieurs- of adviesbureau, installateur of producent dat voor woningbouw werkt, maar is de precieze rol onzeker: relevant = true. Bij twijfel of het überhaupt zo'n bedrijf is: relevant = false. reden: één korte zin in het Nederlands.`,
+    `Gevraagde rollen: ${context.rollen.join(", ")}\n${context.project ? `Project: ${context.project}\n` : ""}\nKandidaten:\n${kandidaten.map((k, i) => `[${i}] ${k.naam} — ${k.url}\n${k.tekst.replace(/\s+/g, " ").slice(0, 1200)}`).join("\n\n")}`,
     {
       type: "object",
       additionalProperties: false,

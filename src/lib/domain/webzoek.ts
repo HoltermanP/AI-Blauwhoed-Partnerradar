@@ -73,9 +73,18 @@ async function viaBing(query: string, max: number): Promise<{ urls: string[]; di
   try {
     const res = await fetch(`https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=nl&cc=NL`, { headers: ZOEK_HEADERS, signal: AbortSignal.timeout(8000) });
     const html = res.ok ? await res.text() : "";
-    const ruw = Array.from(html.matchAll(/<li class="b_algo"[\s\S]*?<a[^>]+href="(https?:[^"]+)"/g)).map((m) => bingDoelUrl(m[1]));
+    const blokken = html.split('<li class="b_algo"').slice(1);
+    // Bing herkent serververkeer soms als bot en geeft dan willekeurige resultaten (fora, woordenboeken, games) zonder te
+    // blokkeren. Alleen resultaten waarvan titel of fragment een woord uit de zoekvraag bevat, tellen mee.
+    const woorden = query.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
+    const passend = blokken.filter((b) => {
+      const t = striptHtml(b.slice(0, 3000)).toLowerCase();
+      return woorden.some((w) => t.includes(w));
+    });
+    const ruw = passend.map((b) => b.match(/<a[^>]+href="(https?:[^"]+)"/)?.[1]).filter((h): h is string => Boolean(h)).map(bingDoelUrl);
     const urls = verzamel(ruw, max);
-    return { urls, diagnose: { zoekmachine: "Bing", status: res.status, resultaten: urls.length, geblokkeerd: !res.ok || /captcha|challenge/i.test(html.slice(0, 5000)) } };
+    const onzin = blokken.length > 0 && passend.length === 0;
+    return { urls, diagnose: { zoekmachine: "Bing", status: res.status, resultaten: urls.length, geblokkeerd: !res.ok || onzin || /captcha|challenge/i.test(html.slice(0, 5000)) } };
   } catch {
     return { urls: [], diagnose: { zoekmachine: "Bing", status: null, resultaten: 0, geblokkeerd: true } };
   }
@@ -99,7 +108,7 @@ export async function zoekUrls(query: string, max = 8): Promise<string[]> {
  * Lees een gevonden bedrijfswebsite als discovery-kandidaat (naam, KVK, plaats, profiel). De relevantietoets (is dit een
  * bouwpartner in deze rol, of een portaal/makelaar/medium?) komt mee in ruweData.relevantie; filter met `filterRelevant`.
  */
-export async function kandidaatVanWebsite(url: string, rol: Rol, bron: string, zoekterm: string, regio?: string): Promise<Awaited<ReturnType<BronConnector["zoek"]>>[number] | null> {
+export async function kandidaatVanWebsite(url: string, rol: Rol, bron: string, zoekterm: string, regio?: string, toetsRollen: Rol[] = [rol]): Promise<Awaited<ReturnType<BronConnector["zoek"]>>[number] | null> {
   if (isUitgeslotenDomein(url)) return null;
   try {
     const r = await fetch(url, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BlauwhoedPartnerRadar/1.0 (discovery; alleen openbare bedrijfsinformatie)" } });
@@ -107,8 +116,9 @@ export async function kandidaatVanWebsite(url: string, rol: Rol, bron: string, z
     const html = await r.text();
     const tekst = striptHtml(html).slice(0, 20000);
     const b = leesBedrijfsgegevens(tekst, html, url);
-    const relevantie = beoordeelRelevantie(url, `${b.naam} ${tekst}`, [rol]);
-    return { naam: b.naam, kvk: b.kvk, vestigingsplaats: b.plaats ?? regio, website: url, rollen: [rol], bron, bronUrl: url, voorlopigeScore: relevantie.score, ruweData: { profiel: b.profiel, referenties: [], zoekterm, websiteTekst: tekst.slice(0, 8000), relevantie } } as Awaited<ReturnType<BronConnector["zoek"]>>[number];
+    // Toets op alle gevraagde rollen: een constructeur die opduikt bij de zoekvraag voor adviseurs is nog steeds bruikbaar.
+    const relevantie = beoordeelRelevantie(url, `${b.naam} ${tekst}`, toetsRollen);
+    return { naam: b.naam, kvk: b.kvk, vestigingsplaats: b.plaats ?? regio, website: url, rollen: [relevantie.rol ?? rol], bron, bronUrl: url, voorlopigeScore: relevantie.score, ruweData: { profiel: b.profiel, referenties: [], zoekterm, websiteTekst: tekst.slice(0, 8000), relevantie } } as Awaited<ReturnType<BronConnector["zoek"]>>[number];
   } catch {
     return null;
   }
@@ -192,7 +202,7 @@ export const webzoekConnector: BronConnector = {
         diagnose.push(...r.diagnose);
         const nieuw = r.urls.filter((u) => !gezien.has(u));
         nieuw.forEach((u) => gezien.add(u));
-        const gelezen = await Promise.all(nieuw.map((u) => kandidaatVanWebsite(u, rol, "Webzoek", zoekterm, vraag.regio)));
+        const gelezen = await Promise.all(nieuw.map((u) => kandidaatVanWebsite(u, rol, "Webzoek", zoekterm, vraag.regio, vraag.rollen)));
         gelezen.forEach((k) => k && resultaten.push(k));
       }
     }

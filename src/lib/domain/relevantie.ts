@@ -9,7 +9,7 @@ export const BLAUWHOED_PROFIEL =
 
 /** Domeinen die nooit een bouwpartner zijn: woningportalen, media, overheid, onderwijs, webwinkels, gidsen en platforms. */
 const GEEN_PARTNER_HOST =
-  /(^|\.)(funda|pararius|jaap|huislijn|huizenzoeker|nieuwbouw-nederland|nieuwbouw-in-[a-z-]+|nieuwbouwprojecten|nieuwbouwwoningen|woningnet|wooniezie|woonnet-haaglanden|kamernet|huurwoningen|directwonen|rentola|huurstunt|huurzone|woonmatch|klikvoorwonen|hypotheker|independer|homedeal|werkspot|offerte|offertevergelijker|zoofy|trustoo|vergelijk|bouwkosten|bouwinfo|bouwgarant|woningborg|swk|cobouw|bouwwereld|vastgoedmarkt|architectenweb|nos|nu|ad|telegraaf|volkskrant|nrc|trouw|parool|rtlnieuws|omroep[a-z]*|dichtbij|indebuurt|wikipedia|linkedin|facebook|instagram|youtube|tiktok|twitter|x|pinterest|indeed|werkzoeken|nationalevacaturebank|jobbird|marktplaats|bol|amazon|gamma|praxis|karwei|hornbach|bouwmaat|kvk|google|bing|duckduckgo|telefoonboek|openingstijden|drimble|cylex|trustpilot|glassdoor|yelp|blauwhoed)\.[a-z.]+$/i;
+  /(^|\.)(funda|pararius|jaap|huislijn|huizenzoeker|nieuwbouw-nederland|nieuwbouw-in-[a-z-]+|nieuwbouwprojecten|nieuwbouwwoningen|woningnet|wooniezie|woonnet-haaglanden|kamernet|huurwoningen|directwonen|rentola|huurstunt|huurzone|woonmatch|klikvoorwonen|hypotheker|independer|homedeal|werkspot|offerte|offertevergelijker|zoofy|trustoo|vergelijk|bouwkosten|bouwinfo|bouwgarant|woningborg|swk|cobouw|bouwwereld|vastgoedmarkt|architectenweb|nos|nu|ad|telegraaf|volkskrant|nrc|trouw|parool|rtlnieuws|omroep[a-z]*|dichtbij|indebuurt|wikipedia|linkedin|facebook|instagram|youtube|tiktok|twitter|x|pinterest|indeed|werkzoeken|nationalevacaturebank|jobbird|marktplaats|bol|amazon|gamma|praxis|karwei|hornbach|bouwmaat|kvk|google|bing|duckduckgo|telefoonboek|openingstijden|drimble|cylex|trustpilot|glassdoor|yelp|archdaily|dezeen|slideshare|scribd|issuu|prospeo|rocketreach|zoominfo|apollo|dnb|crunchbase|bedrijfsdata|companyinfo|oozo|ted|tenderned|reddit|stackoverflow|blauwhoed)\.[a-z.]+$/i;
 const GEEN_PARTNER_TLD = /(\.gov\.|\.overheid\.nl$|^gemeente|\.gemeente\.|^www\.gemeente|provincie|rijksoverheid|\.edu$|universiteit|hogeschool|tudelft|tue\.nl$|wur\.nl$)/i;
 
 /** Tekst die op een consumentenportaal of makelaar wijst (woningaanbod voor kopers en huurders). */
@@ -55,6 +55,8 @@ export type Relevantie = {
   /** Waarom wel of niet, in gewone taal. */
   reden: string;
   soort: "bouwpartner" | "uitgesloten domein" | "woningportaal of makelaar" | "geen bouwbedrijf" | "andere rol";
+  /** De gevraagde rol met de meeste aanwijzingen (alleen bij een bouwpartner). */
+  rol?: Rol;
 };
 
 function hostVan(url: string) {
@@ -89,7 +91,7 @@ export function beoordeelRelevantie(url: string, tekst: string, rollen: Rol[]): 
   if (!sector.length && rolTreffers < 2) return { relevant: false, score: 10, reden: "Geen aanwijzingen voor een bedrijf in de woningbouw (geen projecten, opdrachtgevers of bouwtermen op de site).", soort: "geen bouwbedrijf" };
   if (!rolTreffers) return { relevant: false, score: 20, reden: `Bouwgerelateerd, maar geen aanwijzing voor de gevraagde rol (${rollen.join(", ")}).`, soort: "andere rol" };
   const score = Math.min(100, 25 + rolTreffers * 15 + sector.length * 8 - portaal.length * 5);
-  return { relevant: true, score, reden: `Aanwijzingen voor ${besteRol.r}: ${rolTreffers} rolkenmerk(en); bouwketen: ${sector.join(", ") || "–"}.`, soort: "bouwpartner" };
+  return { relevant: true, score, reden: `Aanwijzingen voor ${besteRol.r}: ${rolTreffers} rolkenmerk(en); bouwketen: ${sector.join(", ") || "–"}.`, soort: "bouwpartner", rol: besteRol.r };
 }
 
 const TYPE_TERM: Record<Projecttype, string> = {

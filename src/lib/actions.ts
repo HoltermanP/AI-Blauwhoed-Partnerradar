@@ -17,7 +17,7 @@ import { importeerEngagements } from "./domain/csv";
 import { importeerProjecten, leesProjectRij, type ProjectRij } from "./domain/projectimport";
 import { geocodeer } from "./domain/geocode";
 import { rijNaarPartner, voegPartnersToe, voegRijenSamen, type ImportRij, type ImportUitkomst } from "./domain/partnerimport";
-import { diagnoseTekst, externeBedrijfsLinks, kandidaatVanWebsite, laatsteZoekDiagnose, webzoekConnector, zoekUrls } from "./domain/webzoek";
+import { diagnoseTekst, externeBedrijfsLinks, filterRelevant, kandidaatVanWebsite, laatsteZoekDiagnose, webzoekConnector, zoekUrls } from "./domain/webzoek";
 import { ROL_LABEL } from "./format";
 import { BASISVELD_VAN_LABEL, BASISVELDEN, haalDetailTekst, leesSbi, verrijkVanuitInternet, vindDetailLink } from "./domain/webverrijking";
 import { isIndicatief, basisveldenMomentopname, effectieveStatus, geenBronSleutel, herkomstExport, isGoudstandaard, markeerGeenBron, registreerHandmatigeBasisvelden, vulOntbrekendeHerkomst, wisGeenBron, wisHerkomst, zetBasisveldHerkomst } from "./domain/herkomst";
@@ -981,13 +981,15 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
     let melding: string | undefined;
     // Locatie en AI-samenvatting vóór de mutatie (async), zodat de mutatie zelf synchroon blijft. Eén discovery-run = één AI-bewerking.
     const getoetst = await alsAIBewerking("discovery", g.naam, `discovery ${rollen.join(",")} ${trefwoorden}`.trim(), async () => {
-      // Terugval: blokkeren de zoekmachines het verkeer van de server, dan zoekt Claude (web search) de bedrijfswebsites op.
-      if (!gevonden.length && db.instellingen.externeBronnenToegestaan && aiBeschikbaar()) {
-        const extra = woorden.filter((w) => w.length > 4).slice(0, 3).join(" ");
+      // Terugval: blokkeren de zoekmachines het verkeer van de server of geven ze onzin terug (Bing doet dat bij serververkeer),
+      // dan zoekt Claude (web search) de bedrijfswebsites op. Maatstaf is het aantal bruikbare websites na de regeltoets.
+      if (filterRelevant(gevonden).relevant.length < 3 && db.instellingen.externeBronnenToegestaan && aiBeschikbaar()) {
+        const extra = woorden.filter((w) => w.length > 2 && !/^\d+$/.test(w)).slice(0, 3).join(" ");
         const vragen = rollen.map((r) => `${ROL_LABEL[r].toLowerCase()} woningbouw ${extra} ${regio ?? ""}`.replace(/\s+/g, " ").trim());
         zetAanroepDoel("bedrijfswebsites zoeken (terugval)");
-        const urls = (await aiZoekBedrijfswebsites(vragen)) ?? [];
-        const gelezen = await Promise.all(urls.map((u, i) => kandidaatVanWebsite(u, rollen[i % rollen.length], "Webzoek via Claude", vragen[i % vragen.length], regio || undefined)));
+        const bekend = new Set(gevonden.map((k) => k.website ?? k.bronUrl));
+        const urls = ((await aiZoekBedrijfswebsites(vragen, 16)) ?? []).filter((u) => !bekend.has(u));
+        const gelezen = await Promise.all(urls.map((u, i) => kandidaatVanWebsite(u, rollen[i % rollen.length], "Webzoek via Claude", vragen[i % vragen.length], regio || undefined, rollen)));
         gelezen.forEach((k) => k && gevonden.push(k));
         if (urls.length) bronnamen.push("Webzoek via Claude (terugval)");
       }
@@ -1005,7 +1007,10 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
       return { kandidaten, weg };
     }, "aandragen");
     const { kandidaten: verrijkt, weg: uitgefilterd } = getoetst;
-    if (gevonden.length && !verrijkt.length) melding = `Alle ${gevonden.length} gevonden websites vielen af: geen bouwpartner voor Blauwhoed (bijv. woningportaal, makelaar of geen bedrijf in de gevraagde rol). Probeer andere vaktermen of een andere rol.`;
+    if (gevonden.length && !verrijkt.length) {
+      const redenen = uitgefilterd.slice(0, 4).map((w) => `${w.naam}: ${w.reden}`).join(" · ");
+      melding = `Alle ${gevonden.length} gevonden websites vielen af als geen bouwpartner voor Blauwhoed${diagnose.some((d) => d.geblokkeerd) ? ` (de zoekmachines weigerden de server of gaven onbruikbare resultaten: ${diagnoseTekst(diagnose)})` : ""}. Voorbeelden: ${redenen}${aiBeschikbaar() ? "" : ". Met een ingericht taalmodel zoekt de app dan ook via Claude"}.`;
+    }
     if (!gevonden.length) {
       const geblokkeerd = diagnose.some((d) => d.geblokkeerd);
       melding = geblokkeerd
