@@ -7,14 +7,14 @@ import type { Rol } from "./domain/types";
 
 export type Weggefilterd = { naam: string; reden: string };
 
-export async function toetsKandidaten<T extends { naam: string; bronUrl: string; website?: string; voorlopigeScore?: number; ruweData: Record<string, unknown> }>(kandidaten: T[], rollen: Rol[], project?: string): Promise<{ relevant: T[]; weg: Weggefilterd[] }> {
+export async function toetsKandidaten<T extends { naam: string; bronUrl: string; website?: string; voorlopigeScore?: number; ruweData: Record<string, unknown> }>(kandidaten: T[], rollen: Rol[], project?: string, upcoming = false): Promise<{ relevant: T[]; weg: Weggefilterd[] }> {
   const { relevant, weg } = filterRelevant(kandidaten);
-  const metTekst = relevant.filter((k) => typeof k.ruweData.websiteTekst === "string" && (k.ruweData.websiteTekst as string).length > 100);
+  const metTekst = relevant.filter((k) => typeof k.ruweData.websiteTekst === "string" && ((k.ruweData.websiteTekst as string).length > 100 || Boolean(k.ruweData.aanleiding)));
   if (!aiBeschikbaar() || !metTekst.length) return { relevant, weg };
   zetAanroepDoel("kandidaten toetsen op het profiel van Blauwhoed");
   const toets = await aiToetsKandidaten(
-    metTekst.map((k) => ({ naam: k.naam, url: k.website ?? k.bronUrl, tekst: `${String(k.ruweData.profiel ?? "")} ${String(k.ruweData.websiteTekst)}` })),
-    { rollen, project, profiel: BLAUWHOED_PROFIEL }
+    metTekst.map((k) => ({ naam: k.naam, url: k.website ?? k.bronUrl, tekst: `${k.ruweData.aanleiding ? `Aanleiding: ${String(k.ruweData.aanleiding)}. ` : ""}${String(k.ruweData.profiel ?? "")} ${String(k.ruweData.websiteTekst)}` })),
+    { rollen, project, profiel: BLAUWHOED_PROFIEL, upcoming }
   );
   // AI niet beschikbaar of mislukt: de regeltoets blijft staan.
   if (!toets) return { relevant, weg };

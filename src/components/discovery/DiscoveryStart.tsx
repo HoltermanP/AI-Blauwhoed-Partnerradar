@@ -113,7 +113,7 @@ export default function DiscoveryStart({ projecten, profielen, magStarten }: { p
           <label>
             <input type="radio" name="modus" checked={modus === "regulier"} onChange={() => setModus("regulier")} /> Gevestigde partijen
           </label>
-          <label title="Zoekt ook op prijzen- en nominatiebronnen (instelbaar onder Verrijking → Bronnen); kandidaten krijgen het label upcoming">
+          <label title="Zoekt breed op internet naar kleine en jonge bedrijven die opvielen door een prijs, nominatie, vakmedia, nieuws of socials (via Claude), plus de prijzenbronnen onder Verrijking → Bronnen. Per kandidaat staan de aanleiding en de bron erbij; kandidaten krijgen het label upcoming">
             <input type="radio" name="modus" checked={modus === "upcoming"} onChange={() => setModus("upcoming")} /> Upcoming: nieuw talent (prijzen, nominaties, opvallende projecten)
           </label>
         </div>

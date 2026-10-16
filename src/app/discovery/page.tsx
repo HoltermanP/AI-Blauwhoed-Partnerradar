@@ -14,7 +14,7 @@ import { getDb } from "@/lib/store";
 import { aiAan } from "@/lib/aiplatform";
 
 // Discovery en aandragen raadplegen internetbronnen; server actions mogen tot 60 s duren (Vercel).
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const STATUSSEN: Array<{ id: DiscoveryStatus; label: string }> = [
   { id: "nieuw", label: "Nieuw" },

@@ -72,6 +72,21 @@ export default function KandidaatKaart({ kandidaat, projectNaam, dubbelNaam, rec
           " · niet aan een project gekoppeld"
         )}
       </p>
+      {typeof k.ruweData.aanleiding === "string" ? (
+        <p className="klein-tekst">
+          <Badge kleur="mint" titel="Waarom deze partij opviel: prijs, nominatie, nieuws of socials">upcoming</Badge> {k.ruweData.aanleiding}
+          {typeof k.ruweData.aanleidingBron === "string" ? (
+            <>
+              {" "}
+              ·{" "}
+              <a href={k.ruweData.aanleidingBron} target="_blank" rel="noreferrer">
+                bron
+              </a>
+            </>
+          ) : null}
+          {typeof k.ruweData.websiteNietBevestigd === "string" ? <span className="muted"> · website niet bevestigd (geraden: {k.ruweData.websiteNietBevestigd})</span> : null}
+        </p>
+      ) : null}
       {typeof (k.ruweData.relevantie as { reden?: unknown } | undefined)?.reden === "string" ? (
         <p className="muted klein-tekst">
           <Badge kleur="blauw" titel="Toets of dit een bouwpartner voor Blauwhoed is (regels, en met AI een inhoudelijke toets)">relevantie</Badge> {(k.ruweData.relevantie as { reden: string }).reden}

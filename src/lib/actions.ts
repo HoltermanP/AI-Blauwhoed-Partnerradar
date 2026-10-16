@@ -28,9 +28,9 @@ import { gezochteVelden } from "./domain/goudstandaard";
 import { heeftBronEnOnderbouwing, isGoedgekeurd, pasBronrangToe } from "./domain/bronbeleid";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiChatOpgemaakt, aiZoekBedrijfswebsites, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
+import { aiBeschikbaar, aiChatOpgemaakt, aiZoekBedrijfswebsites, aiZoekUpcoming, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
 import { toetsKandidaten, type Weggefilterd } from "./discoveryToets";
-import { zoektermenVoorProject } from "./domain/relevantie";
+import { beoordeelRelevantie, zoektermenVoorProject } from "./domain/relevantie";
 import { zichtbaar } from "./domain/zichtbaarheid";
 import { SYSTEEM_SLEUTEL, type SysteemSleutel } from "./systeem";
 import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
@@ -983,7 +983,36 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
     const getoetst = await alsAIBewerking("discovery", g.naam, `discovery ${rollen.join(",")} ${trefwoorden}`.trim(), async () => {
       // Terugval: blokkeren de zoekmachines het verkeer van de server of geven ze onzin terug (Bing doet dat bij serververkeer),
       // dan zoekt Claude (web search) de bedrijfswebsites op. Maatstaf is het aantal bruikbare websites na de regeltoets.
-      if (filterRelevant(gevonden).relevant.length < 3 && db.instellingen.externeBronnenToegestaan && aiBeschikbaar()) {
+      // Upcoming: Claude zoekt breed (prijzen, nominaties, vakmedia, nieuws, socials) naar kleine en jonge bedrijven, met aanleiding en bron.
+      if (upcoming && db.instellingen.externeBronnenToegestaan && aiBeschikbaar()) {
+        zetAanroepDoel("opkomende partijen zoeken (prijzen, nieuws, socials)");
+        const vondsten = (await aiZoekUpcoming({ rollen: rollen.map((r) => ROL_LABEL[r].toLowerCase()), trefwoorden: woorden.filter((w) => w !== "genomineerd").join(" "), regio: regio || undefined })) ?? [];
+        const bekend = new Set(gevonden.map((k) => k.website ?? k.bronUrl));
+        const gelezen = await Promise.all(
+          vondsten
+            .filter((v) => !bekend.has(v.website))
+            .map(async (v) => {
+              const rol = rollen.find((r) => v.rol.includes(r) || v.rol.includes(ROL_LABEL[r].toLowerCase())) ?? rollen[0];
+              const k = await kandidaatVanWebsite(v.website, rol, "Upcoming via Claude (prijzen, nieuws, socials)", v.aanleiding, regio || undefined, rollen);
+              // Website niet te lezen (vaak een verkeerd geraden domein): niet stil laten vallen, maar op het artikel laten toetsen
+              // en zonder website aandragen; de beoordelaar zoekt de site dan zelf op.
+              if (!k) {
+                if (!v.bronUrl) return null;
+                return { naam: v.naam, rollen: [rol], bron: "Upcoming via Claude (prijzen, nieuws, socials)", bronUrl: v.bronUrl, vestigingsplaats: regio || undefined, ruweData: { profiel: v.aanleiding, referenties: [], zoekterm: v.aanleiding, websiteTekst: v.aanleiding, aanleiding: v.aanleiding, aanleidingBron: v.bronUrl, websiteNietBevestigd: v.website, upcoming: true } };
+              }
+              // De aanleiding telt mee in de regeltoets: een kleine site zegt weinig, het nieuwsbericht of de prijs vaak meer.
+              const tekst = `${k.naam} ${v.naam} ${v.aanleiding} ${String(k.ruweData.websiteTekst ?? "")}`;
+              const regels = beoordeelRelevantie(v.website, tekst, rollen);
+              // Kleine bedrijven hebben vaak een kale homepage: alleen harde uitsluitingen (portaal, medium, overheid) gelden hier;
+              // twijfel over sector of rol beslist de AI-toets, die ook de aanleiding meeweegt.
+              const relevantie = regels.soort === "geen bouwbedrijf" || regels.soort === "andere rol" ? { ...regels, relevant: true, score: 40, reden: `Regeltoets onzeker (${regels.reden.replace(/\.$/, "")}); aanleiding: ${v.aanleiding}` } : regels;
+              return { ...k, naam: v.naam || k.naam, rollen: [relevantie.rol ?? rol], bronUrl: v.bronUrl ?? k.bronUrl, voorlopigeScore: relevantie.score, ruweData: { ...k.ruweData, relevantie, aanleiding: v.aanleiding, aanleidingBron: v.bronUrl, upcoming: true } };
+            })
+        );
+        gelezen.forEach((k) => k && gevonden.push(k));
+        if (vondsten.length) bronnamen.push("Prijzen, nieuws en socials via Claude");
+      }
+      if (!upcoming && filterRelevant(gevonden).relevant.length < 3 && db.instellingen.externeBronnenToegestaan && aiBeschikbaar()) {
         const extra = woorden.filter((w) => w.length > 2 && !/^\d+$/.test(w)).slice(0, 3).join(" ");
         const vragen = rollen.map((r) => `${ROL_LABEL[r].toLowerCase()} woningbouw ${extra} ${regio ?? ""}`.replace(/\s+/g, " ").trim());
         zetAanroepDoel("bedrijfswebsites zoeken (terugval)");
@@ -995,7 +1024,7 @@ export async function startDiscovery(projectId: string | null, rollen: Rol[], tr
       }
       // Alleen echte bouwpartners: regeltoets (portaal, makelaar, medium) en daarna de AI-toets op Blauwhoed en het project.
       const projectTekst = project ? `${project.naam} — ${project.type}, ${project.woningen} woningen, ${project.locatie.plaats}. ${project.omschrijving}` : undefined;
-      const { relevant, weg } = await toetsKandidaten(gevonden, rollen, projectTekst);
+      const { relevant, weg } = await toetsKandidaten(gevonden, rollen, projectTekst, upcoming);
       const kandidaten = await Promise.all(
         relevant.map(async (k) => {
           const locatie = k.locatie ?? (k.vestigingsplaats ? (await geocodeer(k.vestigingsplaats))?.locatie : undefined);

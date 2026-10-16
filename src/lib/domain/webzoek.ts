@@ -111,7 +111,9 @@ export async function zoekUrls(query: string, max = 8): Promise<string[]> {
 export async function kandidaatVanWebsite(url: string, rol: Rol, bron: string, zoekterm: string, regio?: string, toetsRollen: Rol[] = [rol]): Promise<Awaited<ReturnType<BronConnector["zoek"]>>[number] | null> {
   if (isUitgeslotenDomein(url)) return null;
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BlauwhoedPartnerRadar/1.0 (discovery; alleen openbare bedrijfsinformatie)" } });
+    let r = await fetch(url, { signal: AbortSignal.timeout(6000), headers: { "user-agent": "BlauwhoedPartnerRadar/1.0 (discovery; alleen openbare bedrijfsinformatie)" } });
+    // Een deel van de (kleine) bedrijfssites weigert onbekende user-agents (400/403); dan nog één keer als gewone browser.
+    if (!r.ok && [400, 403, 406, 429].includes(r.status)) r = await fetch(url, { signal: AbortSignal.timeout(6000), headers: ZOEK_HEADERS });
     if (!r.ok) return null;
     const html = await r.text();
     const tekst = striptHtml(html).slice(0, 20000);

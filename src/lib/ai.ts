@@ -66,8 +66,8 @@ function getClient() {
 }
 
 /** Web search: lichte modellen gebruiken de basisvariant. */
-function webZoekTool(licht: boolean): Anthropic.ToolUnion {
-  return licht ? { type: "web_search_20250305", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } } : { type: "web_search_20260209", name: "web_search", max_uses: 4, user_location: { type: "approximate", country: "NL" } };
+function webZoekTool(licht: boolean, maxUses = 4): Anthropic.ToolUnion {
+  return licht ? { type: "web_search_20250305", name: "web_search", max_uses: maxUses, user_location: { type: "approximate", country: "NL" } } : { type: "web_search_20260209", name: "web_search", max_uses: maxUses, user_location: { type: "approximate", country: "NL" } };
 }
 
 /** Het model voor een functie: uit de lopende bewerking, anders uit de instellingen. */
@@ -291,6 +291,93 @@ export async function aiZoekBedrijfswebsites(zoekvragen: string[], max = 10): Pr
   }
 }
 
+export type UpcomingVondst = { naam: string; website: string; rol: string; aanleiding: string; bronUrl?: string };
+
+/**
+ * US-11 upcoming: zoekt breed op internet (prijzen, nominaties, vakmedia, nieuws, LinkedIn en andere socials) naar kleine en
+ * jonge bedrijven in de bouwketen die recent opvielen. Levert per bedrijf de eigen website, de aanleiding en de bron.
+ */
+export async function aiZoekUpcoming(vraag: { rollen: string[]; trefwoorden: string; regio?: string }, max = 30): Promise<UpcomingVondst[] | null> {
+  if (!aiBeschikbaar() || !vraag.rollen.length) return null;
+  // Breed zoeken en afwegen vraagt meer dan het lichte aandraagmodel: Haiku haakt af of levert alleen aannemers. Daarom het
+  // model voor matching (standaard Sonnet), tenzij voor aandragen al een zwaarder model is ingesteld.
+  const aandragen = await modelVoorFunctie("aandragen");
+  const model = aandragen.startsWith("claude-haiku") ? await modelVoorFunctie("match") : aandragen;
+  const licht = model.startsWith("claude-haiku");
+  // Eenvoudige zoektool (zonder code-uitvoering): de variant met dynamisch filteren verbruikt het zoekbudget in één stap.
+  const tools: Anthropic.ToolUnion[] = [{ type: "web_search_20250305", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "NL" } }];
+  const jaar = new Date().getFullYear();
+  const perRol = Math.max(3, Math.ceil(max / vraag.rollen.length) + 1);
+  // Eén zoekronde per rol, parallel: één ronde voor alle rollen samen blijft hangen bij aannemers.
+  const zoekRol = async (rol: string) => {
+    const messages: Anthropic.MessageParam[] = [
+      {
+        role: "user",
+        content: `Een inkoper van woningontwikkelaar Blauwhoed zoekt opkomend talent in de rol "${rol}": kleine of jonge Nederlandse bedrijven (mkb, start-ups, jonge bureaus; geen grote bouwconcerns, geen dochters van concerns, geen beursgenoteerde bedrijven) die werk kunnen leveren voor woningbouwprojecten.
+${vraag.trefwoorden ? `Thema of vaktermen: ${vraag.trefwoorden}\n` : ""}Regio: ${vraag.regio ?? "heel Nederland"}
+
+Gebruik de zoektool breed en gevarieerd. Zoek naar bedrijven in deze rol die in ${jaar - 2}–${jaar} (of iets eerder) opvielen door bijvoorbeeld:
+- een gewonnen prijs of nominatie (bouw-, innovatie-, duurzaamheids-, houtbouw-, architectuur-, ondernemers- of regionale prijzen);
+- aandacht in vakmedia of regionaal nieuws (een opvallend project, innovatie, eerste in zijn soort, snelle groei);
+- opvallende berichten op LinkedIn, Instagram of andere socials, of deelname aan innovatieprogramma's, pilots en challenges.
+Varieer de zoektermen (bijv. "${rol} prijs gewonnen", "${rol} genomineerd", "award", "innovatieprijs", "start-up", "jong bedrijf") en kijk verder dan de eerste resultaten.
+
+Geef daarna maximaal ${perRol} bedrijven, één per regel, precies in dit formaat (geen nummering, geen andere tekst):
+Bedrijfsnaam | https://eigen-website.nl | ${rol} | aanleiding in max. 15 woorden (welke prijs, nominatie of welk nieuws, met jaar) | https://url-van-het-artikel-of-bericht
+Wees ruim: de inkoper controleert zelf de website en de grootte, dus noem elk bedrijf in deze rol dat je in de resultaten tegenkwam met een prijs, nominatie of opvallend bericht. Weet je de website niet zeker, geef dan je beste schatting van het domein. Bij een prijs voor een project noem je de betrokken bedrijven in deze rol (bijv. de houtbouwer of constructeur van het winnende project). Een persoon die een prijs won, telt via het bedrijf waar die werkt. Alleen weglaten: duidelijk grote concerns (honderden medewerkers), gidsen, media en brancheorganisaties.`
+      }
+    ];
+    let res = await getClient().messages.create({ model, max_tokens: 2000, tools, messages, ...(licht ? {} : { output_config: { effort: "low" as const } }) });
+    registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
+    const inhoud = [...res.content];
+    for (let i = 0; i < 2 && res.stop_reason === "pause_turn"; i++) {
+      res = await getClient().messages.create({ model, max_tokens: 2000, tools, messages: [...messages, { role: "assistant", content: res.content }], ...(licht ? {} : { output_config: { effort: "low" as const } }) });
+      registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
+      inhoud.push(...res.content);
+    }
+    // Tekstblokken aaneen zonder scheiding: met bronvermeldingen splitst het model één regel over meerdere blokken.
+    let tekst = inhoud.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
+    // Geen lijst (zoekbudget op, of het model vraagt om door te gaan): de lijst afdwingen op basis van wat al gevonden is.
+    if (!/\|\s*https?:\/\//.test(tekst)) {
+      const vervolg = await getClient().messages.create({
+        model,
+        max_tokens: 1500,
+        tools,
+        tool_choice: { type: "none" },
+        messages: [...messages, { role: "assistant", content: inhoud.filter((b) => b.type !== "text" || b.text.trim()) }, { role: "user", content: "Niet verder zoeken. Geef nu de lijst in het gevraagde formaat op basis van wat je in de zoekresultaten hierboven zag. Geen andere tekst." }]
+      });
+      registreerAanroep(model, vervolg.usage.input_tokens, vervolg.usage.output_tokens);
+      tekst += "\n" + vervolg.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
+    }
+    return { rol, tekst };
+  };
+  const rondes = await Promise.allSettled(vraag.rollen.map(zoekRol));
+  const gelukt = rondes.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+  rondes.forEach((r) => r.status === "rejected" && console.warn("Upcoming-zoekronde mislukt:", r.reason instanceof Error ? r.reason.message : r.reason));
+  if (!gelukt.length) return null;
+  const gezien = new Set<string>();
+  const uit: UpcomingVondst[] = [];
+  for (const { rol: zoekrol, tekst } of gelukt) {
+    for (const regel of tekst.split("\n")) {
+      const delen = regel.replace(/^[\s*•-]*(\d+[.)]\s*)?/, "").replace(/\*\*/g, "").split("|").map((d) => d.trim());
+      if (delen.length < 4) continue;
+      const [naam, site, rol, aanleiding, bron] = delen;
+      let website: string;
+      try {
+        website = new URL(site.match(/https?:\/\/[^\s)\]>"]+/)?.[0] ?? `https://${site.replace(/^www\./, "www.")}`).origin;
+      } catch {
+        continue;
+      }
+      const host = new URL(website).hostname.replace(/^www\./, "");
+      if (!naam || /^bedrijfsnaam$/i.test(naam) || !aanleiding || /^aanleiding/i.test(aanleiding) || gezien.has(host) || isUitgeslotenDomein(website)) continue;
+      gezien.add(host);
+      const bronUrl = bron?.match(/https?:\/\/[^\s)\]>"]+/)?.[0];
+      uit.push({ naam, website, rol: (rol || zoekrol).toLowerCase(), aanleiding: aanleiding.replace(/\s+/g, " "), bronUrl });
+    }
+  }
+  return uit.slice(0, max);
+}
+
 export type ChatBron = { titel: string; url: string };
 export type AIChatOpgemaakt = { antwoord: string; partnerIds: string[]; bronnen: ChatBron[] };
 
@@ -445,11 +532,11 @@ export type AIKandidaatToets = { index: number; relevant: boolean; reden: string
  * zelf ontwerpen, adviseren, bouwen, installeren of bouwdelen leveren voor woningbouw blijven over; portalen, makelaars,
  * media, overheden, branchegidsen, concurrerende ontwikkelaars (tenzij ontwikkelpartner gevraagd) en webwinkels niet.
  */
-export async function aiToetsKandidaten(kandidaten: Array<{ naam: string; url: string; tekst: string }>, context: { rollen: string[]; project?: string; profiel: string }): Promise<AIKandidaatToets[] | null> {
+export async function aiToetsKandidaten(kandidaten: Array<{ naam: string; url: string; tekst: string }>, context: { rollen: string[]; project?: string; profiel: string; upcoming?: boolean }): Promise<AIKandidaatToets[] | null> {
   if (!kandidaten.length) return [];
   const r = await jsonAntwoord<{ toetsing: AIKandidaatToets[] }>(
     "aandragen",
-    `Je beoordeelt voor een inkoper of gevonden websites mogelijke bouwpartners zijn. ${context.profiel} Een kandidaat is alleen relevant als het een bedrijf is dat zelf werk levert in een van de gevraagde rollen voor woningbouwprojecten zoals die van de opdrachtgever. Niet relevant: woningportalen en makelaars (aanbod voor kopers/huurders), nieuws- en vakmedia, overheden, onderwijs, branche- en bedrijvengidsen, vergelijkings- en offertesites, vacaturesites, webwinkels voor particulieren, woningcorporaties en beleggers, en pure projectontwikkelaars of beleggers zonder eigen bouw-, ontwerp- of installatietak. Bouwbedrijven die daarnaast zelf ontwikkelen (ontwikkelende bouwers, bouwconcerns met een ontwikkeltak) zijn wél relevant: als aannemer, en als ontwikkelpartner als die rol is gevraagd. Ook niet relevant: bedrijven die alleen voor particulieren verbouwen of alleen buiten de woningbouw werken. Oordeel uitsluitend op de meegegeven tekst. Is het duidelijk een bouwbedrijf, ingenieurs- of adviesbureau, installateur of producent dat voor woningbouw werkt, maar is de precieze rol onzeker: relevant = true. Bij twijfel of het überhaupt zo'n bedrijf is: relevant = false. reden: één korte zin in het Nederlands.`,
+    `Je beoordeelt voor een inkoper of gevonden websites mogelijke bouwpartners zijn. ${context.profiel} Een kandidaat is alleen relevant als het een bedrijf is dat zelf werk levert in een van de gevraagde rollen voor woningbouwprojecten zoals die van de opdrachtgever. Niet relevant: woningportalen en makelaars (aanbod voor kopers/huurders), nieuws- en vakmedia, overheden, onderwijs, branche- en bedrijvengidsen, vergelijkings- en offertesites, vacaturesites, webwinkels voor particulieren, woningcorporaties en beleggers, en pure projectontwikkelaars of beleggers zonder eigen bouw-, ontwerp- of installatietak. Adviesbureaus (duurzaamheid, circulariteit, bouwfysica, constructie, installaties, bouwmanagement) zijn wél relevant als adviseur, ook zonder eigen bouwtak; fabrikanten en producenten van bouw- en installatieproducten voor woningen zijn wél relevant als leverancier. Bouwbedrijven die daarnaast zelf ontwikkelen (ontwikkelende bouwers, bouwconcerns met een ontwikkeltak) zijn wél relevant: als aannemer, en als ontwikkelpartner als die rol is gevraagd. Ook niet relevant: bedrijven die alleen voor particulieren verbouwen of alleen buiten de woningbouw werken. Oordeel uitsluitend op de meegegeven tekst. Is het duidelijk een bouwbedrijf, ingenieurs- of adviesbureau, installateur of producent dat voor woningbouw werkt, maar is de precieze rol onzeker: relevant = true. Bij twijfel of het überhaupt zo'n bedrijf is: relevant = false. reden: één korte zin in het Nederlands.${context.upcoming ? " Er wordt opkomend talent gezocht: kleine of jonge bedrijven. Grote bouwconcerns en landelijk bekende marktleiders zijn in deze zoektocht niet relevant. Een kleine site met weinig tekst is geen reden om af te wijzen als de aanleiding (prijs, nominatie, nieuws) en de site samen op een passend bedrijf wijzen." : ""}`,
     `Gevraagde rollen: ${context.rollen.join(", ")}\n${context.project ? `Project: ${context.project}\n` : ""}\nKandidaten:\n${kandidaten.map((k, i) => `[${i}] ${k.naam} — ${k.url}\n${k.tekst.replace(/\s+/g, " ").slice(0, 1200)}`).join("\n\n")}`,
     {
       type: "object",
