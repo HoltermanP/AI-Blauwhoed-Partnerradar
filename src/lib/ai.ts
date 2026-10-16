@@ -91,7 +91,7 @@ async function jsonAntwoord<T>(functie: AIFunctie, system: string, prompt: strin
       system,
       output_config: { ...effort, format: { type: "json_schema", schema } },
       messages: [{ role: "user", content: prompt }]
-    });
+    }, { timeout: 90_000, maxRetries: 1 });
     registreerAanroep(model, res.usage.input_tokens, res.usage.output_tokens);
     if (res.stop_reason === "refusal") return null;
     const tekst = res.content.find((b) => b.type === "text");
@@ -134,7 +134,7 @@ export async function aiFactorExtractie(naam: string, tekst: string, factoren: F
     .join("\n");
   const r = await jsonAntwoord<{ voorstellen: AIFactorVoorstel[] }>(
     "extractie",
-    "Je bepaalt kenmerken van een bouwpartner uit openbare tekst volgens een vaste taxonomie. Per kenmerk geef je een vaststelling: 'feitelijk' als de waarde zo in de tekst staat (bijv. 'CO2-prestatieladder niveau 5', 'MPG 0,6'), of 'ingeschat' als de waarde niet letterlijk in de tekst staat maar redelijk volgt uit concrete aanwijzingen (bijv. zes opgeleverde houtbouwprojecten → niveau 4 houtbouw). Het citaat is altijd de letterlijke tekst waarop je de waarde baseert. De onderbouwing legt in één of twee zinnen uit waarom deze waarde: bij 'feitelijk' wat de tekst zegt, bij 'ingeschat' welke aanwijzingen je hoe hebt gewogen. Schat alleen in op basis van concrete aanwijzingen in de tekst, nooit op algemene kennis of op de bedrijfsnaam; zonder aanwijzing laat je het kenmerk weg (het veld wordt dan gemarkeerd als 'geen betrouwbare bron'). 'aantoonbaar' is true alleen bij certificaat, meting, berekening of concreet opgeleverd project; marketingtaal is niet aantoonbaar. Niveau-schalen zijn 0–5 (3 = aantoonbare ervaring, 4–5 = specialisme); een niveau is bijna altijd 'ingeschat', tenzij de tekst het niveau zelf noemt. Schrijf in het Nederlands.",
+    "Je bepaalt kenmerken van een bouwpartner uit openbare tekst volgens een vaste taxonomie. Per kenmerk geef je een vaststelling: 'feitelijk' als de waarde zo in de tekst staat (bijv. 'CO2-prestatieladder niveau 5', 'MPG 0,6'), of 'ingeschat' als de waarde niet letterlijk in de tekst staat maar redelijk volgt uit concrete aanwijzingen (bijv. zes opgeleverde houtbouwprojecten → niveau 4 houtbouw). Het citaat is altijd de letterlijke tekst waarop je de waarde baseert. De onderbouwing legt in één zin (maximaal 25 woorden) uit waarom deze waarde: bij 'feitelijk' wat de tekst zegt, bij 'ingeschat' welke aanwijzingen je hoe hebt gewogen. Schat alleen in op basis van concrete aanwijzingen in de tekst, nooit op algemene kennis of op de bedrijfsnaam; zonder aanwijzing laat je het kenmerk weg (het veld wordt dan gemarkeerd als 'geen betrouwbare bron'). 'aantoonbaar' is true alleen bij certificaat, meting, berekening of concreet opgeleverd project; marketingtaal is niet aantoonbaar. Niveau-schalen zijn 0–5 (3 = aantoonbare ervaring, 4–5 = specialisme); een niveau is bijna altijd 'ingeschat', tenzij de tekst het niveau zelf noemt. Schrijf in het Nederlands.",
     `Bedrijf: ${naam}\n\nTaxonomie:\n${taxonomie}\n\nTekst:\n${tekst.slice(0, 20000)}`,
     {
       type: "object",

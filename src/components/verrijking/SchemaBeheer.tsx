@@ -88,7 +88,7 @@ export default function SchemaBeheer({ schema, magBeheren }: { schema: Verrijkin
             onClick={() =>
               start(async () => {
                 const r = await slaVerrijkingsschemaOp(w);
-                setMelding(r.ok ? { soort: "succes", tekst: r.data ? `Schema opgeslagen. Volgende ronde: ${new Date(r.data).toLocaleString("nl-NL")}.` : "Schema opgeslagen: periodieke verrijking staat uit." } : { soort: "fout", tekst: r.fout });
+                setMelding(r.ok ? { soort: "succes", tekst: r.data ? `Schema opgeslagen. Volgende ronde: ${new Date(r.data).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}.` : "Schema opgeslagen: periodieke verrijking staat uit." } : { soort: "fout", tekst: r.fout });
                 if (r.ok) router.refresh();
               })
             }

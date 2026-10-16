@@ -19,7 +19,7 @@ import type { SchattingPerOmvang } from "@/components/verrijking/VerrijkingStart
 import { aiAan } from "@/lib/aiplatform";
 
 // Server actions op deze pagina (verrijking via internet) mogen tot 60 s duren (Vercel).
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 type VStatus = EnrichmentVoorstel["status"];
 const STATUSSEN: Array<{ id: VStatus; label: string }> = [

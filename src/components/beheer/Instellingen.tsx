@@ -58,7 +58,7 @@ export function Instellingen({ instellingen, magBeheren }: { instellingen: Datab
         </label>
       </div>
       <p className="muted klein-tekst" style={{ margin: 0 }}>
-        Laatste verrijking: {instellingen.laatsteVerrijking ? new Date(instellingen.laatsteVerrijking).toLocaleString("nl-NL") : "nog niet uitgevoerd"}.
+        Laatste verrijking: {instellingen.laatsteVerrijking ? new Date(instellingen.laatsteVerrijking).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" }) : "nog niet uitgevoerd"}.
       </p>
     </div>
   );

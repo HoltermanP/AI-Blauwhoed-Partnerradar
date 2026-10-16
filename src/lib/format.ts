@@ -2,8 +2,10 @@ import type { FactorWaarde, PartnerStatus, Rol } from "./domain/types";
 
 export const euro = (n: number | undefined | null) => (n === undefined || n === null ? "–" : new Intl.NumberFormat("nl-NL", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n));
 export const getal = (n: number | undefined | null, decimalen = 0) => (n === undefined || n === null ? "–" : new Intl.NumberFormat("nl-NL", { maximumFractionDigits: decimalen }).format(n));
-export const datum = (d: string | undefined | null) => (d ? new Date(d).toLocaleDateString("nl-NL", { day: "2-digit", month: "short", year: "numeric" }) : "–");
-export const datumTijd = (d: string | undefined | null) => (d ? new Date(d).toLocaleString("nl-NL", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–");
+/** Vaste tijdzone: de server (Vercel, UTC) en de browser moeten dezelfde tekst renderen, anders volgt een hydration-fout. */
+export const TIJDZONE = "Europe/Amsterdam";
+export const datum = (d: string | undefined | null) => (d ? new Date(d).toLocaleDateString("nl-NL", { timeZone: TIJDZONE, day: "2-digit", month: "short", year: "numeric" }) : "–");
+export const datumTijd = (d: string | undefined | null) => (d ? new Date(d).toLocaleString("nl-NL", { timeZone: TIJDZONE, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–");
 
 export const ROL_LABEL: Record<Rol, string> = {
   architect: "Architect",

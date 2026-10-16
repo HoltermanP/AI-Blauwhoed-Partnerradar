@@ -135,7 +135,7 @@ export default async function VerbandenPagina({ searchParams }: { searchParams: 
                       {(() => {
                         const b = bevestiging(db, v.a.id, v.b.id);
                         return b ? (
-                          <Badge kleur="groen" titel={`Bevestigd door ${b.bevestigdDoor} op ${new Date(b.bevestigdOp).toLocaleDateString("nl-NL")}: ${b.toelichting ?? ""}`}>bevestigde samenwerking</Badge>
+                          <Badge kleur="groen" titel={`Bevestigd door ${b.bevestigdDoor} op ${new Date(b.bevestigdOp).toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })}: ${b.toelichting ?? ""}`}>bevestigde samenwerking</Badge>
                         ) : (
                           <Badge kleur="geel">signaal · {v.bronnen.length} bron{v.bronnen.length === 1 ? "" : "nen"}</Badge>
                         );

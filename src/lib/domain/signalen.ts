@@ -32,7 +32,7 @@ export function signalenVoor(db: Database, nu = new Date()): Signaal[] {
   else if (budget.waarschuwing && !budget.overschreden) signalen.push({ id: "ai-budget-80", soort: "budget", ernst: "waarschuwing", titel: "AI-verbruik boven 80% van het maandbudget", omschrijving: verbruik, link: "/beheer/verbruik" });
   const schema = db.instellingen.verrijkingsschema;
   if (schema?.overgeslagen && (!schema.laatsteGeplandeRonde || schema.overgeslagen.op > schema.laatsteGeplandeRonde))
-    signalen.push({ id: "schema-overgeslagen", soort: "budget", ernst: "waarschuwing", titel: "Geplande verrijkingsronde niet gestart", omschrijving: `${schema.overgeslagen.reden} (gepland ${new Date(schema.overgeslagen.gepland).toLocaleString("nl-NL")}).`, link: "/verrijking" });
+    signalen.push({ id: "schema-overgeslagen", soort: "budget", ernst: "waarschuwing", titel: "Geplande verrijkingsronde niet gestart", omschrijving: `${schema.overgeslagen.reden} (gepland ${new Date(schema.overgeslagen.gepland).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}).`, link: "/verrijking" });
 
   db.partners.forEach((p: Partner) => {
     p.certificaten.forEach((c) => {

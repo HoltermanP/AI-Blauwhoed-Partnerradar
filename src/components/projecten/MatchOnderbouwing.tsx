@@ -29,7 +29,7 @@ export default function MatchOnderbouwing({ run, namen, aiActief }: { run: Match
       {o ? (
         <>
           <p className="muted klein-tekst">
-            Opgesteld door {o.provider} op verzoek van {o.door} ({new Date(o.op).toLocaleString("nl-NL")}).
+            Opgesteld door {o.provider} op verzoek van {o.door} ({new Date(o.op).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" })}).
           </p>
           {o.perRol.map((r) => (
             <section key={r.rol} className="onderbouwingRol">

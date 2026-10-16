@@ -30,7 +30,7 @@ export default async function GewichtenPagina({ searchParams }: { searchParams: 
           dekkingDemping={db.instellingen.dekkingDemping !== false}
           profielen={db.gewichtsprofielen.map((g) => ({ id: g.id, naam: g.naam }))}
           magBeheren={magBeheren}
-          vastgesteld={db.instellingen.standaardweging?.vastgesteldOp ? `Laatst vastgesteld door ${db.instellingen.standaardweging.vastgesteldDoor} op ${new Date(db.instellingen.standaardweging.vastgesteldOp).toLocaleDateString("nl-NL")}` : "Nog niet vastgesteld: de profielen gebruiken hun eigen startweging."}
+          vastgesteld={db.instellingen.standaardweging?.vastgesteldOp ? `Laatst vastgesteld door ${db.instellingen.standaardweging.vastgesteldDoor} op ${new Date(db.instellingen.standaardweging.vastgesteldOp).toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })}` : "Nog niet vastgesteld: de profielen gebruiken hun eigen startweging."}
         />
       </Kaart>
       <nav className="tabs" aria-label="Profielen">

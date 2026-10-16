@@ -14,7 +14,7 @@ import { Badge, BetrouwbaarheidBadge, GeenBronBadge, Kaart, Leeg, Melding, Metri
 import GerichteVerrijking from "@/components/datakwaliteit/GerichteVerrijking";
 import TermijnenEditor from "@/components/datakwaliteit/TermijnenEditor";
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const TABS = [
   { id: "vulling", label: "Vullingsgraad" },

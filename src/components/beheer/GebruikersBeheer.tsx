@@ -58,7 +58,7 @@ export default function GebruikersBeheer({ gebruikers, mag, eigenId }: { gebruik
                       </button>
                     ) : null}
                   </td>
-                  <td>{g.laatstIngelogdOp ? new Date(g.laatstIngelogdOp).toLocaleString("nl-NL") : "nog niet"}</td>
+                  <td>{g.laatstIngelogdOp ? new Date(g.laatstIngelogdOp).toLocaleString("nl-NL", { timeZone: "Europe/Amsterdam" }) : "nog niet"}</td>
                 </tr>
               ))}
             </tbody>

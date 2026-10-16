@@ -170,11 +170,11 @@ export function HerkomstRegel({ bron, detail, datum, betrouwbaarheid, status, ge
           {url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}
         </a>
       ) : null}
-      {datum ? <span className="muted klein-tekst">opgehaald {new Date(datum).toLocaleDateString("nl-NL")}</span> : null}
+      {datum ? <span className="muted klein-tekst">opgehaald {new Date(datum).toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })}</span> : null}
       <BetrouwbaarheidBadge waarde={betrouwbaarheid} />
       {betrouwbaarheid !== undefined ? <span className="muted klein-tekst">{Math.round(betrouwbaarheid * 100)}%</span> : null}
       {verificatie ? <Badge kleur={VERIFICATIE_KLEUR[verificatie]}>{VERIFICATIE_LABEL[verificatie]}</Badge> : <WaardeStatusBadge status={status} />}
-      {status === "gevalideerd" && gevalideerdDoor ? <span className="muted klein-tekst">door {gevalideerdDoor}{gevalideerdOp ? ` op ${new Date(gevalideerdOp).toLocaleDateString("nl-NL")}` : ""}</span> : null}
+      {status === "gevalideerd" && gevalideerdDoor ? <span className="muted klein-tekst">door {gevalideerdDoor}{gevalideerdOp ? ` op ${new Date(gevalideerdOp).toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })}` : ""}</span> : null}
     </span>
   );
 }
@@ -183,8 +183,8 @@ export function HerkomstRegel({ bron, detail, datum, betrouwbaarheid, status, ge
 export function GeenBronBadge({ markering }: { markering: GeenBronMarkering | undefined }) {
   if (!markering) return null;
   return (
-    <Badge kleur="mint" titel={`Gezocht op ${new Date(markering.op).toLocaleDateString("nl-NL")} in: ${markering.doorzocht.join(", ") || "–"}. Het veld blijft leeg tot er een betrouwbare bron is.`}>
-      geen betrouwbare bron ({new Date(markering.op).toLocaleDateString("nl-NL")})
+    <Badge kleur="mint" titel={`Gezocht op ${new Date(markering.op).toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })} in: ${markering.doorzocht.join(", ") || "–"}. Het veld blijft leeg tot er een betrouwbare bron is.`}>
+      geen betrouwbare bron ({new Date(markering.op).toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })})
     </Badge>
   );
 }

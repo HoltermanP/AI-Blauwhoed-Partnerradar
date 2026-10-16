@@ -86,7 +86,7 @@ export async function POST(req: Request) {
   const runId = nieuwId("run");
   await muteer(TENDER, { entiteit: "match_run", entiteitId: project.id, actie: "partnerselectie gestart vanuit tenderapplicatie", details: `${project.naam}${p.tenderId ? `, tender ${p.tenderId}` : ""}` }, (d) => {
     d.projecten.push(project);
-    d.matchRuns.unshift({ id: runId, projectId: project.id, naam: `Tenderselectie ${new Date().toLocaleDateString("nl-NL")}`, gestartOp: nu, door: TENDER.naam, input: { eisen }, resultaat });
+    d.matchRuns.unshift({ id: runId, projectId: project.id, naam: `Tenderselectie ${new Date().toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })}`, gestartOp: nu, door: TENDER.naam, input: { eisen }, resultaat });
   });
   const basis = new URL(req.url).origin;
   return NextResponse.json({

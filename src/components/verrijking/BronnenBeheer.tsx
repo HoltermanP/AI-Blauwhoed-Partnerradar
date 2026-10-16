@@ -109,7 +109,7 @@ export default function BronnenBeheer({ bronnen, magBeheren, magVoorstellen = tr
             <li key={b.id}>
               <b>{b.naam}</b> · <a href={b.url} target="_blank" rel="noreferrer" className="klein-tekst">{b.url}</a> · <Badge kleur={RANG_KLEUR[rangVanBron(b)]}>voorgesteld: rang {rangVanBron(b)}</Badge>
               <div className="klein-tekst">{b.omschrijving}</div>
-              <div className="muted klein-tekst">Voorgesteld door {b.voorgesteldDoor} op {b.voorgesteldOp ? new Date(b.voorgesteldOp).toLocaleDateString("nl-NL") : "–"}</div>
+              <div className="muted klein-tekst">Voorgesteld door {b.voorgesteldDoor} op {b.voorgesteldOp ? new Date(b.voorgesteldOp).toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" }) : "–"}</div>
               {magBeheren ? (
                 <div className="formulierActies">
                   <RangKiezer waarde={goedRang[b.id] ?? rangVanBron(b)} onChange={(r) => setGoedRang((x) => ({ ...x, [b.id]: r }))} />

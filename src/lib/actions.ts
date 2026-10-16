@@ -605,7 +605,7 @@ export async function voerMatchUit(projectId: string, naam?: string, vrijeOmschr
       const run = {
         id: nieuwId("run"),
         projectId,
-        naam: naam || `Match ${new Date().toLocaleDateString("nl-NL")} ${new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" })}`,
+        naam: naam || `Match ${new Date().toLocaleDateString("nl-NL", { timeZone: "Europe/Amsterdam" })} ${new Date().toLocaleTimeString("nl-NL", { timeZone: "Europe/Amsterdam", hour: "2-digit", minute: "2-digit" })}`,
         gestartOp: new Date().toISOString(),
         door: g.naam,
         input: { eisen, vrijeOmschrijving },
@@ -1463,10 +1463,13 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
     // Beperkte parallelliteit: vriendelijk voor de bronnen, snel genoeg voor een ronde.
     const wachtrij = [...doelen];
     const door = systeem ? "systeem" : g.naam;
+    // Tijdsbudget: na deze tijd start geen nieuwe partner meer (lopende maken af), zodat de aanroep binnen de functielimiet
+    // van de hosting blijft (anders 504). Niet gestarte partners blijven in de ronde staan en volgen bij de volgende klik.
+    const startNieuweTot = Date.now() + (systeem ? 180_000 : 100_000);
     // US-58: één verrijking van één partner is één AI-bewerking, ook binnen een ronde (niet de hele ronde als één).
     await Promise.all(
         Array.from({ length: Math.min(4, wachtrij.length) }, async () => {
-          for (let p = wachtrij.shift(); p; p = wachtrij.shift()) {
+          for (let p = wachtrij.shift(); p; p = Date.now() < startNieuweTot ? wachtrij.shift() : undefined) {
             const partner = p;
             try {
               const r = await alsAIBewerking("verrijking", door, `verrijking ${partner.naam}${ronde ? " (ronde)" : ""}`, () => {
@@ -1482,11 +1485,12 @@ export async function startVerrijking(partnerId?: string, tekst?: string, maxPer
           }
         })
       );
-    const nogTeGaan = partnerId ? 0 : Math.max(0, kandidaten.length - doelen.length);
+    const gestart = doelen.length - wachtrij.length;
+    const nogTeGaan = partnerId ? 0 : Math.max(0, kandidaten.length - gestart);
     const nieuw = await bewaarVoorstellen(g, partnerId ?? ronde?.id ?? "alle", nieuweVoorstellen, geraadpleegd, ronde?.id, !partnerId && nogTeGaan === 0);
     revalidatePath("/verrijking");
     if (partnerId) revalidatePath(`/partners/${partnerId}`);
-    return { partners: doelen.length, voorstellen: nieuweVoorstellen.length, nieuw, websitesGevonden, overgeslagen: geraadpleegd.filter((x) => x.overgeslagen).length, nogTeGaan, rondeId: ronde?.id };
+    return { partners: gestart, voorstellen: nieuweVoorstellen.length, nieuw, websitesGevonden, overgeslagen: geraadpleegd.filter((x) => x.overgeslagen).length, nogTeGaan, rondeId: ronde?.id };
   });
 }
 
