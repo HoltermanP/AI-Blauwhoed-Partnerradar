@@ -27,7 +27,7 @@ export default async function VerbandenPagina({ searchParams }: { searchParams: 
 
   return (
     <>
-      <PaginaKop eyebrow="Onderdeel 7" titel="Verbanden tussen partijen" intro={`${alle.length} afgeleide verbanden uit projecthistorie en openbare vermeldingen. Een verband is een signaal met bron — geen bevestigde samenwerking.`} />
+      <PaginaKop eyebrow="Netwerk" titel="Verbanden tussen partijen" intro={`${alle.length} afgeleide verbanden uit projecthistorie en openbare vermeldingen. Een verband is een signaal met bron — geen bevestigde samenwerking.`} />
       <Kaart titel="Filter op rolcombinatie">
         <form method="get" className="formulierActies">
           {(["rolA", "rolB"] as const).map((veld) => (

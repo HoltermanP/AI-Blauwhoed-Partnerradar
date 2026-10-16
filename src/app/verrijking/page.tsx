@@ -51,7 +51,7 @@ export default async function VerrijkingPagina({ searchParams }: { searchParams:
 
   return (
     <>
-      <PaginaKop eyebrow="Epic 6" titel="Verrijking" intro={db.instellingen.automatischInvullen !== false ? "Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Lege en niet-geverifieerde velden worden direct ingevuld met het label 'niet geverifieerd' (telt minder zwaar in de matching tot een gebruiker of beheerder het verifieert); afwijkingen van geverifieerde waarden en de goudstandaard blijven hieronder ter beoordeling." : "Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Extracties worden pas na controle overgenomen (automatisch invullen staat uit in Beheer)."} />
+      <PaginaKop eyebrow="Partnergegevens" titel="Verrijking" intro={db.instellingen.automatischInvullen !== false ? "Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Lege en niet-geverifieerde velden worden direct ingevuld met het label 'niet geverifieerd' (telt minder zwaar in de matching tot een gebruiker of beheerder het verifieert); afwijkingen van geverifieerde waarden en de goudstandaard blijven hieronder ter beoordeling." : "Openbare bedrijfsinformatie ophalen en kenmerken extraheren volgens de taxonomie. Extracties worden pas na controle overgenomen (automatisch invullen staat uit in Beheer)."} />
 
       <div className="raster raster-zij">
         <Kaart titel="Verrijkingsronde">

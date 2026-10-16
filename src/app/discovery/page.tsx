@@ -40,7 +40,7 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
 
   return (
     <>
-      <PaginaKop eyebrow="Epic 5" titel="Discovery" intro="Onbekende partijen vinden op basis van een projectprofiel. Een geaccepteerde kandidaat wordt een concept; pas na vrijgave door een beheerder telt hij mee." />
+      <PaginaKop eyebrow="Nieuwe partners" titel="Discovery" intro="Onbekende partijen vinden op basis van een projectprofiel. Een geaccepteerde kandidaat wordt een concept; pas na vrijgave door een beheerder telt hij mee." />
 
       <div className="raster raster-zij">
         <Kaart titel="Zoekopdracht starten">
