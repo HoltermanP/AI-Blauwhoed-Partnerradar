@@ -45,10 +45,20 @@ export function partnersBijGenoemdProject(db: Database, vraag: string): Partner[
 }
 
 /** Selecteer de relevantste partners voor een vraag (projectnummer/-naam en semantisch) en geef ze als compacte records. */
-export function chatContext(db: Database, vraag: string, max = 15) {
-  const treffers = semantischZoeken(db, vraag, max);
+export function chatContext(db: Database, vraag: string, max = 20) {
+  // Ruim zoeken en daarna bundelen: alle partners met een harde kenmerk-match (bv. projecttype "appartementen")
+  // horen bij het antwoord op "ervaring met …"; vul aan met tekstmatches. Harde cap zodat de AI-context behapbaar blijft.
+  const HARDE_CAP = 50;
+  const treffers = semantischZoeken(db, vraag, 500);
   const uitProject = partnersBijGenoemdProject(db, vraag);
-  const semantisch = treffers.length ? treffers.map((t) => t.partner) : uitProject.length ? [] : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept").slice(0, max);
-  const partners = Array.from(new Map([...uitProject, ...semantisch].map((p) => [p.id, p])).values()).slice(0, max);
+  const structureel = treffers.filter((t) => t.structureel).map((t) => t.partner);
+  const tekst = treffers.filter((t) => !t.structureel).map((t) => t.partner);
+  const limiet = Math.min(HARDE_CAP, Math.max(max, structureel.length));
+  const semantisch = treffers.length
+    ? [...structureel, ...tekst]
+    : uitProject.length
+      ? []
+      : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept").slice(0, max);
+  const partners = Array.from(new Map([...uitProject, ...semantisch].map((p) => [p.id, p])).values()).slice(0, limiet);
   return { partners, records: partners.map((p) => chatRecord(p, db)) };
 }

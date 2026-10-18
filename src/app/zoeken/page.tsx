@@ -85,7 +85,8 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
   const db = await getDb();
   const internetMogelijk = db.instellingen.externeBronnenToegestaan;
   const metInternet = web === "1" && internetMogelijk;
-  const resultaten = q.trim() ? semantischZoeken(db, q) : [];
+  const resultaten = q.trim() ? semantischZoeken(db, q, 60) : [];
+  const structureelAantal = resultaten.filter((r) => r.structureel).length;
 
   const lokaal = q.trim() ? (
     <>
@@ -94,7 +95,11 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
       </h3>
       {resultaten.length ? (
         <>
-          <Melding soort="info">{resultaten.length} relevante partner(s) uit de database, op tekstgelijkenis én aanwezige kenmerken (zoals projecttype).</Melding>
+          <Melding soort="info">
+            {structureelAantal > 0
+              ? `${structureelAantal} partner(s) met dit kenmerk (bovenaan), plus ${resultaten.length - structureelAantal} tekstmatch(es).`
+              : `${resultaten.length} relevante partner(s) uit de database, op tekstgelijkenis.`}
+          </Melding>
           <GeenMatchadvies />
           {resultaten.map((r, i) => (
             <div key={r.partner.id} className="kandidaatRij">
@@ -102,6 +107,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
               <div>
                 <h3>
                   <Link href={`/partners/${r.partner.id}`}>{r.partner.naam}</Link> <StatusBadge status={r.partner.status} />
+                  {r.structureel ? <Badge kleur="blauw" titel="Heeft het gevraagde kenmerk aantoonbaar (uit vastgelegde gegevens of projecthistorie)">kenmerk-match</Badge> : null}
                 </h3>
                 <p className="muted">
                   {r.partner.rollen.map((rol) => ROL_LABEL[rol]).join(", ")} · {r.partner.vestigingsplaats}

@@ -411,9 +411,13 @@ export function semantischZoeken(db: Database, vraag: string, limiet = 20, nu = 
         const def = fmap.get(f.factorId);
         extra.push(f.optieId ? def?.opties?.find((o) => o.id === f.optieId)?.label ?? f.optieId : def?.naam ?? f.factorId);
       }
-      const score = Math.min(100, Math.round(s.score * 100) + Math.round(boost));
+      const tekstScore = Math.round(s.score * 100);
+      const structureel = boost > 0;
+      // Bij een kenmerkvraag ("ervaring met appartementen") staan partners die het kenmerk daadwerkelijk hebben
+      // altijd boven partners die het alleen in hun tekst noemen: die laatste worden onder de 40 gehouden.
+      const score = structureel ? Math.min(100, tekstScore + Math.round(boost)) : gevraagd.actief ? Math.min(39, tekstScore) : tekstScore;
       const treffers = Array.from(new Set([...extra, ...s.treffers])).slice(0, 8);
-      return { partner: p, score, treffers };
+      return { partner: p, score, treffers, structureel };
     })
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score)
