@@ -94,7 +94,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
       </h3>
       {resultaten.length ? (
         <>
-          <Melding soort="info">{resultaten.length} partner(s) met semantische gelijkenis, uit de database.</Melding>
+          <Melding soort="info">{resultaten.length} relevante partner(s) uit de database, op tekstgelijkenis én aanwezige kenmerken (zoals projecttype).</Melding>
           <GeenMatchadvies />
           {resultaten.map((r, i) => (
             <div key={r.partner.id} className="kandidaatRij">
@@ -108,7 +108,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
                 </p>
                 <div>
                   {r.treffers.map((t) => (
-                    <Badge key={t} kleur="mint" titel="semantische treffer">
+                    <Badge key={t} kleur="mint" titel="treffer op kenmerk of tekst">
                       {t}
                     </Badge>
                   ))}
@@ -117,7 +117,7 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
                 {besteZin(r.partner, r.treffers) ? <blockquote className="zoekCitaat">{besteZin(r.partner, r.treffers)}</blockquote> : null}
                 <HerkomstSamenvatting p={r.partner} />
               </div>
-              <ScoreBalk score={r.score} label="Semantische score" />
+              <ScoreBalk score={r.score} label="Relevantie" />
             </div>
           ))}
         </>
@@ -146,42 +146,42 @@ export default async function ZoekenPagina({ searchParams }: { searchParams: Pro
 
       <ZoekWerkblad q={q} web={metInternet} internetMogelijk={internetMogelijk} aiActief={aiAan()} resultaten={lokaal} beginVraag={vraag} />
 
-      <Kaart titel="Snelle filters">
-        <p className="muted">Gecombineerde filters op rol, regio, kenmerk, certificaat en status staan op de partnerspagina.</p>
+      <Kaart titel="Snelle filters" acties={<Link href="/partners">Alle filters</Link>}>
         <div className="snelleFilters">
           <div>
             <h4>Rol</h4>
-            {ROLLEN.map((r) => (
-              <Link key={r} href={`/partners?rol=${r}`} className="chip">
-                {ROL_LABEL[r]} <b>{db.partners.filter((p) => zichtbaar(p) && p.rollen.includes(r)).length}</b>
-              </Link>
-            ))}
+            {ROLLEN.map((r) => ({ r, n: db.partners.filter((p) => zichtbaar(p) && p.rollen.includes(r)).length }))
+              .filter(({ n }) => n > 0)
+              .map(({ r, n }) => (
+                <Link key={r} href={`/partners?rol=${r}`} className="chip">
+                  {ROL_LABEL[r]} <b>{n}</b>
+                </Link>
+              ))}
           </div>
           <div>
             <h4>Status</h4>
-            {STATUSSEN.map((s) => (
-              <Link key={s} href={`/partners?status=${s}`} className="chip">
-                {STATUS_LABEL[s]} <b>{db.partners.filter((p) => p.status === s).length}</b>
-              </Link>
-            ))}
+            {STATUSSEN.map((s) => ({ s, n: db.partners.filter((p) => p.status === s).length }))
+              .filter(({ n }) => n > 0)
+              .map(({ s, n }) => (
+                <Link key={s} href={`/partners?status=${s}`} className="chip">
+                  {STATUS_LABEL[s]} <b>{n}</b>
+                </Link>
+              ))}
           </div>
           <div>
             <h4>Certificaat</h4>
-            {CERTIFICATEN.map((c) => (
-              <Link key={c} href={`/partners?certificaat=${encodeURIComponent(c)}`} className="chip">
-                {c} <b>{db.partners.filter((p) => zichtbaar(p) && p.certificaten.some((x) => x.type === c)).length}</b>
-              </Link>
-            ))}
-          </div>
-          <div>
-            <h4>Regio</h4>
-            {Array.from(new Set(db.projecten.map((p) => p.locatie.plaats))).map((plaats) => (
-              <Link key={plaats} href={`/partners?plaats=${encodeURIComponent(plaats)}&straal=50`} className="chip">
-                binnen 50 km van {plaats}
-              </Link>
-            ))}
+            {CERTIFICATEN.map((c) => ({ c, n: db.partners.filter((p) => zichtbaar(p) && p.certificaten.some((x) => x.type === c)).length }))
+              .filter(({ n }) => n > 0)
+              .map(({ c, n }) => (
+                <Link key={c} href={`/partners?cert=${encodeURIComponent(c)}`} className="chip">
+                  {c} <b>{n}</b>
+                </Link>
+              ))}
           </div>
         </div>
+        <p className="muted klein-tekst" style={{ marginTop: 8 }}>
+          Zoeken op afstand van een plaats: via de <Link href="/kaart">kaart</Link> of het regiofilter (plaats + straal) op de <Link href="/partners">partnerspagina</Link>.
+        </p>
       </Kaart>
     </>
   );

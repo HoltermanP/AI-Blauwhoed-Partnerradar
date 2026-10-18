@@ -1,6 +1,6 @@
 // Hybride matching (uitgangspunt 4): harde filters -> gewogen score -> semantische gelijkenis. AI legt uit, AI beslist niet.
 import { effectieveFactoren, huidigeBelasting } from "./derive";
-import { semantischeGelijkenis } from "./embedding";
+import { semantischeGelijkenis, tokens } from "./embedding";
 import { afstandKm } from "./geo";
 import { zichtbaar } from "./zichtbaarheid";
 import { isGeverifieerd, VERIFICATIE_LABEL, VERIFICATIE_WEGING, verificatieVan } from "./verificatie";
@@ -38,12 +38,26 @@ function periodeOverlapt(a: { van: string; tot: string }, b: { van: string; tot:
   return new Date(a.van) <= new Date(b.tot) && new Date(b.van) <= new Date(a.tot);
 }
 
-export function profieltekst(partner: Partner) {
+// De factoren waaruit het semantische profiel wordt opgebouwd. Standaard de opgegeven factoren; geef de
+// effectieve factoren (incl. afgeleide projecttype-/bouwsysteem-ervaring uit projecthistorie) mee voor volledige recall.
+export function profieltekst(partner: Partner, factoren: PartnerFactor[] = partner.factoren) {
   return [
     partner.omschrijving,
     ...partner.referenties,
     ...partner.tags,
-    ...partner.factoren.filter((f) => typeof f.waarde === "string" && f.factorId === "signatuur").map((f) => String(f.waarde)),
+    // Gestructureerde factorwaarden tellen mee in het semantische profiel, zodat een vraag als
+    // "ervaring met appartementen" ook partners vindt die appartementen alleen als projecttype-optie
+    // (afgeleid uit projecthistorie) hebben en niet letterlijk in hun omschrijving noemen. Niveau 0 telt niet mee.
+    ...factoren.flatMap((f) => {
+      const w = f.waarde;
+      const leeg = w == null || w === false || w === "" || (typeof w === "number" && w === 0) || (Array.isArray(w) && !w.length);
+      if (leeg) return [];
+      if (f.optieId) return [f.optieId]; // de optie (bv. projecttype "appartementen") is het onderwerp
+      if (typeof w === "string") return [`${f.factorId} ${w}`];
+      if (Array.isArray(w)) return [w.join(" ")];
+      if (w === true || typeof w === "number") return [f.factorId]; // vlag/niveau zonder optie: de factor zelf (bv. demontabel)
+      return [];
+    }),
     // Conceptgegevens uit geimporteerde bronnen (o.a. Woningconceptenbrochure en Conceptenboulevard): elke ruwe rij
     // (woningconcept) telt semantisch mee in matching en zoeken.
     ...(partner.brongegevens ?? []).slice(0, 6).flatMap((b) => [b.titel ?? "", ...Object.entries(b.velden).map(([k, v]) => `${k} ${v}`)]),
@@ -298,7 +312,7 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
       return;
     }
     const gewogen = gewogenScore(partner, eis, ctx, factoren);
-    const sem = semantischeGelijkenis(vraagTekst, profieltekst(partner));
+    const sem = semantischeGelijkenis(vraagTekst, profieltekst(partner, factoren));
     const semGewicht = Math.min(40, Math.max(0, eis.semantischGewicht)) / 100;
     const demping = db.instellingen.dekkingDemping !== false && gewogen.criteria.length > 0;
     const gewogenEff = demping ? dempVoorDekking(gewogen.score, gewogen.dekkingsgraad) : gewogen.score;
@@ -360,12 +374,46 @@ export function matchProject(ctx: MatchContext, eisen = ctx.project.eisen): RolR
 }
 
 /** US-15: vrije semantische zoekopdracht over alle partners. */
-export function semantischZoeken(db: Database, vraag: string, limiet = 20) {
+/** Welke factoren/opties noemt de vraag? Matcht vraagtokens tegen optie- en factornamen (met synoniemen). */
+function gevraagdeFactoren(db: Database, vraag: string) {
+  const qset = new Set(tokens(vraag));
+  const treft = (...teksten: string[]) => teksten.flatMap((t) => tokens(t)).some((t) => qset.has(t));
+  const opties = new Set<string>(); // `${factorId}::${optieId}`
+  const vlaggen = new Set<string>(); // factorId zonder opties (vlag/niveau)
+  for (const f of db.factoren) {
+    if (f.opties?.length) {
+      for (const o of f.opties) if (treft(o.id, o.label)) opties.add(`${f.id}::${o.id}`);
+    } else if (treft(f.id, f.naam)) {
+      vlaggen.add(f.id);
+    }
+  }
+  return { opties, vlaggen, actief: opties.size > 0 || vlaggen.size > 0 };
+}
+
+export function semantischZoeken(db: Database, vraag: string, limiet = 20, nu = new Date()) {
+  const gevraagd = gevraagdeFactoren(db, vraag);
+  const fmap = new Map(db.factoren.map((f) => [f.id, f]));
   return db.partners
     .filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept")
     .map((p) => {
-      const s = semantischeGelijkenis(vraag, profieltekst(p));
-      return { partner: p, score: Math.round(s.score * 100), treffers: s.treffers };
+      const eff = effectieveFactoren(p, db, nu);
+      const s = semantischeGelijkenis(vraag, profieltekst(p, eff));
+      // Structurele boost: een partner die de gevraagde factor/optie daadwerkelijk heeft (niveau > 0) is een
+      // harde treffer, los van de fuzzy cosine. Hoe hoger het ervaringsniveau, hoe sterker de boost.
+      let boost = 0;
+      const extra: string[] = [];
+      for (const f of eff) {
+        const niveau = typeof f.waarde === "number" ? f.waarde : f.waarde === true ? 5 : 0;
+        if (niveau <= 0) continue;
+        const raakt = f.optieId ? gevraagd.opties.has(`${f.factorId}::${f.optieId}`) : gevraagd.vlaggen.has(f.factorId);
+        if (!raakt) continue;
+        boost += 40 + Math.min(1, niveau / 5) * 30;
+        const def = fmap.get(f.factorId);
+        extra.push(f.optieId ? def?.opties?.find((o) => o.id === f.optieId)?.label ?? f.optieId : def?.naam ?? f.factorId);
+      }
+      const score = Math.min(100, Math.round(s.score * 100) + Math.round(boost));
+      const treffers = Array.from(new Set([...extra, ...s.treffers])).slice(0, 8);
+      return { partner: p, score, treffers };
     })
     .filter((r) => r.score > 0)
     .sort((a, b) => b.score - a.score)

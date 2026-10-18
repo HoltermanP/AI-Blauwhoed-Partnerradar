@@ -1016,12 +1016,20 @@ button:disabled, .knop[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed
 .tabs a { padding: 10px 14px; border-bottom: 2px solid transparent; white-space: nowrap; font-size: 14px; }
 .tabs a.active, .tabs a:hover { border-bottom-color: var(--blue); color: var(--blue); }
 .tabs a span { margin-left: 6px; background: var(--soft); border: 1px solid var(--line); font-size: 11px; padding: 1px 6px; }
-table.tabel { width: 100%; border-collapse: collapse; font-size: 14px; }
-table.tabel th { text-align: left; color: var(--muted); font-size: 12px; text-transform: uppercase; border-bottom: 1px solid var(--ink); padding: 8px 10px; }
-table.tabel td { border-bottom: 1px solid var(--line); padding: 10px; vertical-align: top; }
-table.tabel tr:hover td { background: var(--soft); }
-table.tabel td.num, table.tabel th.num { text-align: right; font-variant-numeric: tabular-nums; }
-.tabelWrap { overflow-x: auto; }
+/* Basis voor alle tabellen in de app. Auto layout: kolommen groeien mee met hun inhoud, dus niets
+   wordt afgekapt. Koppen staan op één regel (korte labels) en zetten zo een nette minimumbreedte;
+   celtekst wrapt vrij. Past de tabel niet op het scherm, dan scrolt .tabelWrap horizontaal. */
+table.tabel { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: auto; }
+table.tabel th { text-align: left; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.02em; border-bottom: 2px solid var(--ink); padding: 7px 10px; vertical-align: bottom; }
+table.tabel td { border-bottom: 1px solid var(--line); padding: 8px 10px; vertical-align: top; overflow-wrap: break-word; }
+/* Zebra op de rij (niet de cel), zodat semantische celkleuren — certificaatstatus, geselecteerde of
+   gemarkeerde rijen — er altijd overheen schilderen, ongeacht CSS-specificiteit. */
+table.tabel tbody tr:nth-child(even) { background: #fafbfc; }
+table.tabel tbody tr:hover td { background: var(--soft); }
+table.tabel td.num, table.tabel th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Lange, ononderbroken tekens (URL's, codes) breken af in plaats van de kolom op te blazen. */
+table.tabel td a { overflow-wrap: anywhere; }
+.tabelWrap { overflow-x: auto; max-width: 100%; }
 .formulier { display: grid; gap: 14px; }
 .formulier label, .veld { display: grid; gap: 6px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; }
 .formulier input, .formulier select, .formulier textarea, .veld input, .veld select, .veld textarea { font: inherit; font-size: 14px; text-transform: none; font-weight: 400; color: var(--ink); border: 1px solid var(--line); padding: 9px 10px; background: white; min-height: 40px; width: 100%; }
@@ -1096,8 +1104,11 @@ details.uitklap summary { cursor: pointer; color: var(--blue); font-weight: 700;
 .tabel .negatief { color: var(--red); font-weight: 700; }
 .tabel .positief { color: var(--green); font-weight: 700; }
 .zoekCitaat { margin: 8px 0 0; padding-left: 10px; border-left: 3px solid var(--blue); font-size: 13px; color: var(--muted); }
-.snelleFilters { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-.snelleFilters h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; color: var(--muted); }
+/* Compact: label en chips op één regel per groep. */
+.snelleFilters { display: flex; flex-direction: column; gap: 6px; }
+.snelleFilters > div { display: flex; align-items: baseline; gap: 2px 6px; flex-wrap: wrap; }
+.snelleFilters h4 { margin: 0; min-width: 88px; font-size: 12px; text-transform: uppercase; color: var(--muted); }
+.snelleFilters .chip { padding: 2px 7px; margin: 0; font-size: 12px; }
 .snelleFilters .chip b { margin-left: 4px; color: var(--blue); }
 a.chip { text-decoration: none; color: var(--ink); }
 a.chip:hover { border-color: var(--blue); color: var(--blue); }
@@ -1466,3 +1477,29 @@ fieldset { min-width: 0; }
 .formulier label, .veld { min-width: 0; grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 720px) { .rij { grid-template-columns: minmax(0, 1fr) !important; } }
 .formulier > * { min-width: 0; }
+
+/* Partnerpagina: compacte weergave — minder witruimte, kleiner filterblok, lagere tabelrijen. */
+.partnerPagina .paginaKop { margin-bottom: 12px; }
+.partnerPagina .paginaKop h1 { font-size: clamp(24px, 3vw, 32px); margin-bottom: 6px; }
+.partnerPagina .paginaKop .intro { font-size: 14px; }
+.partnerPagina .kaart { padding: 12px 16px; margin-bottom: 12px; }
+.partnerPagina .kaartKop { margin-bottom: 8px; }
+.partnerFilters { gap: 8px; }
+.partnerFilters .rij { gap: 8px; }
+.partnerFilters input, .partnerFilters select { min-height: 32px; padding: 5px 8px; font-size: 13px; }
+.partnerTabel th, .partnerTabel td { padding: 5px 8px; }
+.partnerTabel .chip { padding: 1px 6px; margin: 1px 3px 1px 0; font-size: 11px; }
+/* Partnertabel-specifieke kolomminima (zebra/hover komen uit de basis-.tabel-stijl). */
+.partnerTabel .kolPartner { min-width: 170px; }
+.partnerTabel .kolStatus { white-space: nowrap; }
+.partnerTabel .kolRollen { min-width: 140px; }
+.partnerTabel .kolPlaats { white-space: nowrap; }
+.partnerTabel .kolGetal { white-space: nowrap; }
+.partnerTabel .kolKenmerk { min-width: 92px; }
+.partnerTabel .kolCert { min-width: 120px; }
+.partnerTabel .kolWebsite { max-width: 180px; }
+.partnerTabel .kolActie { white-space: nowrap; }
+.partnerTabel td.kolWebsite a { display: inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+.partnerTabel .badge { white-space: nowrap; }
+/* Chipgroepen (kenmerken, certificaten) mogen over meerdere regels wrappen; losse chips blijven heel. */
+.partnerTabel .kernFactor, .partnerTabel .certChips { display: flex; flex-wrap: wrap; gap: 3px; }

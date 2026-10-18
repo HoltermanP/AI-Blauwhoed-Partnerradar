@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const LINKS: Array<{ href: string; label: string; exact?: boolean }> = [
-  { href: "/", label: "Dashboard", exact: true },
   { href: "/partners", label: "Partners" },
   { href: "/projecten", label: "Projecten" },
   { href: "/zoeken", label: "Chat en zoeken" },
@@ -15,6 +14,7 @@ const LINKS: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: "/discovery", label: "Discovery" },
   { href: "/verrijking", label: "Verrijking" },
   { href: "/datakwaliteit", label: "Datakwaliteit" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/beheer", label: "Beheer" }
 ];
 

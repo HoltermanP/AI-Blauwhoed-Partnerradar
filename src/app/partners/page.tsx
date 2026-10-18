@@ -102,7 +102,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
   const kol = (id: string) => kolomKeuze.has(id);
 
   return (
-    <>
+    <div className="partnerPagina">
       <PaginaKop
         eyebrow="Partners"
         titel="Partneroverzicht"
@@ -183,8 +183,6 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
                 ))}
               </select>
             </label>
-          </div>
-          <div className="rij">
             <label>
               Regio: plaats
               <select name="plaats" defaultValue={plaats.toLowerCase()}>
@@ -201,23 +199,25 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
               <input type="number" name="straal" min={1} max={500} defaultValue={sp.straal ?? "50"} />
             </label>
           </div>
-          <div className="veld">
-            Kenmerken (meerdere tegelijk)
-            <KenmerkFilters factoren={kenmerkFactoren} initieel={kenmerken} />
-            <label style={{ maxWidth: 320 }}>
-              Combinatie
-              <select name="kmode" defaultValue={kmode}>
-                <option value="alle">Alle kenmerken moeten kloppen (EN)</option>
-                <option value="een">Minstens één kenmerk (OF)</option>
-              </select>
-            </label>
-            {kenmerken.length ? (
-              <p className="muted klein-tekst" style={{ margin: 0, textTransform: "none", fontWeight: 400 }}>
-                Per kenmerk voldoen: {kenmerken.map((k, i) => `${kenmerkFactorenActief[i].naam}${k.optieId ? ` (${k.optieId})` : ""}${k.min ? ` ${k.min}` : ""}: ${telling[i]}`).join(" · ")}
-              </p>
-            ) : null}
-          </div>
-          <details style={{ marginBottom: 8 }}>
+          <details open={kenmerken.length > 0}>
+            <summary className="muted klein-tekst" style={{ cursor: "pointer" }}>Kenmerken (meerdere tegelijk){kenmerken.length ? ` — ${kenmerken.length} actief` : ""}</summary>
+            <div className="veld" style={{ marginTop: 6 }}>
+              <KenmerkFilters factoren={kenmerkFactoren} initieel={kenmerken} />
+              <label style={{ maxWidth: 320 }}>
+                Combinatie
+                <select name="kmode" defaultValue={kmode}>
+                  <option value="alle">Alle kenmerken moeten kloppen (EN)</option>
+                  <option value="een">Minstens één kenmerk (OF)</option>
+                </select>
+              </label>
+              {kenmerken.length ? (
+                <p className="muted klein-tekst" style={{ margin: 0, textTransform: "none", fontWeight: 400 }}>
+                  Per kenmerk voldoen: {kenmerken.map((k, i) => `${kenmerkFactorenActief[i].naam}${k.optieId ? ` (${k.optieId})` : ""}${k.min ? ` ${k.min}` : ""}: ${telling[i]}`).join(" · ")}
+                </p>
+              ) : null}
+            </div>
+          </details>
+          <details>
             <summary className="muted klein-tekst" style={{ cursor: "pointer" }}>Kolommen kiezen ({kolomKeuze.size} van {KOLOMMEN.length})</summary>
             <div className="vinkjes" style={{ marginTop: 6 }}>
               {KOLOMMEN.map((k) => (
@@ -248,18 +248,18 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
             <table className="tabel partnerTabel">
               <thead>
                 <tr>
-                  <th>Partner</th>
-                  {kol("status") ? <th>Status</th> : null}
-                  {kol("rollen") ? <th>Rollen</th> : null}
-                  {kol("plaats") ? <th>Plaats</th> : null}
-                  {centrum ? <th className="num">Afstand</th> : null}
-                  {kol("medewerkers") ? <th className="num">Medewerkers</th> : null}
-                  {kol("kenmerken") ? KERNFACTOREN.map((k) => <th key={k.id}>{k.label}</th>) : null}
-                  {kol("certificaten") ? <th>Certificaten</th> : null}
-                  {kol("evaluatie") ? <th className="num">Evaluatie</th> : null}
-                  {kol("projecten") ? <th className="num">Projecten</th> : null}
-                  {kol("website") ? <th>Website</th> : null}
-                  <th></th>
+                  <th className="kolPartner">Partner</th>
+                  {kol("status") ? <th className="kolStatus">Status</th> : null}
+                  {kol("rollen") ? <th className="kolRollen">Rollen</th> : null}
+                  {kol("plaats") ? <th className="kolPlaats">Plaats</th> : null}
+                  {centrum ? <th className="num kolGetal">Afstand</th> : null}
+                  {kol("medewerkers") ? <th className="num kolGetal">Medewerkers</th> : null}
+                  {kol("kenmerken") ? KERNFACTOREN.map((k) => <th key={k.id} className="kolKenmerk">{k.label}</th>) : null}
+                  {kol("certificaten") ? <th className="kolCert">Certificaten</th> : null}
+                  {kol("evaluatie") ? <th className="num kolGetal">Evaluatie</th> : null}
+                  {kol("projecten") ? <th className="num kolGetal">Projecten</th> : null}
+                  {kol("website") ? <th className="kolWebsite">Website</th> : null}
+                  <th className="kolActie"></th>
                 </tr>
               </thead>
               <tbody>
@@ -277,8 +277,8 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
                         <StatusBadge status={p.status} />
                       </td>
                     ) : null}
-                    {kol("rollen") ? <td>{p.rollen.map((r) => ROL_LABEL[r]).join(", ")}</td> : null}
-                    {kol("plaats") ? <td>{p.vestigingsplaats}</td> : null}
+                    {kol("rollen") ? <td className="kolRollen">{p.rollen.map((r) => ROL_LABEL[r]).join(", ")}</td> : null}
+                    {kol("plaats") ? <td className="kolPlaats" title={p.vestigingsplaats}>{p.vestigingsplaats}</td> : null}
                     {centrum ? <td className="num">{afstand !== null ? `${afstand} km` : "–"}</td> : null}
                     {kol("medewerkers") ? <td className="num">{getal(p.medewerkers)}</td> : null}
                     {kol("kenmerken")
@@ -295,8 +295,8 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
                     ) : null}
                     {kol("evaluatie") ? <td className="num">{afgeleid.statistieken.evaluatiescore !== null ? getal(afgeleid.statistieken.evaluatiescore, 1) : <span className="muted">–</span>}</td> : null}
                     {kol("projecten") ? <td className="num">{afgeleid.statistieken.aantalProjecten}</td> : null}
-                    {kol("website") ? <td>{p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="klein-tekst">{p.website.replace(/^https?:\/\/(www\.)?/, "")}</a> : <span className="muted">–</span>} </td> : null}
-                    <td>
+                    {kol("website") ? <td className="kolWebsite">{p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="klein-tekst">{p.website.replace(/^https?:\/\/(www\.)?/, "")}</a> : <span className="muted">–</span>} </td> : null}
+                    <td className="kolActie">
                       <Link href={`/partners/${p.id}?tab=brondata`} className="klein-tekst">
                         Alle data →
                       </Link>
@@ -308,7 +308,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
           </div>
         )}
       </Kaart>
-    </>
+    </div>
   );
 }
 
