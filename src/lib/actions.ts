@@ -1121,6 +1121,35 @@ export async function markeerGeenDubbel(id: string) {
   });
 }
 
+/** Verwijder één discovery-kandidaat definitief uit de wachtrij. Een reeds geaccepteerde kandidaat die al een concept
+ * heeft opgeleverd laat dat concept ongemoeid in de vrijgavewachtrij; alleen het discovery-record verdwijnt. */
+export async function verwijderKandidaat(id: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("discovery_goedkeuren");
+    await muteer(g, { entiteit: "discovery", entiteitId: id, actie: "kandidaat verwijderd" }, (db) => {
+      const k = db.kandidaten.find((x) => x.id === id);
+      if (!k) throw new Error("Kandidaat niet gevonden.");
+      db.kandidaten = db.kandidaten.filter((x) => x.id !== id);
+    });
+    revalidatePath("/discovery");
+  });
+}
+
+/** Verwijder in één keer alle kandidaten met een bepaalde status (bijv. alle afgewezen opruimen). */
+export async function verwijderKandidatenMetStatus(status: "nieuw" | "geparkeerd" | "geaccepteerd" | "afgewezen") {
+  return veilig(async () => {
+    const g = await vereisRecht("discovery_goedkeuren");
+    let aantal = 0;
+    await muteer(g, { entiteit: "discovery", entiteitId: `status:${status}`, actie: "kandidaten verwijderd", details: `status ${status}` }, (db) => {
+      const voor = db.kandidaten.length;
+      db.kandidaten = db.kandidaten.filter((x) => x.status !== status);
+      aantal = voor - db.kandidaten.length;
+    });
+    revalidatePath("/discovery");
+    return aantal;
+  });
+}
+
 // ---------- Chat over het partnerbestand (B5) ----------
 export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; geraadpleegd: Array<{ id: string; naam: string }>; viaAI: boolean; bronnen: Array<{ titel: string; url: string }>; metInternet: boolean };
 

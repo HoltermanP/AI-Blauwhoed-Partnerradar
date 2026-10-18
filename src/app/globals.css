@@ -1503,3 +1503,8 @@ fieldset { min-width: 0; }
 .partnerTabel .badge { white-space: nowrap; }
 /* Chipgroepen (kenmerken, certificaten) mogen over meerdere regels wrappen; losse chips blijven heel. */
 .partnerTabel .kernFactor, .partnerTabel .certChips { display: flex; flex-wrap: wrap; gap: 3px; }
+
+/* Discovery: subtiele verwijderactie (rode tekst i.p.v. gevulde rode knop) en voetregel op de kandidaatkaart. */
+.kandidaatVoet { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; }
+.knop.verwijderTekst { color: var(--red); background: none; border-color: transparent; }
+.knop.verwijderTekst:hover { color: #b51919; text-decoration: underline; }

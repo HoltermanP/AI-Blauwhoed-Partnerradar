@@ -3,6 +3,7 @@ import Link from "next/link";
 import DiscoveryStart from "@/components/discovery/DiscoveryStart";
 import KandidaatKaart from "@/components/discovery/KandidaatKaart";
 import AandraagPaneel from "@/components/discovery/AandraagPaneel";
+import WachtrijActies from "@/components/discovery/WachtrijActies";
 import { Badge, Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { demoConnector } from "@/lib/domain/discovery";
@@ -84,7 +85,10 @@ export default async function DiscoveryPagina({ searchParams }: { searchParams: 
         <AandraagPaneel profielen={(db.zoekprofielen ?? []).map((z) => ({ id: z.id, naam: z.naam, trefwoorden: z.trefwoorden }))} magAandragen={heeftRecht(gebruiker.rol, "beheer")} aiActief={aiAan()} />
       </Kaart>
 
-      <Kaart titel="Wachtrij kandidaten">
+      <Kaart
+        titel="Wachtrij kandidaten"
+        acties={rechten.goedkeuren ? <WachtrijActies status={status} label={STATUSSEN.find((s) => s.id === status)?.label ?? status} aantal={kandidaten.length} /> : null}
+      >
         <nav className="tabs" aria-label="Status">
           {STATUSSEN.map((s) => (
             <Link key={s.id} href={`/discovery?status=${s.id}`} className={s.id === status ? "active" : ""} scroll={false}>

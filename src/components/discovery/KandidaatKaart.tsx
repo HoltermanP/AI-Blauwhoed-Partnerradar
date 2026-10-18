@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { beoordeelKandidaat, markeerGeenDubbel } from "@/lib/actions";
+import { beoordeelKandidaat, markeerGeenDubbel, verwijderKandidaat } from "@/lib/actions";
 import type { DiscoveryCandidate } from "@/lib/domain/types";
 import { datumTijd, ROL_LABEL } from "@/lib/format";
 import { Badge, Melding, ScoreBalk } from "@/components/ui";
@@ -34,6 +34,16 @@ export default function KandidaatKaart({ kandidaat, projectNaam, dubbelNaam, rec
     setFout(null);
     start(async () => {
       const r = await markeerGeenDubbel(k.id);
+      if (!r.ok) return setFout(r.fout);
+      router.refresh();
+    });
+  };
+
+  const verwijder = () => {
+    setFout(null);
+    if (!confirm(`Kandidaat "${k.naam}" definitief uit de wachtrij verwijderen?`)) return;
+    start(async () => {
+      const r = await verwijderKandidaat(k.id);
       if (!r.ok) return setFout(r.fout);
       router.refresh();
     });
@@ -194,6 +204,14 @@ export default function KandidaatKaart({ kandidaat, projectNaam, dubbelNaam, rec
               Annuleren
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {rechten.goedkeuren ? (
+        <div className="kandidaatVoet">
+          <button type="button" className="knop knop-tekst klein verwijderTekst" onClick={verwijder} disabled={bezig} title="Verwijdert de kandidaat definitief uit de wachtrij">
+            Verwijderen
+          </button>
         </div>
       ) : null}
     </article>
