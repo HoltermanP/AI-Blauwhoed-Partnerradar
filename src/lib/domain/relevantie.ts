@@ -9,7 +9,7 @@ export const BLAUWHOED_PROFIEL =
 
 /** Domeinen die nooit een bouwpartner zijn: woningportalen, media, overheid, onderwijs, webwinkels, gidsen en platforms. */
 const GEEN_PARTNER_HOST =
-  /(^|\.)(funda|pararius|jaap|huislijn|huizenzoeker|nieuwbouw-nederland|nieuwbouw-in-[a-z-]+|nieuwbouwprojecten|nieuwbouwwoningen|woningnet|wooniezie|woonnet-haaglanden|kamernet|huurwoningen|directwonen|rentola|huurstunt|huurzone|woonmatch|klikvoorwonen|hypotheker|independer|homedeal|werkspot|offerte|offertevergelijker|zoofy|trustoo|vergelijk|bouwkosten|bouwinfo|bouwgarant|woningborg|swk|cobouw|bouwwereld|vastgoedmarkt|architectenweb|nos|nu|ad|telegraaf|volkskrant|nrc|trouw|parool|rtlnieuws|omroep[a-z]*|dichtbij|indebuurt|wikipedia|linkedin|facebook|instagram|youtube|tiktok|twitter|x|pinterest|indeed|werkzoeken|nationalevacaturebank|jobbird|marktplaats|bol|amazon|gamma|praxis|karwei|hornbach|bouwmaat|kvk|google|bing|duckduckgo|telefoonboek|openingstijden|drimble|cylex|trustpilot|glassdoor|yelp|archdaily|dezeen|slideshare|scribd|issuu|prospeo|rocketreach|zoominfo|apollo|dnb|crunchbase|bedrijfsdata|companyinfo|oozo|ted|tenderned|reddit|stackoverflow|blauwhoed)\.[a-z.]+$/i;
+  /(^|\.)(funda|pararius|jaap|huislijn|huizenzoeker|wozwaardeloket|woz-waardeloket|wozwaarde|wozwaarderapport|woningstats|wambla|woningwaarde[a-z]*|huizenprijzen|woningmarktcijfers|calcasa|matrixian|brainbay|walterliving|altum[a-z]*|woningwaardecheck|watiszijnhuiswaard|watismijnhuiswaard|mijnwoningwaarde|nieuwbouw-nederland|nieuwbouw-in-[a-z-]+|nieuwbouwprojecten|nieuwbouwwoningen|woningnet|wooniezie|woonnet-haaglanden|kamernet|huurwoningen|directwonen|rentola|huurstunt|huurzone|woonmatch|klikvoorwonen|hypotheker|independer|homedeal|werkspot|offerte|offertevergelijker|zoofy|trustoo|vergelijk|bouwkosten|bouwinfo|bouwgarant|woningborg|swk|cobouw|bouwwereld|vastgoedmarkt|architectenweb|nos|nu|ad|telegraaf|volkskrant|nrc|trouw|parool|rtlnieuws|omroep[a-z]*|dichtbij|indebuurt|wikipedia|linkedin|facebook|instagram|youtube|tiktok|twitter|x|pinterest|indeed|werkzoeken|nationalevacaturebank|jobbird|marktplaats|bol|amazon|gamma|praxis|karwei|hornbach|bouwmaat|kvk|google|bing|duckduckgo|telefoonboek|openingstijden|drimble|cylex|trustpilot|glassdoor|yelp|archdaily|dezeen|slideshare|scribd|issuu|prospeo|rocketreach|zoominfo|apollo|dnb|crunchbase|bedrijfsdata|companyinfo|oozo|ted|tenderned|reddit|stackoverflow|blauwhoed)\.[a-z.]+$/i;
 const GEEN_PARTNER_TLD = /(\.gov\.|\.overheid\.nl$|^gemeente|\.gemeente\.|^www\.gemeente|provincie|rijksoverheid|\.edu$|universiteit|hogeschool|tudelft|tue\.nl$|wur\.nl$)/i;
 
 /** Tekst die op een consumentenportaal of makelaar wijst (woningaanbod voor kopers en huurders). */
@@ -22,8 +22,12 @@ const PORTAAL_SIGNALEN: Array<[string, RegExp]> = [
   ["bezichtiging", /bezichtig/i],
   ["makelaar", /makelaar|aankoopmakelaar|verkoopmakelaar|nvm/i],
   ["hypotheek", /hypothe(ek|ken)|maandlasten/i],
-  ["zoekopdracht bewaren", /bewaar (je )?zoekopdracht|favorieten|zoekopdracht opslaan/i]
+  ["zoekopdracht bewaren", /bewaar (je )?zoekopdracht|favorieten|zoekopdracht opslaan/i],
+  ["WOZ/woningwaarde", /woz[- ]?waarde|woningwaarde|wat is (mijn|je|uw) (huis|woning) waard|waardebepaling (woning|huis)|huizenprijzen|woningmarktcijfers/i]
 ];
+
+/** Beveiligings- of botcontrolepagina (Cloudflare e.d.) of een lege/onleesbare pagina: geen bruikbaar bedrijfsprofiel. */
+const BOT_CONTROLE = /(security verification|even geduld a\.?u\.?b|just a moment|checking your browser|verifi(e|ë)er dat je (een )?mens|are you (a )?human|i'?m not a robot|recaptcha|captcha|cloudflare|ddos protection|request blocked|access denied|403 forbidden|enable javascript to|schakel javascript in)/i;
 
 /** Tekst die op een gemeente of andere overheid wijst (hun domein is vaak gewoon de plaatsnaam, zoals utrecht.nl). */
 const OVERHEID_SIGNALEN = /(burgerzaken|paspoort|rijbewijs|afvalkalender|gemeenteraad|raadsvergadering|college van b(urgemeester )?(en|&) w|omgevingsvergunning aanvragen|melding openbare ruimte|wethouder)/gi;
@@ -79,6 +83,9 @@ const treffers = (lijst: Array<[string, RegExp]>, tekst: string) => lijst.filter
 export function beoordeelRelevantie(url: string, tekst: string, rollen: Rol[]): Relevantie {
   if (isUitgeslotenDomein(url)) return { relevant: false, score: 0, reden: `${hostVan(url) || url} is een portaal, medium, overheid of platform, geen bedrijf in de bouwketen.`, soort: "uitgesloten domein" };
   const t = tekst.slice(0, 15000);
+  // Beveiligings-/botcontrolepagina of een (vrijwel) lege pagina levert geen bedrijfsprofiel op: nooit een kandidaat.
+  if (BOT_CONTROLE.test(t) || t.replace(/\s+/g, "").length < 120)
+    return { relevant: false, score: 0, reden: "De pagina kon niet worden gelezen (beveiligings- of botcontrole, of (vrijwel) leeg), geen bruikbaar bedrijfsprofiel.", soort: "uitgesloten domein" };
   const overheid = new Set((t.match(OVERHEID_SIGNALEN) ?? []).map((w) => w.toLowerCase()));
   if (overheid.size >= 2) return { relevant: false, score: 0, reden: `Lijkt een gemeente of andere overheid (${Array.from(overheid).slice(0, 3).join(", ")}), geen bouwpartner.`, soort: "uitgesloten domein" };
   const portaal = treffers(PORTAAL_SIGNALEN, t);
