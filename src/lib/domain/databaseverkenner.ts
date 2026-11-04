@@ -15,7 +15,7 @@ const BEKEND: Record<string, { label: string; groep: string }> = {
   partners: { label: "Partners", groep: "Kerngegevens" },
   projecten: { label: "Projecten", groep: "Kerngegevens" },
   factoren: { label: "Factoren", groep: "Kerngegevens" },
-  engagements: { label: "Engagements (partner × project)", groep: "Kerngegevens" },
+  engagements: { label: "Engagements", groep: "Kerngegevens" },
   evaluaties: { label: "Evaluaties", groep: "Kerngegevens" },
   samenwerkingen: { label: "Samenwerkingen", groep: "Kerngegevens" },
   kandidaten: { label: "Discovery-kandidaten", groep: "Werkprocessen" },
@@ -129,10 +129,14 @@ export function bouwTabellen(db: Database): Tabel[] {
 
 export type IdIndex = Map<string, { tabel: string; label: string }>;
 
-/** Alle id's met hun tabel en label, voor het herkennen van koppelingen. */
+/**
+ * Alle id's met hun tabel en label, voor het herkennen van koppelingen. Alleen hoofdtabellen: records in geneste tabellen
+ * worden nergens via hun id aangewezen, en hun id's zijn soms gewone woorden (optie 'koop', 'planvorming') die anders
+ * onterecht als koppeling zouden gelden.
+ */
 export function bouwIndex(tabellen: Tabel[]): IdIndex {
   const index: IdIndex = new Map();
-  for (const t of tabellen) for (const r of t.rijen) if (!index.has(r._id)) index.set(r._id, { tabel: t.naam, label: r._label });
+  for (const t of tabellen) if (!t.ouder) for (const r of t.rijen) if (!index.has(r._id)) index.set(r._id, { tabel: t.naam, label: r._label });
   return index;
 }
 
@@ -210,4 +214,41 @@ export function standaardKolommen(t: Tabel): string[] {
 export function naarCsv(t: Tabel, rijen: Rij[], kolommen: string[]): string {
   const veilig = (s: string) => (/[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
   return [["id", ...kolommen].join(";"), ...rijen.map((r) => [r._id, ...kolommen.map((k) => celTekst(r.velden[k]))].map(veilig).join(";"))].join("\r\n");
+}
+
+export type Relatie = {
+  /** Brontabel en kolom die naar de doeltabel wijst. */
+  van: string;
+  kolom: string;
+  naar: string;
+  /** 'kind': geneste gegevens (kolom ouder); 'verwijzing': een id-veld dat naar een record in een andere tabel wijst. */
+  soort: "kind" | "verwijzing";
+  /** Aantal records in de brontabel met zo'n koppeling. */
+  aantal: number;
+};
+
+/**
+ * Het relationele model, afgeleid uit de data zelf: een kolom is een verwijzing naar tabel X als de meerderheid van zijn
+ * gevulde waarden id's uit X zijn (minstens één). Geneste tabellen zijn kinderen van hun ouder.
+ */
+export function relatieModel(tabellen: Tabel[], index: IdIndex): Relatie[] {
+  const relaties: Relatie[] = [];
+  for (const t of tabellen) {
+    if (t.ouder) relaties.push({ van: t.naam, kolom: "ouder", naar: t.ouder, soort: "kind", aantal: t.rijen.length });
+    for (const kolom of t.kolommen) {
+      if (kolom === "ouder" || kolom === "id" || GEEN_KOPPELING.has(kolom)) continue;
+      const perDoel = new Map<string, number>();
+      let gevuld = 0;
+      for (const r of t.rijen) {
+        const v = r.velden[kolom];
+        const waarden = typeof v === "string" ? [v] : Array.isArray(v) ? v : [];
+        if (!waarden.length) continue;
+        gevuld++;
+        const doelen = new Set(waarden.map((w) => index.get(w)?.tabel).filter((d): d is string => Boolean(d) && d !== t.naam));
+        doelen.forEach((d) => perDoel.set(d, (perDoel.get(d) ?? 0) + 1));
+      }
+      for (const [naar, aantal] of perDoel) if (aantal >= Math.max(1, gevuld * 0.5)) relaties.push({ van: t.naam, kolom, naar, soort: "verwijzing", aantal });
+    }
+  }
+  return relaties;
 }

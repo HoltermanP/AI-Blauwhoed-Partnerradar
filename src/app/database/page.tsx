@@ -4,10 +4,11 @@ import Link from "next/link";
 import { Kaart, Leeg, Melding, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { getDb } from "@/lib/store";
-import { bouwIndex, bouwTabellen, celTekst, GEEN_KOPPELING, GROEPVOLGORDE, sorteer, standaardKolommen, verwijzingenNaar, zoekFilter, type Cel, type IdIndex, type Rij, type Tabel } from "@/lib/domain/databaseverkenner";
+import { bouwIndex, bouwTabellen, celTekst, GEEN_KOPPELING, GROEPVOLGORDE, relatieModel, sorteer, standaardKolommen, verwijzingenNaar, zoekFilter, type Cel, type IdIndex, type Rij, type Tabel } from "@/lib/domain/databaseverkenner";
+import { RelatieFocus, RelatieOverzicht } from "@/components/database/RelatieModel";
 
 const PER_PAGINA = 50;
-type Params = { t?: string; q?: string; s?: string; r?: string; p?: string; k?: string; id?: string };
+type Params = { t?: string; q?: string; s?: string; r?: string; p?: string; k?: string; id?: string; weergave?: string };
 type Invoer = Params & { kol?: string | string[] };
 
 /** Link naar dezelfde pagina met aangepaste parameters (lege waarden vallen weg). */
@@ -37,6 +38,7 @@ export default async function DatabasePagina({ searchParams }: { searchParams: P
   const q = (sp.q ?? "").trim();
   const filter = q ? zoekFilter(q) : null;
   const totaalRijen = tabellen.reduce((n, t) => n + t.rijen.length, 0);
+  const model = sp.weergave === "model";
 
   return (
     <>
@@ -45,7 +47,17 @@ export default async function DatabasePagina({ searchParams }: { searchParams: P
         titel="Database verkennen"
         intro={`Alle ${tabellen.length} tabellen (${totaalRijen.toLocaleString("nl-NL")} records) vrij doorzoeken. Alleen lezen. Blauwe waarden zijn koppelingen naar een record in een andere tabel.`}
       />
-      <div className="dbIndeling">
+      <nav className="weergaveKeuze" aria-label="Weergave">
+        <Link href={link({ t: sp.t, q: sp.q, k: sp.k }, {})} className={model ? "" : "active"}>
+          Gegevens
+        </Link>
+        <Link href={link({ t: sp.t }, { weergave: "model" })} className={model ? "active" : ""}>
+          Relatiemodel
+        </Link>
+      </nav>
+      {/* In de modelweergave toont het diagram zelf alle tabellen; de lijst links vervalt dan voor meer ruimte. */}
+      <div className={model ? "dbIndeling zonderZijbalk" : "dbIndeling"}>
+        {model ? null : (
         <aside className="dbZijbalk" aria-label="Tabellen">
           {GROEPVOLGORDE.map((groep) => {
             const inGroep = tabellen.filter((t) => t.groep === groep);
@@ -58,7 +70,7 @@ export default async function DatabasePagina({ searchParams }: { searchParams: P
                     const aantal = filter ? t.rijen.filter((r) => filter(r, index)).length : t.rijen.length;
                     return (
                       <li key={t.naam} className={t.ouder ? "dbKind" : ""}>
-                        <Link href={link({ q: sp.q }, { t: t.naam })} className={t.naam === tabel?.naam ? "active" : ""}>
+                        <Link href={model ? link({}, { t: t.naam, weergave: "model" }) : link({ q: sp.q }, { t: t.naam })} className={t.naam === tabel?.naam ? "active" : ""}>
                           <span>{t.ouder ? `› ${t.naam.split(".").slice(1).join(" › ")}` : t.label}</span>
                           <b className={filter && !aantal ? "nul" : ""}>{aantal}</b>
                         </Link>
@@ -70,33 +82,44 @@ export default async function DatabasePagina({ searchParams }: { searchParams: P
             );
           })}
         </aside>
+        )}
         <div className="dbHoofd">
-          <form method="get" action="/database" className="dbZoek">
-            {tabel ? <input type="hidden" name="t" value={tabel.naam} /> : null}
-            {sp.k ? <input type="hidden" name="k" value={sp.k} /> : null}
-            <input name="q" defaultValue={q} placeholder={tabel ? `Zoek in ${tabel.label}… bijv. status:bekend rol:architect -geblokkeerd` : "Zoek in de hele database… bijv. Aalberts, mpg of status:open"} aria-label="Zoekopdracht" />
-            <button type="submit" className="knop">Zoeken</button>
-            {q ? (
-              <Link href={link({ t: sp.t, k: sp.k }, {})} className="knop knop-tekst">
-                Wissen
-              </Link>
-            ) : null}
-          </form>
-          <p className="muted klein-tekst dbUitleg">
-            Woorden moeten allemaal voorkomen · <code>kolom:tekst</code> zoekt in één kolom · <code>-woord</code> sluit uit · <code>&quot;twee woorden&quot;</code> als geheel. Koppelingen zijn ook op naam te vinden.
-          </p>
-          {sp.id && tabel ? (
-            <Detail tabel={tabel} id={sp.id} tabellen={tabellen} index={index} sp={sp} />
-          ) : tabel ? (
-            <TabelWeergave tabel={tabel} sp={sp} index={index} filter={filter} />
-          ) : q ? (
-            <Overal tabellen={tabellen} index={index} filter={filter!} sp={sp} />
+          {model ? (
+            tabel ? (
+              <RelatieFocus tabel={tabel} tabellen={tabellen} relaties={relatieModel(tabellen, index)} />
+            ) : (
+              <RelatieOverzicht tabellen={tabellen} relaties={relatieModel(tabellen, index)} />
+            )
           ) : (
-            <Kaart titel="Kies een tabel of zoek in alles">
-              <p className="muted">
-                Links staan alle tabellen. Geneste gegevens, zoals de factorwaarden en certificaten van een partner, zijn eigen tabellen (met <b>›</b>) met een kolom <i>ouder</i> die naar het bovenliggende record wijst. Klik op een record voor alle velden en voor alles wat ernaar verwijst.
-              </p>
-            </Kaart>
+            <>
+            <form method="get" action="/database" className="dbZoek">
+              {tabel ? <input type="hidden" name="t" value={tabel.naam} /> : null}
+              {sp.k ? <input type="hidden" name="k" value={sp.k} /> : null}
+              <input name="q" defaultValue={q} placeholder={tabel ? `Zoek in ${tabel.label}… bijv. status:bekend rol:architect -geblokkeerd` : "Zoek in de hele database… bijv. Aalberts, mpg of status:open"} aria-label="Zoekopdracht" />
+              <button type="submit" className="knop">Zoeken</button>
+              {q ? (
+                <Link href={link({ t: sp.t, k: sp.k }, {})} className="knop knop-tekst">
+                  Wissen
+                </Link>
+              ) : null}
+            </form>
+            <p className="muted klein-tekst dbUitleg">
+              Woorden moeten allemaal voorkomen · <code>kolom:tekst</code> zoekt in één kolom · <code>-woord</code> sluit uit · <code>&quot;twee woorden&quot;</code> als geheel. Koppelingen zijn ook op naam te vinden.
+            </p>
+            {sp.id && tabel ? (
+              <Detail tabel={tabel} id={sp.id} tabellen={tabellen} index={index} sp={sp} />
+            ) : tabel ? (
+              <TabelWeergave tabel={tabel} sp={sp} index={index} filter={filter} />
+            ) : q ? (
+              <Overal tabellen={tabellen} index={index} filter={filter!} sp={sp} />
+            ) : (
+              <Kaart titel="Kies een tabel of zoek in alles">
+                <p className="muted">
+                  Links staan alle tabellen. Geneste gegevens, zoals de factorwaarden en certificaten van een partner, zijn eigen tabellen (met <b>›</b>) met een kolom <i>ouder</i> die naar het bovenliggende record wijst. Klik op een record voor alle velden en voor alles wat ernaar verwijst.
+                </p>
+              </Kaart>
+            )}
+            </>
           )}
         </div>
       </div>

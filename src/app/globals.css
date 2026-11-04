@@ -1899,3 +1899,39 @@ button.menuKnop.sluit { display: none; }
 .zijbalkNav { align-items: stretch; gap: 2px; }
 .zijbalkNav a { font-size: inherit; }
 .appInhoud .omgevingBalk { margin: 0; }
+
+/* ---------- Databaseverkenner: relatiemodel ---------- */
+.weergaveKeuze { display: inline-flex; gap: 2px; padding: 3px; margin-bottom: 14px; background: white; border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--schaduw); }
+.weergaveKeuze a:not(.knop) { padding: 6px 16px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+.weergaveKeuze a.active:not(.knop) { background: var(--blue-soft); color: var(--blue-deep); }
+.erdKader { overflow-x: auto; background: white; border: 1px solid var(--line); border-radius: var(--radius-lg); box-shadow: var(--schaduw); padding: 4px; }
+.erd { display: block; height: auto; font-family: inherit; }
+.erd .erdGroep { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; fill: var(--muted); }
+.erd .vakRand { fill: white; stroke: var(--line-strong); stroke-width: 1; }
+.erd .vakKop { fill: #eef3f8; }
+.erd .g-Kerngegevens .vakKop { fill: #e3f1fb; }
+.erd .g-Werkprocessen .vakKop { fill: #eef0fb; }
+.erd .g-Instellingen .vakKop { fill: #eef7f1; }
+.erd .g-Beheer .vakKop { fill: #f6f0e8; }
+.erd .vakTitel { font-size: 13px; font-weight: 800; fill: var(--ink); }
+.erd .vakAantal { font-size: 12px; font-weight: 700; fill: var(--muted); }
+.erd .rijSleutel { font-size: 12px; font-weight: 700; fill: var(--blue-deep); }
+.erd .rijKind { font-size: 12px; fill: #667085; }
+.erd .rijVeld { font-size: 12px; fill: #344054; }
+.erd .vakVoet { font-size: 11px; fill: var(--faint); }
+.erd .vak { cursor: pointer; }
+.erd .vak:hover .vakRand, .erd .vak.actief .vakRand { stroke: var(--blue); stroke-width: 2; }
+.erd .vak.leeg { opacity: 0.55; }
+.erd .rel { fill: none; stroke-width: 1.6; opacity: 0.75; transition: opacity 0.15s ease; }
+.erd .relVerwijzing { stroke: var(--blue); }
+.erd .relKind { stroke: #98a2b3; stroke-dasharray: 4 3; }
+.erd .pijlKop { fill: context-stroke; }
+.erdLegenda { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; font-size: 12.5px; margin: 0 2px 10px; }
+.erdLegenda i { display: inline-block; width: 26px; height: 0; vertical-align: middle; margin-right: 6px; border-top: 2px solid var(--blue); }
+.erdLegenda i.lijnKind { border-top: 2px dashed #98a2b3; }
+.erdLegenda b { color: var(--blue-deep); }
+.erdKruimel { margin: 0 2px 8px; font-size: 13.5px; }
+.erdKolomKoppen { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 4px 6px; }
+.erdKolomKoppen span:nth-child(2) { text-align: center; }
+.erdKolomKoppen span:last-child { text-align: right; }
+.dbIndeling.zonderZijbalk { grid-template-columns: minmax(0, 1fr); }
