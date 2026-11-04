@@ -48,6 +48,17 @@ function Bronnen({ b }: { b: Beurt }) {
             </details>
           ) : null}
         </li>
+        {b.projecten?.length ? (
+          <li>
+            <span className="badge badge-blauw">Database</span> <span className="muted">Projecten: </span>
+            {b.projecten.map((p, j) => (
+              <span key={p.id}>
+                {j > 0 ? " · " : ""}
+                <Link href={`/projecten/${p.id}`}>{p.naam}</Link>
+              </span>
+            ))}
+          </li>
+        ) : null}
         {b.metInternet ? (
           <li>
             <span className="badge badge-geel">Internet</span> <span className="muted">indicatief, niet gevalideerd: </span>
@@ -109,7 +120,7 @@ export default function ChatPaneel({ aiActief, metInternet, beginVraag }: { aiAc
     if (v) stel(v);
   };
 
-  // Een vraag vanaf het dashboard (/zoeken?vraag=…) wordt direct gesteld.
+  // Een vraag vanuit de startzoeker (of /dashboard?vraag=…) wordt direct gesteld.
   useEffect(() => {
     if (beginVraag?.trim() && !gesteld.current) {
       gesteld.current = true;
@@ -137,7 +148,7 @@ export default function ChatPaneel({ aiActief, metInternet, beginVraag }: { aiAc
       ))}
       <form onSubmit={verzend} className="chatInvoer">
         <div className="formulierActies" style={{ alignItems: "stretch" }}>
-          <input value={vraag} onChange={(e) => setVraag(e.target.value)} placeholder="Bijv. welke aannemers hebben CLT-ervaring én een geldig ISO 9001-certificaat?" aria-label="Chatvraag" style={{ flex: 1, minWidth: 200 }} disabled={bezig} />
+          <input value={vraag} onChange={(e) => setVraag(e.target.value)} placeholder="Stel een vervolgvraag…" aria-label="Chatvraag" style={{ flex: 1, minWidth: 200 }} disabled={bezig} />
           <button type="submit" className="knop" disabled={bezig || !vraag.trim()}>
             {bezig ? (metInternet ? "Zoeken…" : "Bezig…") : "Vraag"}
           </button>

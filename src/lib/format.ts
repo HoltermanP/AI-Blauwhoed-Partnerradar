@@ -4,8 +4,10 @@ export const euro = (n: number | undefined | null) => (n === undefined || n === 
 export const getal = (n: number | undefined | null, decimalen = 0) => (n === undefined || n === null ? "–" : new Intl.NumberFormat("nl-NL", { maximumFractionDigits: decimalen }).format(n));
 /** Vaste tijdzone: de server (Vercel, UTC) en de browser moeten dezelfde tekst renderen, anders volgt een hydration-fout. */
 export const TIJDZONE = "Europe/Amsterdam";
-export const datum = (d: string | undefined | null) => (d ? new Date(d).toLocaleDateString("nl-NL", { timeZone: TIJDZONE, day: "2-digit", month: "short", year: "numeric" }) : "–");
-export const datumTijd = (d: string | undefined | null) => (d ? new Date(d).toLocaleString("nl-NL", { timeZone: TIJDZONE, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "–");
+/** Harde spaties: een datum breekt in tabellen nooit over twee regels ("26 okt 2026, 10:21"). */
+const heel = (t: string) => t.replace(/ /g, "\u00a0");
+export const datum = (d: string | undefined | null) => (d ? heel(new Date(d).toLocaleDateString("nl-NL", { timeZone: TIJDZONE, day: "2-digit", month: "short", year: "numeric" })) : "–");
+export const datumTijd = (d: string | undefined | null) => (d ? heel(new Date(d).toLocaleString("nl-NL", { timeZone: TIJDZONE, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })) : "–");
 
 export const ROL_LABEL: Record<Rol, string> = {
   architect: "Architect",

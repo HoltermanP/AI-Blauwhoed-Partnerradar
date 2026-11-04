@@ -4,7 +4,7 @@ import CsvImport from "@/components/historie/CsvImport";
 import WachtrijRegel from "@/components/historie/WachtrijRegel";
 import { Badge, Kaart, Knop, Leeg, PaginaKop } from "@/components/ui";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
-import { collaborationEdges, leidFactorenAf } from "@/lib/domain/derive";
+import { leidFactorenAf } from "@/lib/domain/derive";
 import { ROLLEN, type Rol } from "@/lib/domain/types";
 import { datum, euro, getal, ROL_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
@@ -34,8 +34,6 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
     .sort((a, b) => b.periode.van.localeCompare(a.periode.van));
 
   const afwijking = (raming?: number, eind?: number) => (raming && eind ? ((eind - raming) / raming) * 100 : null);
-
-  const edges = collaborationEdges(db).sort((a, b) => b.aantal - a.aantal || (b.gemiddeldeScore ?? 0) - (a.gemiddeldeScore ?? 0));
 
   const gedrag = db.partners
     .map((p) => ({ partner: p, stat: leidFactorenAf(p, db).statistieken }))
@@ -174,8 +172,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
         </Kaart>
       </div>
 
-      <div className="raster raster-2">
-        <Kaart titel="Gedrag over projecten">
+      <Kaart titel="Gedrag over projecten" acties={<Link href="/verbanden">Wie werkte met wie: Verbanden</Link>}>
           {gedrag.length ? (
             <div className="tabelWrap">
               <table className="tabel">
@@ -207,40 +204,7 @@ export default async function HistoriePagina({ searchParams }: { searchParams: P
             <p className="muted">Nog geen partners met engagements.</p>
           )}
           <p className="muted">Bron: projecthistorie en evaluaties (betrouwbaarheid 0,9); recente projecten wegen zwaarder. Kostenafwijking = gemiddelde |eindafrekening − raming| / raming; planningsbetrouwbaarheid = aandeel opgeleverd binnen 30 dagen na plan.</p>
-        </Kaart>
-        <Kaart titel="Samenwerkingsnetwerk">
-          {edges.length ? (
-            <div className="tabelWrap">
-              <table className="tabel">
-                <thead>
-                  <tr>
-                    <th>Partner A</th>
-                    <th>Partner B</th>
-                    <th className="num">Gezamenlijke projecten</th>
-                    <th className="num">Gem. samenwerkingsscore</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {edges.map((e) => (
-                    <tr key={`${e.a}-${e.b}`}>
-                      <td>
-                        <Link href={`/partners/${e.a}`}>{partnerVan(e.a)?.naam ?? e.a}</Link>
-                      </td>
-                      <td>
-                        <Link href={`/partners/${e.b}`}>{partnerVan(e.b)?.naam ?? e.b}</Link>
-                      </td>
-                      <td className="num">{e.aantal}</td>
-                      <td className="num">{e.gemiddeldeScore === null ? "–" : `${getal(e.gemiddeldeScore, 1)} / 5`}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="muted">Nog geen partners die samen op een project zaten.</p>
-          )}
-        </Kaart>
-      </div>
+      </Kaart>
     </>
   );
 }

@@ -81,7 +81,7 @@ export default function VoorstellenLijst({ voorstellen, partnerNamen, factoren, 
     });
 
   const alle = voorstellen.map((v) => v.id);
-  const kolommen = 7 + (partnerNamen ? 1 : 0) + (kan ? 2 : 0);
+  const kolommen = 6 + (open ? 0 : 1) + (partnerNamen ? 1 : 0) + (kan ? 2 : 0);
   return (
     <div>
       {melding ? <Melding soort={melding.soort}>{melding.tekst}</Melding> : null}
@@ -113,8 +113,8 @@ export default function VoorstellenLijst({ voorstellen, partnerNamen, factoren, 
               <th className="num">Betrouwb.</th>
               <th>Bron en onderbouwing</th>
               <th>Gevonden</th>
-              <th>{open ? "" : "Beoordeeld"}</th>
-              {kan ? <th /> : null}
+              {open ? null : <th>Beoordeeld</th>}
+              {kan ? <th className="kolActies">Actie</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -145,20 +145,22 @@ export default function VoorstellenLijst({ voorstellen, partnerNamen, factoren, 
                   <VoorstelBron v={v} />
                 </td>
                 <td>{datumTijd(v.gevondenOp)}</td>
-                <td className="klein-tekst">{!open && v.beoordeeldDoor ? `${v.beoordeeldDoor}, ${datumTijd(v.beoordeeldOp)}` : null}</td>
+                {open ? null : <td className="klein-tekst">{v.beoordeeldDoor ? `${v.beoordeeldDoor}, ${datumTijd(v.beoordeeldOp)}` : null}</td>}
                 {kan ? (
-                  <td style={{ whiteSpace: "nowrap" }}>
+                  <td className="kolActies">
+                    <div className="actieStapel">
                     <button type="button" className="knop klein" disabled={bezig} onClick={() => beslis([v.id], true)}>
                       Accepteren
-                    </button>{" "}
+                    </button>
                     {v.aard !== "niet_bevestigd" && !v.veld.startsWith("Certificaat:") ? (
                       <button type="button" className="knop knop-secundair klein" disabled={bezig} onClick={() => setAanpassen(aanpassen === v.id ? null : v.id)}>
                         Aanpassen
                       </button>
-                    ) : null}{" "}
+                    ) : null}
                     <button type="button" className="knop knop-tekst klein" disabled={bezig} onClick={() => beslis([v.id], false)}>
                       Afwijzen
                     </button>
+                    </div>
                   </td>
                 ) : null}
               </FragmentRij>

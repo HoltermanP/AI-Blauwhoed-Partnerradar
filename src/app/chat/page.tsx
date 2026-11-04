@@ -1,6 +1,6 @@
-// B5: de chat is opgegaan in de zoekpagina (klassiek zoeken en chat naast elkaar); oude links blijven werken.
+// B5: de chat staat op de startpagina (dashboard); oude links blijven werken.
 import { redirect } from "next/navigation";
 
 export default function ChatPagina() {
-  redirect("/zoeken");
+  redirect("/dashboard");
 }

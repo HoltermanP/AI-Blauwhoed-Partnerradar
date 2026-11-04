@@ -3,7 +3,7 @@
 // partnertype en veld) en de verouderingstermijn per veld.
 import Link from "next/link";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
-import { DATASIGNAAL_LABEL, dataSignalen, filterSignalen, STANDAARD_BETROUWBAARHEID_DREMPEL, vullingPerRol, type DataSignaalSoort } from "@/lib/domain/datakwaliteit";
+import { basisVeldKwaliteit, DATASIGNAAL_LABEL, dataSignalen, filterSignalen, STANDAARD_BETROUWBAARHEID_DREMPEL, veldKwaliteit, vullingPerRol, type DataSignaalSoort } from "@/lib/domain/datakwaliteit";
 import { goudstandaardVoor, veldGevuld, veldnaam } from "@/lib/domain/goudstandaard";
 import { STANDAARD_DEKKING_DREMPEL } from "@/lib/domain/herweging";
 import { zichtbaar } from "@/lib/domain/zichtbaarheid";
@@ -20,6 +20,7 @@ const TABS = [
   { id: "vulling", label: "Vullingsgraad" },
   { id: "signalen", label: "Signalen" },
   { id: "ontbrekend", label: "Ontbrekende waarden" },
+  { id: "perveld", label: "Per veld" },
   { id: "termijnen", label: "Verouderingstermijnen" }
 ] as const;
 type Tab = (typeof TABS)[number]["id"];
@@ -48,6 +49,8 @@ export default async function DatakwaliteitPagina({ searchParams }: { searchPara
   const vulling = vullingPerRol(db, partners);
   const alleSignalen = dataSignalen(db, partners);
   const gekozenVulling = rol ? vulling.find((v) => v.rol === rol) : undefined;
+  const kwaliteit = tab === "perveld" ? veldKwaliteit(db, rol) : [];
+  const basisKwaliteit = tab === "perveld" ? basisVeldKwaliteit(db, rol) : [];
 
   return (
     <>
@@ -159,6 +162,46 @@ export default async function DatakwaliteitPagina({ searchParams }: { searchPara
       {tab === "signalen" ? <Signalen db={db} signalen={filterSignalen(alleSignalen, { soort, rol, veld })} totaal={alleSignalen.length} soort={soort} rol={rol} veld={veld} veldOpties={Array.from(new Map(alleSignalen.map((s) => [s.sleutel, s.veld.split(":")[0]])).entries()).sort((a, b) => a[1].localeCompare(b[1]))} /> : null}
 
       {tab === "ontbrekend" ? <Ontbrekend db={db} rol={rol} veld={veld} magBewerken={magBewerken} /> : null}
+
+      {/* B8: per factor en basisveld hoe volledig, gevalideerd en actueel de waarden zijn (was op de beheerpagina). */}
+      {tab === "perveld" ? (
+        <Kaart titel={`Per veld${rol ? `: ${ROL_LABEL[rol].toLowerCase()}` : ""}`}>
+          <form method="get" className="formulierActies" style={{ marginBottom: 10 }}>
+            <input type="hidden" name="tab" value="perveld" />
+            <label>
+              Partnertype
+              <select name="rol" defaultValue={rol ?? ""}>
+                <option value="">Alle rollen</option>
+                {ROLLEN.map((r) => (
+                  <option key={r} value={r}>{ROL_LABEL[r]}</option>
+                ))}
+              </select>
+            </label>
+            <button type="submit" className="knop klein">Tonen</button>
+          </form>
+          <p className="muted klein-tekst">Basisvelden (gevuld / gevalideerd / geen betrouwbare bron): {basisKwaliteit.map((b) => `${b.veld} ${b.pct}% / ${b.gevalideerd}% / ${b.geenBron}`).join(" · ")}</p>
+          <div className="tabelWrap">
+            <table className="tabel">
+              <thead>
+                <tr><th>Veld</th><th className="num">Relevant</th><th className="num">Volledig</th><th className="num">Gevalideerd</th><th className="num">Verouderd</th><th className="num">Gem. betrouwb.</th><th className="num">Geen bron</th></tr>
+              </thead>
+              <tbody>
+                {kwaliteit.map((k) => (
+                  <tr key={k.factorId}>
+                    <td><b>{k.naam}</b><div className="muted klein-tekst">{k.categorie}</div></td>
+                    <td className="num">{k.relevant}</td>
+                    <td className="num"><Badge kleur={k.pctVolledig >= 60 ? "groen" : k.pctVolledig >= 25 ? "geel" : "rood"}>{k.pctVolledig}%</Badge></td>
+                    <td className="num">{k.pctGevalideerd}%</td>
+                    <td className="num">{k.pctVerouderd ? <Badge kleur="rood">{k.pctVerouderd}%</Badge> : "0%"}</td>
+                    <td className="num">{k.gemBetrouwbaarheid !== null ? `${k.gemBetrouwbaarheid}%` : "–"}</td>
+                    <td className="num">{k.geenBron ? <Badge kleur="mint">{k.geenBron}</Badge> : "0"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Kaart>
+      ) : null}
 
       {tab === "termijnen" ? (
         <Kaart titel="Verouderingstermijn per veld en drempels">

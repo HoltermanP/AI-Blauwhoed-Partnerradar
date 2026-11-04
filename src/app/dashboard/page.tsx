@@ -1,16 +1,24 @@
-// Dashboard: metrieken, signalen (US-06/21/28/32/33), matchkwaliteit (US-43), recente runs en audit (US-46).
+// Dashboard en startpagina: chatten en zoeken in partners én projecten (US-28), kerncijfers en openstaand werk, signalen
+// (US-06/21/28/32/33), matchkwaliteit (US-43), recente runs en wijzigingen (US-46). De details per onderwerp staan op hun
+// eigen pagina (datakwaliteit, verrijking, discovery); hier alleen de samenvatting met doorklik.
 import Link from "next/link";
 import { huidigeGebruiker, heeftRecht } from "@/lib/auth";
 import { signalenVoor } from "@/lib/domain/signalen";
 import type { Rol, Signaal } from "@/lib/domain/types";
 import { ROLLEN } from "@/lib/domain/types";
-import { datumTijd, ROL_LABEL, STATUS_LABEL } from "@/lib/format";
+import { datumTijd, ROL_LABEL } from "@/lib/format";
 import { getDb } from "@/lib/store";
-import { Badge, Kaart, Knop, Leeg, Melding, Metriek, PaginaKop } from "@/components/ui";
+import { Badge, Kaart, Knop, Leeg, Melding, Metriek, ScoreBalk, StatusBadge } from "@/components/ui";
 import { SignaalLijst } from "@/components/dashboard/SignaalLijst";
 import { zichtbaar } from "@/lib/domain/zichtbaarheid";
-import { dataSignalen, statusVerdeling, vullingPerRol } from "@/lib/domain/datakwaliteit";
-import ChatStart from "@/components/chat/ChatStart";
+import { dataSignalen, statusVerdeling } from "@/lib/domain/datakwaliteit";
+import StartZoeker from "@/components/chat/StartZoeker";
+import { semantischZoeken } from "@/lib/domain/matching";
+import { zoekProjecten } from "@/lib/domain/chat";
+import { aiAan } from "@/lib/aiplatform";
+import type { Database } from "@/lib/domain/types";
+
+export const maxDuration = 60;
 import { budgetStatus } from "@/lib/domain/kosten";
 
 const SOORTEN: Array<{ id: Signaal["soort"] | "alle"; label: string }> = [
@@ -24,7 +32,7 @@ const SOORTEN: Array<{ id: Signaal["soort"] | "alle"; label: string }> = [
 ];
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const { soort } = await searchParams;
+  const { soort, q = "", web, vraag } = await searchParams;
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
 
@@ -49,11 +57,9 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   // US-66: datakwaliteit op het overzichtsscherm (alleen zichtbare partners: geen concepten of gearchiveerde).
   const zichtbarePartners = db.partners.filter(zichtbaar);
-  const gsPerRol = vullingPerRol(db, zichtbarePartners);
   const dataSign = dataSignalen(db, zichtbarePartners);
   const verdeling = statusVerdeling(zichtbarePartners, db.factoren);
   const pctVan = (n: number) => (verdeling.totaal ? Math.round((n / verdeling.totaal) * 100) : 0);
-  const geenBronVelden = zichtbarePartners.reduce((s, p) => s + Object.keys(p.geenBron ?? {}).length, 0);
   const geenBronPartners = zichtbarePartners.filter((p) => Object.keys(p.geenBron ?? {}).length).length;
   const openConcepten = db.partners.filter((p) => p.status === "concept").length;
   const verbruik = budgetStatus(db);
@@ -63,104 +69,40 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PaginaKop
-        eyebrow="Slimme partnerdatabase"
-        titel="Dashboard"
-        intro="Overzicht van de partnerkring, signalen die aandacht vragen en de kwaliteit van de matching. AI legt uit, AI beslist niet."
+      <StartZoeker
+        q={q}
+        web={web === "1"}
+        beginVraag={vraag}
+        internetMogelijk={db.instellingen.externeBronnenToegestaan}
+        aiActief={aiAan()}
         acties={
           magBewerken ? (
             <>
-              <Knop href="/partners/nieuw">Nieuwe partner</Knop>
+              <Knop href="/partners/nieuw" variant="secundair">Nieuwe partner</Knop>
               <Knop href="/projecten/nieuw" variant="secundair">Nieuw project</Knop>
-              <Knop href="/discovery" variant="secundair">Discovery</Knop>
-              <Knop href="/verrijking" variant="secundair">Verrijking</Knop>
             </>
-          ) : (
-            <span className="muted klein-tekst">Rol {gebruiker.rol}: alleen lezen.</span>
-          )
+          ) : null
         }
+        resultaten={q.trim() ? <DirecteResultaten db={db} q={q} /> : undefined}
       />
 
-      {/* US-28: de AI-chat is de primaire zoekingang. */}
-      <ChatStart />
       {verbruik.overschreden ? (
         <Melding soort="fout">AI-budget bereikt: {verbruik.bewerkingen} van {verbruik.budgetBewerkingen} bewerkingen deze maand (100%). Geplande verrijkingsrondes starten niet; chat en verrijking van één partner blijven werken. <Link href="/beheer/verbruik">AI-verbruik</Link></Melding>
       ) : verbruik.waarschuwing ? (
         <Melding soort="waarschuwing">AI-verbruik boven 80%: {verbruik.bewerkingen} van {verbruik.budgetBewerkingen} bewerkingen deze maand. <Link href="/beheer/verbruik">AI-verbruik</Link></Melding>
       ) : null}
 
+      <h2 className="sectieKop">In één oogopslag</h2>
       <div className="metriekRij">
-        <Metriek waarde={perStatus("bekend")} label={`Partners ${STATUS_LABEL.bekend.toLowerCase()}`} sub={<Link href="/partners?status=bekend">Bekijk</Link>} />
-        <Metriek waarde={perStatus("preferred")} label={STATUS_LABEL.preferred} sub={<Link href="/partners?status=preferred">Bekijk</Link>} />
-        <Metriek waarde={perStatus("prospect")} label="Prospects" sub={<Link href="/partners?status=prospect">Bekijk</Link>} />
-        <Metriek waarde={perStatus("geblokkeerd")} label={STATUS_LABEL.geblokkeerd} sub={<Link href="/partners?status=geblokkeerd">Bekijk</Link>} />
-        <Metriek waarde={db.projecten.length} label="Projecten" sub={<Link href="/projecten">Bekijk</Link>} />
-        <Metriek waarde={db.matchRuns.length} label="Matchruns" />
-        <Metriek waarde={openKandidaten} label="Open discovery-kandidaten" sub={<Link href="/discovery">Beoordelen</Link>} />
-        <Metriek waarde={openVoorstellen} label="Open verrijkingsvoorstellen" sub={<Link href="/verrijking">Beoordelen</Link>} />
+        <Metriek waarde={perStatus("bekend") + perStatus("preferred")} label="Partners" sub={<Link href="/partners">{perStatus("preferred")} preferred · {perStatus("prospect")} prospects</Link>} />
+        <Metriek waarde={db.projecten.length} label="Projecten" sub={<Link href="/projecten">{db.matchRuns.length} matchruns</Link>} />
+        <Metriek waarde={`${pctVan(verdeling.gevalideerd)}%`} label="Waarden gevalideerd" sub={<Link href="/datakwaliteit">{dataSign.length} datasignalen · {geenBronPartners} zonder bron</Link>} />
+        <Metriek waarde={openVoorstellen} label="Verrijkingsvoorstellen" sub={<Link href="/verrijking">Beoordelen</Link>} />
+        <Metriek waarde={openKandidaten} label="Nieuwe kandidaten" sub={<Link href="/discovery">Beoordelen</Link>} />
+        <Metriek waarde={openConcepten} label="Wacht op vrijgave" sub={<Link href="/vrijgave">Vrijgave</Link>} />
         <Metriek waarde={<span style={{ color: kritiek ? "var(--red)" : undefined }}>{kritiek}</span>} label="Kritieke signalen" sub={<a href="#signalen">Bekijk</a>} />
+        <Metriek waarde={`${verbruik.bewerkingen}/${verbruik.budgetBewerkingen}`} label="AI-bewerkingen" sub={<Link href="/beheer/verbruik">{Math.round(verbruik.pct)}% van budget</Link>} />
       </div>
-
-      <Kaart titel="Datakwaliteit" acties={<Link href="/datakwaliteit">Details per veld en signalen</Link>}>
-        <div className="kwaliteitRaster">
-          <Metriek waarde={`${pctVan(verdeling.gevalideerd)}%`} label="Gevalideerd" sub={<Link href="/partners?waardestatus=gevalideerd">{verdeling.gevalideerd} waarden</Link>} />
-          <Metriek waarde={`${pctVan(verdeling.voorgesteld)}%`} label="Voorgesteld" sub={<Link href="/partners?waardestatus=voorgesteld">{verdeling.voorgesteld} waarden</Link>} />
-          <Metriek waarde={`${pctVan(verdeling.verouderd)}%`} label="Verouderd" sub={<Link href="/partners?waardestatus=verouderd">{verdeling.verouderd} waarden</Link>} />
-          <Metriek waarde={geenBronVelden} label="Velden zonder betrouwbare bron" sub={<Link href="/partners?geenbron=1">{geenBronPartners} partner(s)</Link>} />
-          <Metriek waarde={dataSign.length} label="Datasignalen" sub={<Link href="/datakwaliteit?tab=signalen">{dataSign.filter((s) => s.soort === "ontbreekt").length} ontbreekt · {dataSign.filter((s) => s.soort === "verouderd").length} verouderd · {dataSign.filter((s) => s.soort === "onbetrouwbaar").length} onbetrouwbaar</Link>} />
-          <Metriek waarde={openConcepten} label="Open concepten (AI-voorstellen)" sub={<Link href="/vrijgave">Vrijgavewachtrij</Link>} />
-          <Metriek waarde={openVoorstellen} label="Open verrijkingsvoorstellen" sub={<Link href="/verrijking">Beoordelen</Link>} />
-          <Metriek waarde={`${verbruik.bewerkingen} / ${verbruik.budgetBewerkingen}`} label="AI-bewerkingen deze maand" sub={<Link href="/beheer/verbruik">{Math.round(verbruik.pct)}% van het budget</Link>} />
-        </div>
-        <h3>Vullingsgraad verplichte velden per partnertype</h3>
-        {gsPerRol.length ? (
-          <div className="tabelWrap">
-            <table className="tabel">
-              <thead>
-                <tr>
-                  <th>Partnertype</th>
-                  <th className="num">Partners</th>
-                  <th>Verplicht gevuld</th>
-                  <th>Laagst gevulde verplichte velden</th>
-                  <th className="num">Onvolledig</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gsPerRol.map((r) => (
-                  <tr key={r.rol}>
-                    <td>
-                      <Link href={`/datakwaliteit?rol=${r.rol}`}>{ROL_LABEL[r.rol]}</Link>
-                    </td>
-                    <td className="num">{r.partners}</td>
-                    <td>
-                      <div className="voortgang" aria-label={`${r.verplichtPct ?? 0}% gevuld`}>
-                        <span style={{ width: `${r.verplichtPct ?? 0}%` }} />
-                      </div>
-                      <small className="muted">{r.verplichtPct ?? 0}%</small>
-                    </td>
-                    <td className="klein-tekst">
-                      {r.velden
-                        .filter((v) => v.niveau === "verplicht" && v.pct < 100)
-                        .slice(0, 3)
-                        .map((v, i) => (
-                          <span key={v.sleutel}>
-                            {i ? " · " : ""}
-                            <Link href={`/datakwaliteit?tab=ontbrekend&rol=${r.rol}&veld=${v.sleutel}`}>{v.naam}</Link> <span className="muted">{v.pct}%</span>
-                          </span>
-                        ))}
-                    </td>
-                    <td className="num">
-                      <Link href={`/datakwaliteit?tab=signalen&soort=ontbreekt&rol=${r.rol}`}>{r.onvolledig}</Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted">Nog geen partners.</p>
-        )}
-      </Kaart>
 
       <div className="raster raster-zij">
         <div>
@@ -282,21 +224,56 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
             )}
           </Kaart>
 
-          <Kaart titel="Snelkoppelingen">
-            <ul className="lijst">
-              <li><Link href="/partners/nieuw">Nieuwe partner</Link></li>
-              <li><Link href="/projecten/nieuw">Nieuw project</Link></li>
-              <li><Link href="/discovery">Discovery: kandidaten beoordelen</Link></li>
-              <li><Link href="/verrijking">Verrijking: voorstellen beoordelen</Link></li>
-              <li><Link href="/kaart">Kaart: partners bij projectlocatie</Link></li>
-              <li><Link href="/beheer">Beheer: factoren, gewichten, audit</Link></li>
-              <li>
-                <Link href="/radar" className="muted">Legacy: Excel-radar (houtbouwers)</Link>
-              </li>
-            </ul>
-          </Kaart>
         </div>
       </div>
     </>
+  );
+}
+
+/** Directe treffers zonder AI: partners (semantisch, kenmerk-matches eerst) en projecten (woordtreffers). */
+function DirecteResultaten({ db, q }: { db: Database; q: string }) {
+  const partners = semantischZoeken(db, q, 40).filter((r) => zichtbaar(r.partner));
+  const projecten = zoekProjecten(db, q);
+  return (
+    <div className="directeTreffers">
+      <Kaart titel={`Partners (${partners.length})`} acties={partners.length ? <Link href={`/partners?q=${encodeURIComponent(q)}`}>In het overzicht</Link> : null}>
+        {partners.length ? (
+          <ul className="trefferLijst">
+            {partners.slice(0, 8).map((r) => (
+              <li key={r.partner.id}>
+                <div>
+                  <Link href={`/partners/${r.partner.id}`}>{r.partner.naam}</Link> <StatusBadge status={r.partner.status} />
+                  {r.structureel ? <Badge kleur="blauw" titel="Heeft het gevraagde kenmerk aantoonbaar">kenmerk</Badge> : null}
+                  <small>
+                    {r.partner.rollen.map((rol) => ROL_LABEL[rol]).join(", ")} · {r.partner.vestigingsplaats || "–"}
+                  </small>
+                </div>
+                <ScoreBalk score={r.score} label="Relevantie" klein />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Geen partners gevonden.</p>
+        )}
+      </Kaart>
+      <Kaart titel={`Projecten (${projecten.length})`} acties={projecten.length ? <Link href={`/database?t=projecten&q=${encodeURIComponent(q)}`}>Alle treffers</Link> : null}>
+        {projecten.length ? (
+          <ul className="trefferLijst">
+            {projecten.slice(0, 8).map((pr) => (
+              <li key={pr.id}>
+                <div>
+                  <Link href={`/projecten/${pr.id}`}>{pr.naam}</Link> {pr.extern ? <Badge>extern</Badge> : null}
+                  <small>
+                    {pr.locatie.plaats || "–"} · {pr.type} · {pr.woningen} woningen · {pr.fase}
+                  </small>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Geen projecten gevonden.</p>
+        )}
+      </Kaart>
+    </div>
   );
 }

@@ -34,7 +34,7 @@ import { beoordeelRelevantie, zoektermenVoorProject } from "./domain/relevantie"
 import { zichtbaar } from "./domain/zichtbaarheid";
 import { SYSTEEM_SLEUTEL, type SysteemSleutel } from "./systeem";
 import { geldigeRollen, normaliseerWebsite, regelConcept, vrijgaveBlokkades, type RegistratieConcept } from "./domain/registratie";
-import { chatContext } from "./domain/chat";
+import { chatContext, chatProjecten, chatProjectRecord, zoekProjecten } from "./domain/chat";
 import { budgetStatus, schatVerrijkingsronde } from "./domain/kosten";
 import { schemaVan, selecteerPartners } from "./domain/schema";
 import type { BronConnector } from "./domain/discovery";
@@ -1151,11 +1151,13 @@ export async function verwijderKandidatenMetStatus(status: "nieuw" | "geparkeerd
 }
 
 // ---------- Chat over het partnerbestand (B5) ----------
-export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; geraadpleegd: Array<{ id: string; naam: string }>; viaAI: boolean; bronnen: Array<{ titel: string; url: string }>; metInternet: boolean };
+export type ChatAntwoord = { antwoord: string; partners: Array<{ id: string; naam: string }>; geraadpleegd: Array<{ id: string; naam: string }>; projecten: Array<{ id: string; naam: string }>; viaAI: boolean; bronnen: Array<{ titel: string; url: string }>; metInternet: boolean };
 
-/** Partnerlinks in een AI-antwoord alleen laten staan als ze naar een meegestuurd record verwijzen; anders gewone tekst. */
-function controleerPartnerLinks(tekst: string, ids: Set<string>) {
-  return tekst.replace(/\[([^\]]+)\]\(\/partners\/([^)\s]+)\)/g, (heel, label: string, id: string) => (ids.has(id) ? heel : label));
+/** Partner- en projectlinks in een AI-antwoord alleen laten staan als ze naar een meegestuurd record verwijzen; anders gewone tekst. */
+function controleerPartnerLinks(tekst: string, ids: Set<string>, projectIds: Set<string> = new Set()) {
+  return tekst
+    .replace(/\[([^\]]+)\]\(\/partners\/([^)\s]+)\)/g, (heel, label: string, id: string) => (ids.has(id) ? heel : label))
+    .replace(/\[([^\]]+)\]\(\/projecten\/([^)\s]+)\)/g, (heel, label: string, id: string) => (projectIds.has(id) ? heel : label));
 }
 
 /**
@@ -1171,17 +1173,23 @@ export async function stelChatVraag(vraag: string, historie: Array<{ vraag: stri
     if (metInternet && !db.instellingen.externeBronnenToegestaan) throw new Error("Externe bronnen staan uit (Beheer); zoeken op internet is daardoor niet mogelijk.");
     const { partners, records } = chatContext(db, vraag);
     const geraadpleegd = partners.map((p) => ({ id: p.id, naam: p.naam }));
+    // Projecten gaan mee in de context, zodat de chat ook over projecten (en wie erbij betrokken was) kan antwoorden.
+    const projecten = chatProjecten(db, vraag, partners);
+    const projectIds = new Set(projecten.map((p) => p.id));
     if (aiBeschikbaar()) {
       const r = await alsAIBewerking("chat", g.naam, `${metInternet ? "[met internet] " : ""}${vraag.slice(0, 120)}`, () => {
         zetAanroepDoel(metInternet ? "chatvraag met web search" : "chatvraag");
-        return aiChatOpgemaakt(vraag, JSON.stringify(records), historie.slice(-4), metInternet);
+        return aiChatOpgemaakt(vraag, JSON.stringify({ partners: records, projecten: projecten.map((pr) => chatProjectRecord(pr, db)) }), historie.slice(-4), metInternet);
       }, "chat");
       if (r) {
         const ids = new Set(records.map((x) => x.id));
         // Genoemde partners: de PARTNER_IDS-regel plus de partnerlinks in de tekst (beide alleen uit de meegestuurde records).
         const uitLinks = Array.from(r.antwoord.matchAll(/\]\(\/partners\/([^)\s]+)\)/g)).map((m) => m[1]);
         const genoemd = Array.from(new Set([...r.partnerIds, ...uitLinks])).map((id) => db.partners.find((p) => p.id === id)).filter((p): p is Partner => Boolean(p) && zichtbaar(p!) && ids.has(p!.id));
-        return { antwoord: controleerPartnerLinks(r.antwoord, ids), partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), geraadpleegd, viaAI: true, bronnen: r.bronnen, metInternet };
+        const genoemdeProjecten = Array.from(new Set(Array.from(r.antwoord.matchAll(/\]\(\/projecten\/([^)\s]+)\)/g)).map((m) => m[1])))
+          .map((id) => projecten.find((pr) => pr.id === id))
+          .filter((pr): pr is (typeof projecten)[number] => Boolean(pr));
+        return { antwoord: controleerPartnerLinks(r.antwoord, ids, projectIds), partners: genoemd.map((p) => ({ id: p.id, naam: p.naam })), geraadpleegd, projecten: genoemdeProjecten.map((pr) => ({ id: pr.id, naam: pr.naam })), viaAI: true, bronnen: r.bronnen, metInternet };
       }
     }
     // Terugval zonder AI: semantische treffers als opgemaakte lijst, en met internet de zoekresultaten als links.
@@ -1198,8 +1206,11 @@ export async function stelChatVraag(vraag: string, historie: Array<{ vraag: stri
       bronnen = urls.map((u) => ({ titel: new URL(u).hostname.replace(/^www\./, ""), url: u }));
       regels.push("### Van internet (indicatief – niet gevalideerd)", bronnen.length ? "Zoekresultaten zonder samenvatting (AI staat uit); zie de bronnen hieronder." : "Geen zoekresultaten gevonden.");
     }
+    const projectTreffers = zoekProjecten(db, vraag).slice(0, 6);
+    if (projectTreffers.length)
+      regels.splice(2, 0, `### Projecten\n\n| Project | Plaats | Type | Woningen |\n| --- | --- | --- | --- |\n${projectTreffers.map((pr) => `| [**${pr.naam.replace(/[|[\]]/g, "/")}**](/projecten/${pr.id}) | ${pr.locatie.plaats || "–"} | ${pr.type} | ${pr.woningen} |`).join("\n")}`);
     if (!aiBeschikbaar()) regels.push("_AI staat uit (geen taalmodel ingericht): er is geen gegenereerd antwoord._");
-    return { antwoord: regels.join("\n\n"), partners: lijst.map((p) => ({ id: p.id, naam: p.naam })), geraadpleegd, viaAI: false, bronnen, metInternet };
+    return { antwoord: regels.join("\n\n"), partners: lijst.map((p) => ({ id: p.id, naam: p.naam })), geraadpleegd, projecten: projectTreffers.map((pr) => ({ id: pr.id, naam: pr.naam })), viaAI: false, bronnen, metInternet };
   });
 }
 

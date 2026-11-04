@@ -1,7 +1,8 @@
 // B5: contextopbouw voor de chat — compacte, feitelijke partnerrecords uit de database (nooit iets anders).
 import { VERIFICATIE_LABEL, verificatieVan } from "./verificatie";
 import { semantischZoeken } from "./matching";
-import type { Database, Partner } from "./types";
+import type { Database, Partner, Project } from "./types";
+import { tokens } from "./embedding";
 import { evaluatieTelt, totaalscore } from "./tevredenheid";
 import { zichtbaar } from "./zichtbaarheid";
 
@@ -61,4 +62,65 @@ export function chatContext(db: Database, vraag: string, max = 20) {
       : db.partners.filter((p) => p.status !== "geblokkeerd" && p.status !== "gearchiveerd" && p.status !== "concept").slice(0, max);
   const partners = Array.from(new Map([...uitProject, ...semantisch].map((p) => [p.id, p])).values()).slice(0, limiet);
   return { partners, records: partners.map((p) => chatRecord(p, db)) };
+}
+
+/** Compact projectrecord voor de chat: kenmerken, planning, gevraagde rollen en de betrokken partners met hun rol. */
+export function chatProjectRecord(pr: Project, db: Database) {
+  return {
+    id: pr.id,
+    projectnummer: pr.projectnummer,
+    naam: pr.naam,
+    type: pr.type,
+    plaats: pr.locatie.plaats,
+    woningen: pr.woningen,
+    prijssegment: pr.prijssegment,
+    bouwstijl: pr.bouwstijl,
+    ambitieDuurzaamheid: pr.ambitieDuurzaamheid,
+    fase: pr.fase,
+    planning: pr.planning,
+    extern: pr.extern ?? false,
+    omschrijving: pr.omschrijving.slice(0, 300),
+    gevraagdeRollen: Array.from(new Set(pr.eisen.map((e) => e.rol))),
+    betrokkenPartners: db.engagements
+      .filter((e) => e.projectId === pr.id)
+      .map((e) => ({ partnerId: e.partnerId, partner: db.partners.find((p) => p.id === e.partnerId)?.naam ?? e.partnerId, rol: e.rol, periode: e.periode }))
+  };
+}
+
+/**
+ * Projecten bij een chatvraag: is het projectbestand klein (tot `max`), dan gaan alle projecten mee; anders de projecten
+ * met de meeste woordtreffers (naam, nummer, plaats, type, fase, omschrijving) plus de projecten van de gevonden partners.
+ */
+export function chatProjecten(db: Database, vraag: string, partners: Partner[] = [], max = 25): Project[] {
+  if (db.projecten.length <= max) return db.projecten;
+  const gevraagd = new Set(tokens(vraag));
+  const score = (pr: Project) => tokens([pr.naam, pr.projectnummer ?? "", pr.locatie.plaats, pr.type, pr.fase, pr.omschrijving].join(" ")).filter((t) => gevraagd.has(t)).length;
+  const viaPartners = new Set(db.engagements.filter((e) => partners.some((p) => p.id === e.partnerId)).map((e) => e.projectId));
+  return db.projecten
+    .map((pr) => ({ pr, n: score(pr) * 2 + (viaPartners.has(pr.id) ? 1 : 0) }))
+    .filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, max)
+    .map((x) => x.pr);
+}
+
+/**
+ * Projecten zoeken zonder AI: woordtreffers op naam, projectnummer, plaats, type, fase, bouwstijl, prijssegment en omschrijving,
+ * en op de namen van betrokken partners. Een letterlijke treffer in naam of projectnummer weegt het zwaarst.
+ */
+export function zoekProjecten(db: Database, vraag: string): Project[] {
+  const q = vraag.trim().toLowerCase();
+  if (!q) return [];
+  const gevraagd = new Set(tokens(vraag));
+  return db.projecten
+    .map((pr) => {
+      const partnerNamen = db.engagements.filter((e) => e.projectId === pr.id).map((e) => db.partners.find((p) => p.id === e.partnerId)?.naam ?? "");
+      const velden = [pr.naam, pr.projectnummer ?? "", pr.locatie.plaats, pr.type, pr.fase, pr.bouwstijl, pr.prijssegment.join(" "), pr.omschrijving, ...partnerNamen].join(" ");
+      const woorden = tokens(velden).filter((t) => gevraagd.has(t)).length;
+      const letterlijk = pr.naam.toLowerCase().includes(q) || (pr.projectnummer ?? "").toLowerCase() === q ? 10 : 0;
+      return { pr, n: woorden + letterlijk };
+    })
+    .filter((x) => x.n > 0)
+    .sort((a, b) => b.n - a.n)
+    .map((x) => x.pr);
 }

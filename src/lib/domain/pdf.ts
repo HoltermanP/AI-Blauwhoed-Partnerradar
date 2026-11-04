@@ -1,7 +1,10 @@
 // B8-vervolg: PDF-export met jsPDF (werkt serverless, geen fontbestanden nodig).
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
-import { STATUS_LABEL, ROL_LABEL, datum } from "../format";
+import { STATUS_LABEL, ROL_LABEL, datum as datumScherm } from "../format";
+
+/** In de PDF gewone spaties (de schermversie gebruikt harde spaties tegen afbreken). */
+const datum = (d: string | undefined | null) => datumScherm(d).replace(/\u00a0/g, " ");
 import { basisveldWaarde, BASISVELDEN_LIJST, betrouwbaarheidNiveau, bronTekst, effectieveStatus } from "./herkomst";
 import { BASISVELD_LABEL } from "./types";
 import type { Database, Partner } from "./types";

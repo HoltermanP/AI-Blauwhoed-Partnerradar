@@ -249,60 +249,50 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
               <thead>
                 <tr>
                   <th className="kolPartner">Partner</th>
-                  {kol("status") ? <th className="kolStatus">Status</th> : null}
-                  {kol("rollen") ? <th className="kolRollen">Rollen</th> : null}
-                  {kol("plaats") ? <th className="kolPlaats">Plaats</th> : null}
+                  {kol("kenmerken") ? <th className="kolKenmerken">Kernkenmerken</th> : null}
+                  {kol("certificaten") ? <th className="kolCert">Certificaten</th> : null}
                   {centrum ? <th className="num kolGetal">Afstand</th> : null}
                   {kol("medewerkers") ? <th className="num kolGetal">Medewerkers</th> : null}
-                  {kol("kenmerken") ? KERNFACTOREN.map((k) => <th key={k.id} className="kolKenmerk">{k.label}</th>) : null}
-                  {kol("certificaten") ? <th className="kolCert">Certificaten</th> : null}
                   {kol("evaluatie") ? <th className="num kolGetal">Evaluatie</th> : null}
                   {kol("projecten") ? <th className="num kolGetal">Projecten</th> : null}
                   {kol("website") ? <th className="kolWebsite">Website</th> : null}
-                  <th className="kolActie"></th>
                 </tr>
               </thead>
               <tbody>
-                {rijen.map(({ p, afgeleid, alle, afstand }) => (
-                  <tr key={p.id}>
-                    <td>
-                      <Link href={`/partners/${p.id}`}>
-                        <b>{p.naam}</b>
-                      </Link>
-                      <br />
-                      <small className="muted">KVK {p.kvk}</small>
-                    </td>
-                    {kol("status") ? (
-                      <td>
-                        <StatusBadge status={p.status} />
+                {rijen.map(({ p, afgeleid, alle, afstand }) => {
+                  // Rollen, plaats en KVK (als die kolommen gekozen zijn) als subregel onder de naam; status als badge erachter.
+                  const subregel = [kol("rollen") ? p.rollen.map((r) => ROL_LABEL[r]).join(", ") : "", kol("plaats") ? p.vestigingsplaats : "", p.kvk ? `KVK ${p.kvk}` : ""].filter(Boolean);
+                  return (
+                    <tr key={p.id}>
+                      <td className="kolPartner">
+                        <div className="partnerNaamRegel">
+                          <Link href={`/partners/${p.id}`}>{p.naam}</Link>
+                          {kol("status") ? <StatusBadge status={p.status} /> : null}
+                        </div>
+                        <small className="partnerSubregel">
+                          {subregel.join(" · ")}
+                          {subregel.length ? " · " : ""}
+                          <Link href={`/partners/${p.id}?tab=brondata`}>alle data</Link>
+                        </small>
                       </td>
-                    ) : null}
-                    {kol("rollen") ? <td className="kolRollen">{p.rollen.map((r) => ROL_LABEL[r]).join(", ")}</td> : null}
-                    {kol("plaats") ? <td className="kolPlaats" title={p.vestigingsplaats}>{p.vestigingsplaats}</td> : null}
-                    {centrum ? <td className="num">{afstand !== null ? `${afstand} km` : "–"}</td> : null}
-                    {kol("medewerkers") ? <td className="num">{getal(p.medewerkers)}</td> : null}
-                    {kol("kenmerken")
-                      ? KERNFACTOREN.map((k) => (
-                          <td key={k.id}>
-                            <KernFactor factorId={k.id} factoren={db.factoren} alle={alle} />
-                          </td>
-                        ))
-                      : null}
-                    {kol("certificaten") ? (
-                      <td>
-                        <CertificaatChips partner={p} />
-                      </td>
-                    ) : null}
-                    {kol("evaluatie") ? <td className="num">{afgeleid.statistieken.evaluatiescore !== null ? getal(afgeleid.statistieken.evaluatiescore, 1) : <span className="muted">–</span>}</td> : null}
-                    {kol("projecten") ? <td className="num">{afgeleid.statistieken.aantalProjecten}</td> : null}
-                    {kol("website") ? <td className="kolWebsite">{p.website ? <a href={p.website} target="_blank" rel="noreferrer" className="klein-tekst">{p.website.replace(/^https?:\/\/(www\.)?/, "")}</a> : <span className="muted">–</span>} </td> : null}
-                    <td className="kolActie">
-                      <Link href={`/partners/${p.id}?tab=brondata`} className="klein-tekst">
-                        Alle data →
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
+                      {kol("kenmerken") ? (
+                        <td className="kolKenmerken" data-label="Kernkenmerken">
+                          <KernKenmerken factoren={db.factoren} alle={alle} />
+                        </td>
+                      ) : null}
+                      {kol("certificaten") ? (
+                        <td className="kolCert" data-label="Certificaten">
+                          <CertificaatChips partner={p} />
+                        </td>
+                      ) : null}
+                      {centrum ? <td className="num" data-label="Afstand">{afstand !== null ? `${afstand} km` : <span className="leegWaarde">–</span>}</td> : null}
+                      {kol("medewerkers") ? <td className="num" data-label="Medewerkers">{p.medewerkers ? getal(p.medewerkers) : <span className="leegWaarde">–</span>}</td> : null}
+                      {kol("evaluatie") ? <td className="num" data-label="Evaluatie">{afgeleid.statistieken.evaluatiescore !== null ? getal(afgeleid.statistieken.evaluatiescore, 1) : <span className="leegWaarde">–</span>}</td> : null}
+                      {kol("projecten") ? <td className="num" data-label="Projecten">{afgeleid.statistieken.aantalProjecten || <span className="leegWaarde">–</span>}</td> : null}
+                      {kol("website") ? <td className="kolWebsite" data-label="Website">{p.website ? <a href={p.website} target="_blank" rel="noreferrer">{p.website.replace(/^https?:\/\/(www\.)?/, "")}</a> : <span className="leegWaarde">–</span>}</td> : null}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -318,33 +308,38 @@ const KERNFACTOREN: Array<{ id: string; label: string }> = [
   { id: "projecttype", label: "Projecttype" },
   { id: "projectomvang", label: "Omvang" },
   { id: "mpg", label: "MPG" },
-  { id: "prefabricage", label: "Prefab" },
-  { id: "conceptbouw", label: "Concept" },
+  { id: "prefabricage", label: "Prefabricage" },
+  { id: "conceptbouw", label: "Conceptbouw" },
   { id: "demontabel", label: "Demontabel" }
 ];
 
-function KernFactor({ factorId, factoren, alle }: { factorId: string; factoren: Factor[]; alle: PartnerFactor[] }) {
-  const f = factoren.find((x) => x.id === factorId);
-  const waarden = alle.filter((x) => x.factorId === factorId && !(typeof x.waarde === "number" && x.waarde === 0));
-  if (!f || !waarden.length) return <span className="muted">–</span>;
-  return (
-    <span className="kernFactor">
-      {waarden.map((w) => {
+/** Alle kernkenmerken van een partner in één cel: per waarde een chip met label (meerkeuzefactoren tonen de optie). */
+function KernKenmerken({ factoren, alle }: { factoren: Factor[]; alle: PartnerFactor[] }) {
+  const chips = KERNFACTOREN.flatMap((k) => {
+    const f = factoren.find((x) => x.id === k.id);
+    if (!f) return [];
+    return alle
+      .filter((x) => x.factorId === k.id && !(typeof x.waarde === "number" && x.waarde === 0))
+      .map((w) => {
         const optie = w.optieId ? f.opties?.find((o) => o.id === w.optieId)?.label ?? w.optieId : "";
         const tekst = typeof w.waarde === "object" && !Array.isArray(w.waarde) ? `${w.waarde.min}–${w.waarde.max}` : String(w.waarde);
-        return (
-          <span key={`${w.factorId}-${w.optieId ?? ""}`} className="chip" title={`${f.naam}${optie ? ` · ${optie}` : ""}: ${tekst} · bron ${w.bron} (${Math.round(w.betrouwbaarheid * 100)}%)${w.afgeleid ? " · afgeleid" : ""}`}>
-            {optie ? `${optie} ` : ""}
-            <b>{tekst}</b>
-          </span>
-        );
-      })}
+        return { sleutel: `${w.factorId}-${w.optieId ?? ""}`, label: optie || k.label, tekst, titel: `${f.naam}${optie ? ` · ${optie}` : ""}: ${tekst} · bron ${w.bron} (${Math.round(w.betrouwbaarheid * 100)}%)${w.afgeleid ? " · afgeleid" : ""}` };
+      });
+  });
+  if (!chips.length) return <span className="leegWaarde">Nog geen kenmerken</span>;
+  return (
+    <span className="kernFactor">
+      {chips.map((c) => (
+        <span key={c.sleutel} className="chip" title={c.titel}>
+          {c.label} <b>{c.tekst}</b>
+        </span>
+      ))}
     </span>
   );
 }
 
 function CertificaatChips({ partner }: { partner: Partner }) {
-  if (!partner.certificaten.length) return <span className="muted">–</span>;
+  if (!partner.certificaten.length) return <span className="leegWaarde">–</span>;
   return (
     <span className="certChips">
       {partner.certificaten.map((c) => {

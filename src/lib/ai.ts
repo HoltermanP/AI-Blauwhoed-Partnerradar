@@ -386,7 +386,7 @@ const CHAT_OPMAAK = `Schrijf het antwoord in Markdown, zodat het als nette HTML 
 - gebruik opsommingen voor lijstjes en een tabel (Markdown, met kopregel) zodra je partners op meerdere kenmerken vergelijkt;
 - houd het beknopt; geen HTML-tags.
 Bronvermelding is verplicht:
-- noem een partner uit de records altijd als link naar zijn dossier: [**Naam**](/partners/<id>) (alleen ids uit de records);
+- noem een partner uit de records altijd als link naar zijn dossier: [**Naam**](/partners/<id>) en een project als link: [**Projectnaam**](/projecten/<id>) (alleen ids uit de records);
 - vermeld bij concrete kenmerken, certificaten of cijfers kort de herkomst uit het record, bijv. "(bron: KvK, geverifieerd door beheerder)" of "(bron: web, niet geverifieerd)";
 - zet bij elke bewering van internet de bron er direct achter als link: ([sitenaam](https://...)).
 Sluit af met precies één laatste regel: PARTNER_IDS: <kommagescheiden ids van de partnerrecords die je noemt, of -> (deze regel wordt niet getoond).`;
@@ -401,8 +401,8 @@ export async function aiChatOpgemaakt(vraag: string, context: string, historie: 
     const model = await modelVoorFunctie("chat");
     const licht = model.startsWith("claude-haiku");
     const system = [
-      "Je beantwoordt vragen van een medewerker van woningontwikkelaar Blauwhoed over hun eigen partnerdatabase, in het Nederlands.",
-      "Gegevens over partners haal je uit de meegeleverde partnerrecords; verzin geen partners, cijfers of eigenschappen. Vermeld bij kenmerken of ze geverifieerd zijn (veld 'verificatie' per waarde: door beheerder, door gebruiker, niet geverifieerd, verouderd of berekend uit historie).",
+      "Je beantwoordt vragen van een medewerker van woningontwikkelaar Blauwhoed over hun eigen partnerdatabase (partners én projecten), in het Nederlands.",
+      "Gegevens over partners en projecten haal je uit de meegeleverde records (partners en projecten, met per project de betrokken partners en hun rol); verzin geen partners, projecten, cijfers of eigenschappen. Vermeld bij kenmerken of ze geverifieerd zijn (veld 'verificatie' per waarde: door beheerder, door gebruiker, niet geverifieerd, verouderd of berekend uit historie).",
       metInternet
         ? "Je mag daarnaast op internet zoeken voor aanvullende, openbare informatie. Presenteer die in een aparte sectie '### Van internet (indicatief – niet gevalideerd)' met de bron erbij, en meng ze niet met de gegevens uit het partnerbestand. Partijen die je op internet vindt maar niet in de records staan, zijn geen partners van Blauwhoed: noem ze hooguit als mogelijke kandidaat. Zoek niet naar personen."
         : "Staat het antwoord niet in de records, zeg dat dan expliciet en stel voor welk filter of welke verrijking zou helpen.",
@@ -413,7 +413,7 @@ export async function aiChatOpgemaakt(vraag: string, context: string, historie: 
         { role: "user" as const, content: h.vraag },
         { role: "assistant" as const, content: h.antwoord }
       ]),
-      { role: "user", content: `Partnerrecords (JSON):\n${context}\n\nVraag: ${vraag}` }
+      { role: "user", content: `Records uit de database (JSON, partners en projecten):\n${context}\n\nVraag: ${vraag}` }
     ];
     const tools: Anthropic.ToolUnion[] | undefined = metInternet ? [webZoekTool(licht)] : undefined;
     let res = await getClient().messages.create({ model, max_tokens: 6000, system, messages, ...(tools ? { tools } : {}), ...(licht ? {} : { output_config: { effort: "medium" as const } }) });

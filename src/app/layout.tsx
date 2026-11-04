@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
-import NavLinks from "@/components/NavLinks";
+import Zijbalk, { type Tellers } from "@/components/NavLinks";
+import { getDb } from "@/lib/store";
 import RolWisselaar from "@/components/RolWisselaar";
+import TabelLabels from "@/components/TabelLabels";
 import { DEMO_GEBRUIKERS, GEBRUIKERSROL_LABEL, huidigeGebruiker } from "@/lib/auth";
 import { demoModus } from "@/authjs";
 import { uitloggen } from "@/lib/acties/sessie";
@@ -28,6 +30,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const gebruiker = opInlogpagina ? null : await huidigeGebruiker();
   const demo = demoModus();
   const omgeving = bepaalOmgeving();
+  // Tellers in het menu: openstaand werk (de database staat in het geheugen, dit kost niets extra).
+  let tellers: Tellers = {};
+  if (gebruiker) {
+    const db = await getDb();
+    tellers = {
+      voorstellen: db.verrijkingsvoorstellen.filter((v) => v.status === "open").length,
+      kandidaten: db.kandidaten.filter((k) => k.status === "nieuw").length,
+      vrijgave: db.partners.filter((p) => p.status === "concept").length + db.evaluaties.filter((e) => e.status === "ingediend").length
+    };
+  }
   return (
     <html lang="nl">
       <head>
@@ -39,49 +51,46 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
       </head>
       <body>
-        {omgeving !== "productie" ? (
-          <div className={`omgevingBalk omgeving-${omgeving}`} role="note">
-            <b>{OMGEVING_LABEL[omgeving]}omgeving</b>
-            <span>Niet de echte partnerdatabase: wijzigingen hier komen niet in productie.</span>
-            <span className="omgevingDb">database: {databaseAanduiding(process.env.DATABASE_URL)}</span>
-          </div>
-        ) : null}
-        <header className="topbar">
-          <Link href="/" className="brandMark" aria-label="Blauwhoed">
-            <img src="/brand/logo.png" alt="Blauwhoed" width={188} height={20} />
-            <em>Partnerdatabase</em>
-          </Link>
-          {gebruiker ? <NavLinks beheerder={gebruiker.rol === "beheerder"} /> : null}
-          {gebruiker && demo ? <RolWisselaar gebruikers={DEMO_GEBRUIKERS} huidig={gebruiker} /> : null}
-          {gebruiker && !demo ? (
-            <form action={uitloggen} className="gebruikerMenu">
-              <span title={gebruiker.email}>
-                {gebruiker.naam} · {GEBRUIKERSROL_LABEL[gebruiker.rol]}
-              </span>
-              <button type="submit" className="knop knop-tekst klein">
-                Uitloggen
-              </button>
-            </form>
+        <div className={gebruiker ? "appShell" : "appShell zonderMenu"}>
+          {gebruiker ? (
+            <Zijbalk
+              beheerder={gebruiker.rol === "beheerder"}
+              tellers={tellers}
+              gebruiker={
+                demo ? (
+                  <RolWisselaar gebruikers={DEMO_GEBRUIKERS} huidig={gebruiker} />
+                ) : (
+                  <form action={uitloggen} className="gebruikerMenu">
+                    <span title={gebruiker.email}>
+                      <b>{gebruiker.naam}</b>
+                      <small>{GEBRUIKERSROL_LABEL[gebruiker.rol]}</small>
+                    </span>
+                    <button type="submit" className="knop knop-tekst klein">
+                      Uitloggen
+                    </button>
+                  </form>
+                )
+              }
+            />
           ) : null}
-        </header>
-        <main className="pagina">{children}</main>
-        <section className="footerBand" aria-label="Over Blauwhoed">
-          <div>
-            <p className="eyebrow">Samen ontwikkelen</p>
-            <h2>Wij ontwikkelen buurten waar mensen graag wonen.</h2>
-            <p>De partnerdatabase helpt projectteams om per opgave snel de juiste bouwers, architecten en adviseurs te vinden en actueel te houden.</p>
+          <div className="appInhoud">
+            {omgeving !== "productie" ? (
+              <div className={`omgevingBalk omgeving-${omgeving}`} role="note">
+                <b>{OMGEVING_LABEL[omgeving]}omgeving</b>
+                <span>Niet de echte partnerdatabase: wijzigingen hier komen niet in productie.</span>
+                <span className="omgevingDb">database: {databaseAanduiding(process.env.DATABASE_URL)}</span>
+              </div>
+            ) : null}
+            <main className="pagina">{children}</main>
+            <footer className="voet">
+              <span>AI legt uit, AI beslist niet. Prospects komen nooit zonder menselijke goedkeuring in een advies.</span>
+              <span>
+                Alleen bedrijfsgegevens, geen contactpersonen · <Link href="/privacy">Verwerking en privacy</Link> · <a href="https://www.blauwhoed.nl" target="_blank" rel="noreferrer">blauwhoed.nl</a>
+              </span>
+            </footer>
           </div>
-          <a href="https://www.blauwhoed.nl" target="_blank" rel="noreferrer">
-            Meer over Blauwhoed
-          </a>
-        </section>
-        <footer className="voet">
-          <img src="/brand/logo.png" alt="Blauwhoed" width={188} height={20} />
-          <span>AI legt uit, AI beslist niet. Prospects komen nooit zonder menselijke goedkeuring in een advies.</span>
-          <span>
-            Alleen bedrijfsgegevens, geen contactpersonen · <Link href="/privacy">Verwerking en privacy</Link>
-          </span>
-        </footer>
+        </div>
+        <TabelLabels />
       </body>
     </html>
   );

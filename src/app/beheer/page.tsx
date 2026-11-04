@@ -1,4 +1,6 @@
-// Beheeroverzicht: instellingen (US-48), rollen/rechten (US-45), links naar factoren (US-04), gewichten (US-44), audit (US-46).
+// Beheer → Instellingen: AI-verrijking en discovery (US-48), rollen en rechten (US-45), volledige export en opslag. De overige
+// beheeronderdelen (factoren, gewichten, goudstandaard, gebruikers, AI-verbruik, audit) staan als eigen pagina in het menu;
+// de datakwaliteit per veld staat op Kwaliteit → Datakwaliteit.
 import Link from "next/link";
 import { bepaalOmgeving, databaseAanduiding, OMGEVING_LABEL } from "@/lib/domain/omgeving";
 import { heeftRecht, GEBRUIKERSROL_LABEL } from "@/lib/auth";
@@ -8,10 +10,6 @@ import { getDb } from "@/lib/store";
 import { Badge, Kaart, Melding, PaginaKop } from "@/components/ui";
 import { Instellingen } from "@/components/beheer/Instellingen";
 import { DemoReset } from "@/components/beheer/DemoReset";
-import { budgetStatus, maandVerbruik } from "@/lib/domain/kosten";
-import { basisVeldKwaliteit, veldKwaliteit } from "@/lib/domain/datakwaliteit";
-import { ROLLEN, type Rol } from "@/lib/domain/types";
-import { ROL_LABEL } from "@/lib/format";
 
 // US-45: lokale kopie van de RECHTEN-matrix uit src/lib/auth.ts (die exporteert de tabel niet; auth.ts wordt niet gewijzigd).
 // Houd deze tabel gelijk aan auth.ts; de weergave hieronder controleert dat via heeftRecht().
@@ -30,63 +28,16 @@ const RECHTEN: Array<{ id: Parameters<typeof heeftRecht>[1]; label: string; uitl
 ];
 const ROLLEN_GEBRUIKER: Gebruikersrol[] = ["gebruiker", "beheerder"];
 
-export default async function BeheerPagina({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
-  const sp = await searchParams;
-  const dkRol = ROLLEN.includes(sp.dkrol as Rol) ? (sp.dkrol as Rol) : undefined;
+export default async function BeheerPagina() {
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
   const magBeheren = heeftRecht(gebruiker.rol, "beheer");
-  const actieveFactoren = db.factoren.filter((f) => f.actief).length;
-  const terControle = db.partners.filter((p) => p.status === "concept");
-  const verbruik = maandVerbruik(db.aiBewerkingen ?? []);
-  const budget = budgetStatus(db);
-  const kwaliteit = veldKwaliteit(db, dkRol);
-  const basisKwaliteit = basisVeldKwaliteit(db, dkRol);
 
   return (
     <>
-      <PaginaKop eyebrow="Beheer" titel="Beheer" intro="Factorenmodel, gewichtsprofielen, rollen en rechten, auditlog en instellingen voor AI-verrijking." />
+      <PaginaKop eyebrow="Beheer" titel="Instellingen" intro="AI-verrijking en discovery, rollen en rechten, volledige export en opslag. Factoren, gewichten, goudstandaard, gebruikers, AI-verbruik en auditlog staan in het menu onder Beheer." />
       {!magBeheren ? <Melding soort="waarschuwing">U bent ingelogd als {gebruiker.naam} ({gebruiker.rol}). Beheerfuncties zijn alleen-lezen; wissel rechtsboven naar Beheerder om te wijzigen.</Melding> : null}
 
-      {terControle.length ? (
-        <Melding soort="info">
-          {terControle.length} concept(en) wachten op vrijgave. <Link href="/vrijgave">Naar de vrijgavewachtrij</Link>
-        </Melding>
-      ) : null}
 
-      <div className="raster raster-3 beheerTegels">
-        <Kaart titel="Factoren">
-          <p className="muted">{actieveFactoren} actieve factoren, {db.factoren.length - actieveFactoren} gearchiveerd. Toevoegen, hernoemen, samenvoegen, archiveren.</p>
-          <Link href="/beheer/factoren" className="knop knop-secundair klein">Factoren beheren</Link>
-        </Kaart>
-        <Kaart titel="Gewichtsprofielen">
-          <p className="muted">{db.gewichtsprofielen.length} profielen met versiehistorie. Gewichten en gevraagde waarden per rol.</p>
-          <Link href="/beheer/gewichten" className="knop knop-secundair klein">Gewichten beheren</Link>
-        </Kaart>
-        <Kaart titel="Goudstandaard">
-          <p className="muted">Per partnertype de verplichte en gewenste velden en de beoordelingscriteria. Goudstandaardwaarden gaan altijd voor op AI.</p>
-          <Link href="/beheer/goudstandaard" className="knop knop-secundair klein">Goudstandaard beheren</Link>
-        </Kaart>
-        <Kaart titel="Gebruikers">
-          <p className="muted">{db.gebruikers.length} account(s). Rollen gebruiker en beheerder toekennen, blokkeren en vooraf aanmelden.</p>
-          <Link href="/beheer/gebruikers" className="knop knop-secundair klein">Gebruikers beheren</Link>
-        </Kaart>
-        <Kaart titel="Datakwaliteit">
-          <p className="muted">Vullingsgraad per partnertype en veld, signalen voor ontbrekende, verouderde en onbetrouwbare waarden en de verouderingstermijn per veld.</p>
-          <Link href="/datakwaliteit" className="knop knop-secundair klein">Datakwaliteit</Link>
-        </Kaart>
-        <Kaart titel="Vrijgave en validatie">
-          <p className="muted">Concepten vrijgeven, afwijzen of samenvoegen; kritische waarden definitief valideren; evaluaties accepteren.</p>
-          <Link href="/vrijgave" className="knop knop-secundair klein">Werklijsten</Link>
-        </Kaart>
-        <Kaart titel="Verwerking en privacy">
-          <p className="muted">AI-aanbieder, verwerkingslocatie, geen training, geen contactpersonen en inloggen met SSO.</p>
-          <Link href="/privacy" className="knop knop-secundair klein">Verwerkingsinformatie</Link>
-        </Kaart>
-        <Kaart titel="Auditlog">
-          <p className="muted">{db.audit.length} regels. Elke wijziging aan partnergegevens en scoringsregels.</p>
-          <Link href="/beheer/audit" className="knop knop-secundair klein">Audit bekijken</Link>
-        </Kaart>
-      </div>
 
       <div className="raster raster-zij">
         <div>
@@ -135,50 +86,6 @@ export default async function BeheerPagina({ searchParams }: { searchParams: Pro
         </div>
 
         <div>
-          <Kaart titel="Datakwaliteit per veld (B8)">
-            <form method="get" className="formulierActies" style={{ marginBottom: 10 }}>
-              <label>
-                Partnertype
-                <select name="dkrol" defaultValue={dkRol ?? ""}>
-                  <option value="">Alle rollen</option>
-                  {ROLLEN.map((r) => (
-                    <option key={r} value={r}>{ROL_LABEL[r]}</option>
-                  ))}
-                </select>
-              </label>
-              <button type="submit" className="knop klein">Tonen</button>
-            </form>
-            <p className="muted klein-tekst">Basisvelden (gevuld / gevalideerd / geen betrouwbare bron): {basisKwaliteit.map((b) => `${b.veld} ${b.pct}% / ${b.gevalideerd}% / ${b.geenBron}`).join(" · ")}</p>
-            <div className="tabelWrap">
-              <table className="tabel">
-                <thead>
-                  <tr><th>Veld</th><th className="num">Relevant</th><th className="num">Volledig</th><th className="num">Gevalideerd</th><th className="num">Verouderd</th><th className="num">Gem. betrouwb.</th><th className="num">Geen bron</th></tr>
-                </thead>
-                <tbody>
-                  {kwaliteit.map((k) => (
-                    <tr key={k.factorId}>
-                      <td><b>{k.naam}</b><div className="muted klein-tekst">{k.categorie}</div></td>
-                      <td className="num">{k.relevant}</td>
-                      <td className="num"><Badge kleur={k.pctVolledig >= 60 ? "groen" : k.pctVolledig >= 25 ? "geel" : "rood"}>{k.pctVolledig}%</Badge></td>
-                      <td className="num">{k.pctGevalideerd}%</td>
-                      <td className="num">{k.pctVerouderd ? <Badge kleur="rood">{k.pctVerouderd}%</Badge> : "0%"}</td>
-                      <td className="num">{k.gemBetrouwbaarheid !== null ? `${k.gemBetrouwbaarheid}%` : "–"}</td>
-                      <td className="num">{k.geenBron ? <Badge kleur="mint">{k.geenBron}</Badge> : "0"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Kaart>
-          <Kaart titel="AI-verbruik" acties={<Link href="/beheer/verbruik">Rapportage</Link>}>
-            {budget.overschreden ? <Melding soort="fout">Maandbudget bereikt: geplande verrijkingsrondes zijn gepauzeerd; interactieve functies gaan voor.</Melding> : budget.waarschuwing ? <Melding soort="waarschuwing">Verbruik boven 80% van het maandbudget.</Melding> : null}
-            <dl className="definities">
-              <div><dt>Maand</dt><dd>{verbruik.periode}</dd></div>
-              <div><dt>Bewerkingen</dt><dd>{budget.bewerkingen} van {budget.budgetBewerkingen} ({Math.round(budget.pct)}%)</dd></div>
-              <div><dt>Tokens</dt><dd>{verbruik.invoerTokens.toLocaleString("nl-NL")} in · {verbruik.uitvoerTokens.toLocaleString("nl-NL")} uit</dd></div>
-            </dl>
-            <Link href="/beheer/verbruik" className="knop knop-secundair klein">Budget, modellen en specificatie</Link>
-          </Kaart>
           <Kaart titel="Volledige data-export">
             <p className="muted klein-tekst">Het complete bestand met herkomst en status per gegeven: alle partners (ook concepten en gearchiveerde), velden, factoren, projecten, evaluaties, verbanden en het AI-verbruik. Zo beschikt Blauwhoed altijd over alle gegevens (art. 15.4). Het downloaden wordt gelogd.</p>
             {heeftRecht(gebruiker.rol, "volledige_export") ? (

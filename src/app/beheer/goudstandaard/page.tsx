@@ -27,7 +27,6 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
         eyebrow="Beheer"
         titel="Goudstandaard"
         intro="Per partnertype de velden die Blauwhoed verplicht of gewenst vindt, welke velden een tweede controle door een beheerder vragen, en de beoordelingscriteria. Aan te passen zonder ontwikkelaar. Waarden met bron goudstandaard of eigen uitgave van Blauwhoed zijn leidend: AI overschrijft ze nooit en zet er hooguit een voorstel naast."
-        acties={<Link href="/beheer" className="knop knop-secundair">Terug naar beheer</Link>}
       />
       {!magBeheren ? <Melding soort="waarschuwing">Alleen-lezen: alleen de beheerder stelt de goudstandaard vast.</Melding> : null}
       <nav className="tabs" aria-label="Partnertype">
@@ -38,43 +37,13 @@ export default async function GoudstandaardPagina({ searchParams }: { searchPara
           </Link>
         ))}
       </nav>
-      <div className="raster raster-zij">
-        <Kaart titel={`Goudstandaard ${ROL_LABEL[rol].toLowerCase()}`}>
+      <Kaart titel={`Goudstandaard ${ROL_LABEL[rol].toLowerCase()}`} acties={<Link href={`/datakwaliteit?rol=${rol}`}>Vulling bij de partners</Link>}>
           <p className="muted klein-tekst">
             Versie {profiel.versie} · {profiel.versie ? `vastgesteld door ${profiel.door} op ${datumTijd(profiel.bijgewerktOp)}` : <Badge kleur="geel">startpunt, nog niet door Blauwhoed vastgesteld</Badge>}
           </p>
           <GoudstandaardEditor key={rol} rol={rol} profiel={profiel} opties={opties} magBeheren={magBeheren} />
-        </Kaart>
-        <Kaart titel="Vulling per partnertype">
-          <div className="tabelWrap">
-          <table className="tabel">
-            <thead>
-              <tr>
-                <th>Partnertype</th>
-                <th className="num">Partners</th>
-                <th className="num">Verplicht gevuld</th>
-                <th className="num">Verplicht onvolledig</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vulling.map((v) => (
-                <tr key={v.rol}>
-                  <td>{ROL_LABEL[v.rol]}</td>
-                  <td className="num">{v.partners}</td>
-                  <td className="num">
-                    <Link href={`/datakwaliteit?rol=${v.rol}`}>{v.verplichtPct ?? "–"}%</Link>
-                  </td>
-                  <td className="num">
-                    <Link href={`/datakwaliteit?tab=signalen&soort=ontbreekt&rol=${v.rol}`}>{v.onvolledig}</Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-          <p className="muted klein-tekst">Goudstandaardwaarden per partner leg je vast op het partnerdossier (tab Factoren, bron &ldquo;Goudstandaard Blauwhoed&rdquo;) of via een import met bron goudstandaard of eigen uitgave.</p>
-        </Kaart>
-      </div>
+          <p className="muted klein-tekst">Goudstandaardwaarden per partner leg je vast op het partnerdossier (tab Factoren, bron &ldquo;Goudstandaard Blauwhoed&rdquo;) of via een import met bron goudstandaard of eigen uitgave. Hoe ver de partners per type gevuld zijn: <Link href="/datakwaliteit">Kwaliteit → Datakwaliteit</Link> (het percentage staat ook in de tabbladen hierboven).</p>
+      </Kaart>
     </>
   );
 }
