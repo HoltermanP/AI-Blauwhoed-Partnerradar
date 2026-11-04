@@ -13,7 +13,7 @@ import { isIndicatief } from "@/lib/domain/herkomst";
 import { Badge, BetrouwbaarheidBadge, BronLabel, Melding } from "@/components/ui";
 import { FactorWaardeVeld, standaardWaarde } from "./FactorWaardeVeld";
 
-// US-50: alle bronnen in rangorde; goudstandaard vastleggen is voorbehouden aan de beheerder (server controleert).
+// US-50: alle bronnen in rangorde; Blauwdruk-Data vastleggen is voorbehouden aan de beheerder (server controleert).
 const BRONNEN: Bron[] = ALLE_BRONNEN;
 
 type Props = {

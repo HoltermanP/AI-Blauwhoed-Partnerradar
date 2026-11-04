@@ -125,7 +125,7 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
     }
   }
   if (van < 9) {
-    // Aanvulling overeenkomst v3.1, groep A (US-49 t/m US-53): goudstandaard per partnertype, bronrangorde en herkomst per basisveld.
+    // Aanvulling overeenkomst v3.1, groep A (US-49 t/m US-53): Blauwdruk-Data per partnertype, bronrangorde en herkomst per basisveld.
     db.goudstandaard = db.goudstandaard ?? {};
     db.instellingen.verrijkingsbronnen = (db.instellingen.verrijkingsbronnen ?? []).map((b) => ({
       ...b,

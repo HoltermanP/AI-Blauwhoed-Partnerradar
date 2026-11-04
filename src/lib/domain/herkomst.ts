@@ -17,7 +17,7 @@ export function betrouwbaarheidNiveau(n: number | undefined | null): Betrouwbaar
 export const INDICATIEF_LABEL = "indicatief – niet gevalideerd";
 
 export const RANG_LABEL: Record<1 | 2 | 3, string> = {
-  1: "Goudstandaard en eigen uitgaven Blauwhoed",
+  1: "Blauwdruk-Data en eigen uitgaven Blauwhoed",
   2: "Aangeleverd, projecthistorie of gevalideerde registratie",
   3: INDICATIEF_LABEL
 };
@@ -117,7 +117,7 @@ export function geenBronVeldnaam(sleutel: string, factoren: Factor[]) {
 // ---------- US-49/US-50: conflicterende voorstellen ----------
 /**
  * Markeer per partner en veld welk voorstel voorgaat: de hoogste bronrang wint, lagere voorstellen worden 'alternatief'.
- * Een voorstel dat lager scoort dan de huidige waarde is ook een alternatief; bij een huidige goudstandaardwaarde
+ * Een voorstel dat lager scoort dan de huidige waarde is ook een alternatief; bij een huidige Blauwdruk-Data-waarde
  * (rang 1) zet AI er hooguit een voorstel naast (goudstandaardGaatVoor).
  */
 export function markeerAlternatieven(voorstellen: EnrichmentVoorstel[], huidigeHerkomst: (v: EnrichmentVoorstel) => { bron: string; betrouwbaarheid: number } | undefined) {

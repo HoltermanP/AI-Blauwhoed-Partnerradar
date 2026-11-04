@@ -90,7 +90,7 @@ export function heeftWaardeStatus(p: Partner, status: FactorWaardeStatus, factor
   return p.factoren.some((pf) => effectieveStatus(pf, fmap.get(pf.factorId), nu) === status) || Object.entries(p.veldHerkomst ?? {}).some(([veld, h]) => h?.status === status && basisveldWaarde(p, veld as BasisVeld));
 }
 
-// ---------- US-02: vullingsgraad van de verplichte goudstandaardvelden per partnertype en per veld ----------
+// ---------- US-02: vullingsgraad van de verplichte Blauwdruk-Data-velden per partnertype en per veld ----------
 export type VeldVulling = { sleutel: string; naam: string; niveau: "verplicht" | "gewenst"; gevuld: number; totaal: number; pct: number };
 export type RolVulling = { rol: Rol; partners: number; verplichtPct: number | null; gewenstPct: number | null; onvolledig: number; velden: VeldVulling[] };
 
@@ -141,7 +141,7 @@ export function dataSignalen(db: Database, partners: Partner[], nu = new Date())
   const uit: DataSignaal[] = [];
   partners.forEach((p) => {
     const basis = { partnerId: p.id, partnerNaam: p.naam, rollen: p.rollen };
-    // Ontbrekende verplichte velden volgens de goudstandaard van het partnertype.
+    // Ontbrekende verplichte velden volgens de Blauwdruk-Data van het partnertype.
     goudstandaardVoorPartner(p, db)
       .filter((r) => r.niveau === "verplicht" && !r.gevuld)
       .forEach((r) => uit.push({ ...basis, soort: "ontbreekt", sleutel: r.sleutel, veld: r.naam, detail: `Verplicht voor ${r.rollen.join(", ")}${r.geenBron ? "; bij de laatste verrijking geen betrouwbare bron gevonden" : ""}.` }));

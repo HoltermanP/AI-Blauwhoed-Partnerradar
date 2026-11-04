@@ -42,9 +42,9 @@ export default async function VrijgavePagina({ searchParams }: { searchParams: P
         </Link>
       </nav>
       {lijst === "validatie" ? (
-        <Kaart titel={`Wachten op beheerdersvalidatie (${validatie.length})`} acties={<Link href="/beheer/goudstandaard">Welke velden? (goudstandaard)</Link>}>
+        <Kaart titel={`Wachten op beheerdersvalidatie (${validatie.length})`} acties={<Link href="/beheer/blauwdruk-data">Welke velden? (Blauwdruk-Data)</Link>}>
           <p className="muted klein-tekst">Waarden die een gebruiker heeft geverifieerd, van velden waarvoor per partnertype een tweede controle door een beheerder is ingesteld. Na validatie krijgt de waarde het label beheerdersgeverifieerd en telt ze volledig mee in de matching.</p>
-          {validatie.length ? <ValidatieWerklijst items={validatie} magValideren={magVrijgeven} /> : <Leeg titel="Niets te valideren" tekst="Stel bij de goudstandaard per partnertype in welke velden een beheerdersverificatie nodig hebben." />}
+          {validatie.length ? <ValidatieWerklijst items={validatie} magValideren={magVrijgeven} /> : <Leeg titel="Niets te valideren" tekst="Stel bij de Blauwdruk-Data per partnertype in welke velden een beheerdersverificatie nodig hebben." />}
         </Kaart>
       ) : null}
       {lijst === "evaluaties" ? (

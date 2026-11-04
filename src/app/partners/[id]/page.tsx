@@ -374,16 +374,16 @@ function Profiel({ p, db, stats, magBewerken, magPromoveren, magVerwijderen, beh
   );
 }
 
-/** US-49: welke goudstandaardvelden voor dit partnertype verplicht of gewenst zijn, en welke nog leeg zijn. */
+/** US-49: welke Blauwdruk-Data-velden voor dit partnertype verplicht of gewenst zijn, en welke nog leeg zijn. */
 function GoudstandaardKaart({ p, db }: { p: Partner; db: Database }) {
   const gs = goudstandaardVolledigheid(p, db);
   if (!p.rollen.length) return null;
   return (
-    <Kaart titel={`Goudstandaard (${gs.gevuld}/${gs.totaal})`} acties={<Link href="/beheer/goudstandaard">Beheer</Link>}>
+    <Kaart titel={`Blauwdruk-Data (${gs.gevuld}/${gs.totaal})`} acties={<Link href="/beheer/blauwdruk-data">Beheer</Link>}>
       <div className="voortgang" aria-label={`${gs.pct}% gevuld`}>
         <span style={{ width: `${gs.pct}%` }} />
       </div>
-      <p className="muted klein-tekst">Velden die Blauwhoed per partnertype ({p.rollen.map((r) => ROL_LABEL[r]).join(", ")}) verplicht of gewenst vindt. Waarden uit de goudstandaard gaan altijd voor op AI-waarden.</p>
+      <p className="muted klein-tekst">Velden die Blauwhoed per partnertype ({p.rollen.map((r) => ROL_LABEL[r]).join(", ")}) verplicht of gewenst vindt. Waarden uit de Blauwdruk-Data gaan altijd voor op AI-waarden.</p>
       <ul className="gsLijst">
         {gs.regels.map((r) => (
           <li key={r.sleutel}>

@@ -8,7 +8,7 @@
  */
 export type PartnerStatus = "bekend" | "prospect" | "afgewezen" | "preferred" | "geblokkeerd" | "gearchiveerd" | "concept";
 
-/** Partnertypes. Houtbouwer en constructeur zijn eigen types met een eigen goudstandaard (demo oktober 2026, US-01). */
+/** Partnertypes. Houtbouwer en constructeur zijn eigen types met een eigen Blauwdruk-Data (demo oktober 2026, US-01). */
 export type Rol = "architect" | "aannemer" | "houtbouwer" | "installateur" | "adviseur" | "constructeur" | "leverancier" | "ontwikkelpartner";
 
 export const ROLLEN: Rol[] = ["architect", "aannemer", "houtbouwer", "installateur", "adviseur", "constructeur", "leverancier", "ontwikkelpartner"];
@@ -76,7 +76,7 @@ export type Factor = {
 
 /**
  * Bron van een gegeven. De rangorde volgt art. 11.2 van de aanvullende overeenkomst (v3.1):
- * 1. goudstandaard en eigen uitgaven van Blauwhoed (o.a. woningconceptenbrochure, Conceptenboulevard);
+ * 1. Blauwdruk-Data en eigen uitgaven van Blauwhoed (o.a. woningconceptenbrochure, Conceptenboulevard);
  * 2. aangeleverde documenten, opgave, projecthistorie en gevalideerde registraties (KVK-handelsregister, keurmerkregisters);
  * 3. indicatieve markt- en internetbronnen ("indicatief – niet gevalideerd").
  */
@@ -99,7 +99,7 @@ export const BRON_RANG: Record<Bron, 1 | 2 | 3> = {
 };
 
 export const BRON_LABEL: Record<Bron, string> = {
-  goudstandaard: "Goudstandaard Blauwhoed",
+  goudstandaard: "Blauwdruk-Data Blauwhoed",
   eigen_uitgave: "Eigen uitgave Blauwhoed",
   opgave: "Opgave (aangeleverd)",
   document: "Aangeleverd document",
@@ -691,7 +691,7 @@ export type EnrichmentVoorstel = {
   rondeId?: string;
   /** US-50: een voorstel met een hogere bronrang (of de huidige waarde) gaat voor; dit voorstel is een alternatief. */
   alternatief?: boolean;
-  /** US-49: de huidige waarde komt uit de goudstandaard/eigen uitgave van Blauwhoed; AI overschrijft die nooit. */
+  /** US-49: de huidige waarde komt uit de Blauwdruk-Data/eigen uitgave van Blauwhoed; AI overschrijft die nooit. */
   goudstandaardGaatVoor?: boolean;
   citaat: string;
   /** US-12: naam en rang van de aangewezen bron waartoe de bron-URL behoort (rang telt mee in de betrouwbaarheid). */
@@ -867,7 +867,7 @@ export type Signaal = {
   link?: string;
 };
 
-/** US-49: goudstandaard per partnertype (rol): welke velden verplicht of gewenst zijn en de beoordelingscriteria. */
+/** US-49: Blauwdruk-Data per partnertype (rol): welke velden verplicht of gewenst zijn en de beoordelingscriteria. */
 export type GoudstandaardVeld = {
   /** `basis:<BasisVeld>` of `factor:<factorId>`. */
   sleutel: string;
@@ -895,7 +895,7 @@ export type Database = {
   versie: number;
   /** US-22: bevestigde samenwerkingen. */
   samenwerkingen?: Samenwerking[];
-  /** US-49: goudstandaard per partnertype. */
+  /** US-49: Blauwdruk-Data per partnertype. */
   goudstandaard: Partial<Record<Rol, GoudstandaardProfiel>>;
   factoren: Factor[];
   partners: Partner[];

@@ -138,7 +138,7 @@ export default async function PartnersPagina({ searchParams }: { searchParams: P
       <Kaart titel="Filters" acties={gefilterd ? <Link href="/partners">Wis filters</Link> : null}>
         {sp.gs || waardeStatus || sp.geenbron ? (
           <Melding soort="info">
-            Actief datakwaliteitsfilter: {[sp.gs === "onvolledig" ? "verplichte goudstandaardvelden onvolledig" : "", waardeStatus ? `heeft waarden met status ${waardeStatus}` : "", sp.geenbron === "1" ? "velden zonder betrouwbare bron" : ""].filter(Boolean).join(", ")}.
+            Actief datakwaliteitsfilter: {[sp.gs === "onvolledig" ? "verplichte Blauwdruk-Data-velden onvolledig" : "", waardeStatus ? `heeft waarden met status ${waardeStatus}` : "", sp.geenbron === "1" ? "velden zonder betrouwbare bron" : ""].filter(Boolean).join(", ")}.
           </Melding>
         ) : null}
         <form method="get" className="formulier partnerFilters">

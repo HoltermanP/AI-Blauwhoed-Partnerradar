@@ -57,7 +57,7 @@ const GROEPEN: Groep[] = [
     subs: [
       { href: "/beheer", label: "Instellingen" },
       { href: "/factoren", label: "Factoren", ook: ["/beheer/factoren"] },
-      { href: "/beheer/goudstandaard", label: "Goudstandaard" },
+      { href: "/beheer/blauwdruk-data", label: "Blauwdruk-Data", ook: ["/beheer/goudstandaard"] },
       { href: "/beheer/gewichten", label: "Gewichten" },
       { href: "/beheer/gebruikers", label: "Gebruikers" },
       { href: "/beheer/verbruik", label: "AI-verbruik" },

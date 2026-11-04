@@ -432,7 +432,7 @@ export const FACTOREN: Factor[] = [
     actief: true,
     versie: 1
   },
-  // Kenmerken van houtbouwers en leveranciers (demo oktober 2026, US-01): verplicht in de goudstandaard van de houtbouwer.
+  // Kenmerken van houtbouwers en leveranciers (demo oktober 2026, US-01): verplicht in de Blauwdruk-Data van de houtbouwer.
   {
     id: "paris_proof",
     vervalMaanden: 24,

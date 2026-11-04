@@ -32,7 +32,7 @@ export default function GoudstandaardEditor({ rol, profiel, opties, magBeheren }
   return (
     <div className="formulier">
       {fout ? <Melding soort="fout">{fout}</Melding> : null}
-      {ok ? <Melding soort="succes">Goudstandaard opgeslagen (nieuwe versie in de auditlog).</Melding> : null}
+      {ok ? <Melding soort="succes">Blauwdruk-Data opgeslagen (nieuwe versie in de auditlog).</Melding> : null}
       <h3>Velden</h3>
       <div className="tabelWrap">
         <table className="tabel">
@@ -125,7 +125,7 @@ export default function GoudstandaardEditor({ rol, profiel, opties, magBeheren }
             Criterium toevoegen
           </button>
           <button type="button" className="knop" disabled={bezig} onClick={opslaan}>
-            {bezig ? "Opslaan…" : "Goudstandaard opslaan"}
+            {bezig ? "Opslaan…" : "Blauwdruk-Data opslaan"}
           </button>
         </div>
       ) : null}

@@ -57,10 +57,10 @@ export default async function DatakwaliteitPagina({ searchParams }: { searchPara
       <PaginaKop
         eyebrow="Datakwaliteit"
         titel="Datakwaliteit per partnertype"
-        intro="Hoeveel van de verplichte velden per partnertype gevuld zijn, welke waarden ontbreken, verouderd of te weinig betrouwbaar zijn, en waar verrijken het meest oplevert. Welke velden verplicht zijn, stelt de beheerder per type in bij de goudstandaard."
+        intro="Hoeveel van de verplichte velden per partnertype gevuld zijn, welke waarden ontbreken, verouderd of te weinig betrouwbaar zijn, en waar verrijken het meest oplevert. Welke velden verplicht zijn, stelt de beheerder per type in bij de Blauwdruk-Data."
         acties={
           <>
-            <Link href="/beheer/goudstandaard" className="knop knop-secundair">Goudstandaard per type</Link>
+            <Link href="/beheer/blauwdruk-data" className="knop knop-secundair">Blauwdruk-Data per type</Link>
             <Link href="/verrijking" className="knop knop-secundair">Verrijking</Link>
           </>
         }
@@ -319,7 +319,7 @@ function Ontbrekend({ db, rol, veld, magBewerken }: { db: Awaited<ReturnType<typ
   const verplicht = goudstandaardVoor(db, rol).velden.find((v) => v.sleutel === veld)?.niveau;
   const zonder = db.partners.filter((p) => zichtbaar(p) && p.rollen.includes(rol) && !veldGevuld(p, veld)).sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
   return (
-    <Kaart titel={`${ROL_LABEL[rol]}s zonder ${veldnaam(veld, db.factoren).toLowerCase()} (${zonder.length})`} acties={verplicht ? <Badge kleur={verplicht === "verplicht" ? "blauw" : "grijs"}>{verplicht} in de goudstandaard</Badge> : <Badge>matchcriterium</Badge>}>
+    <Kaart titel={`${ROL_LABEL[rol]}s zonder ${veldnaam(veld, db.factoren).toLowerCase()} (${zonder.length})`} acties={verplicht ? <Badge kleur={verplicht === "verplicht" ? "blauw" : "grijs"}>{verplicht} in de Blauwdruk-Data</Badge> : <Badge>matchcriterium</Badge>}>
       <GerichteVerrijking ids={zonder.slice(0, 200).map((p) => p.id)} magBewerken={magBewerken} externeBronnen={db.instellingen.externeBronnenToegestaan} />
       {zonder.length ? (
         <div className="tabelWrap">

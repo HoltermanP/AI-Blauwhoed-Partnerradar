@@ -28,7 +28,7 @@ const BEKEND: Record<string, { label: string; groep: string }> = {
   importWachtrij: { label: "Importwachtrij", groep: "Werkprocessen" },
   afwijsredenen: { label: "Afwijsredenen discovery", groep: "Werkprocessen" },
   gewichtsprofielen: { label: "Gewichtsprofielen", groep: "Instellingen" },
-  goudstandaard: { label: "Goudstandaard", groep: "Instellingen" },
+  goudstandaard: { label: "Blauwdruk-Data", groep: "Instellingen" },
   instellingen: { label: "Instellingen", groep: "Instellingen" },
   gebruikers: { label: "Gebruikers", groep: "Beheer" },
   audit: { label: "Auditlog", groep: "Beheer" },
@@ -119,7 +119,7 @@ export function bouwTabellen(db: Database): Tabel[] {
     if (Array.isArray(waarde)) {
       voegToe(naam, meta.label, meta.groep, waarde.filter(isObject));
     } else if (isObject(waarde)) {
-      // Object-collecties (instellingen, goudstandaard): één rij per sleutel.
+      // Object-collecties (instellingen, Blauwdruk-Data): één rij per sleutel.
       const items = Object.entries(waarde).map(([sleutel, v]) => (isObject(v) ? { id: `${naam}:${sleutel}`, sleutel, ...v } : { id: `${naam}:${sleutel}`, sleutel, waarde: v }));
       voegToe(naam, meta.label, meta.groep, items);
     }

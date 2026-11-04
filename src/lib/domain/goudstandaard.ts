@@ -1,4 +1,4 @@
-// US-49: goudstandaard per partnertype. Blauwhoed legt per rol vast welke velden verplicht of gewenst zijn en op welke
+// US-49: Blauwdruk-Data per partnertype. Blauwhoed legt per rol vast welke velden verplicht of gewenst zijn en op welke
 // criteria een partner wordt beoordeeld. Waarden met bron goudstandaard/eigen uitgave (rang 1) zijn leidend: AI zet er
 // hooguit een voorstel naast (zie markeerAlternatieven in herkomst.ts).
 import { basisveldWaarde } from "./herkomst";
@@ -6,7 +6,7 @@ import { BASISVELD_LABEL, ROLLEN } from "./types";
 import type { BasisVeld, Database, Factor, GoudstandaardProfiel, GoudstandaardVeld, Partner, Rol } from "./types";
 
 /**
- * Startpunt zolang Blauwhoed de eigen goudstandaard nog niet heeft vastgesteld (volledig aan te passen in Beheer, zonder
+ * Startpunt zolang Blauwhoed de eigen Blauwdruk-Data nog niet heeft vastgesteld (volledig aan te passen in Beheer, zonder
  * ontwikkelaar). Per type eigen verplichte en gewenste kenmerken (US-01); de architect heeft bewust een kleinere vaste set.
  */
 const STANDAARD_FACTOREN: Record<Rol, { verplicht: string[]; gewenst: string[] }> = {
@@ -51,7 +51,7 @@ export function standaardGoudstandaard(rol: Rol, factoren: Factor[], nu = new Da
   };
 }
 
-/** De goudstandaard voor een rol: vastgelegd door de beheerder, anders het startpunt. */
+/** De Blauwdruk-Data voor een rol: vastgelegd door de beheerder, anders het startpunt. */
 export function goudstandaardVoor(db: Pick<Database, "goudstandaard" | "factoren">, rol: Rol): GoudstandaardProfiel {
   return db.goudstandaard?.[rol] ?? standaardGoudstandaard(rol, db.factoren);
 }
@@ -70,7 +70,7 @@ export function veldGevuld(p: Partner, sleutel: string) {
 
 export type GoudstandaardRegel = GoudstandaardVeld & { naam: string; gevuld: boolean; geenBron: boolean; rollen: Rol[] };
 
-/** Goudstandaardvelden van één partner (samengevoegd over zijn rollen; verplicht gaat voor gewenst). */
+/** Blauwdruk-Data-velden van één partner (samengevoegd over zijn rollen; verplicht gaat voor gewenst). */
 export function goudstandaardVoorPartner(p: Partner, db: Pick<Database, "goudstandaard" | "factoren">): GoudstandaardRegel[] {
   const map = new Map<string, GoudstandaardRegel>();
   p.rollen.forEach((rol) =>
@@ -99,7 +99,7 @@ export function goudstandaardVolledigheid(p: Partner, db: Pick<Database, "goudst
   };
 }
 
-/** US-66: percentage gevulde goudstandaardvelden per partnertype (alleen zichtbare partners). */
+/** US-66: percentage gevulde Blauwdruk-Data-velden per partnertype (alleen zichtbare partners). */
 export function goudstandaardPerRol(db: Database, partners: Partner[]) {
   return ROLLEN.map((rol) => {
     const lijst = partners.filter((p) => p.rollen.includes(rol));

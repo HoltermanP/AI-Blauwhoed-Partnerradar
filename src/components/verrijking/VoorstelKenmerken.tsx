@@ -10,7 +10,7 @@ export function VoorstelSoort({ v }: { v: EnrichmentVoorstel }) {
       {v.factorId ? <Badge kleur={vaststellingVan(v) === "ingeschat" ? "geel" : "blauw"} titel={VASTSTELLING_UITLEG[vaststellingVan(v)]}>{vaststellingVan(v)}</Badge> : null}
       {v.aard === "niet_bevestigd" ? <Badge kleur="rood" titel="De eerder gevonden waarde is niet meer op de bron terug te vinden; accepteren markeert haar als verouderd">niet bevestigd</Badge> : v.aard === "nieuw" ? <Badge kleur="blauw">nieuw</Badge> : null}
       {v.conflictMetGevalideerd ? <Badge kleur="rood" titel="Wijkt af van een door een mens gevalideerde waarde; wordt nooit stilzwijgend overschreven">wijkt af van gevalideerd</Badge> : null}
-      {v.goudstandaardGaatVoor ? <Badge kleur="blauw" titel="De huidige waarde komt uit de goudstandaard of een eigen uitgave van Blauwhoed en gaat altijd voor">goudstandaard gaat voor</Badge> : v.alternatief ? <Badge kleur="grijs" titel="Een bron met een hogere rang (of de huidige waarde) gaat voor; dit is een alternatief">alternatief</Badge> : null}
+      {v.goudstandaardGaatVoor ? <Badge kleur="blauw" titel="De huidige waarde komt uit de Blauwdruk-Data of een eigen uitgave van Blauwhoed en gaat altijd voor">Blauwdruk-Data gaat voor</Badge> : v.alternatief ? <Badge kleur="grijs" titel="Een bron met een hogere rang (of de huidige waarde) gaat voor; dit is een alternatief">alternatief</Badge> : null}
     </>
   );
 }

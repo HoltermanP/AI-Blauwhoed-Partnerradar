@@ -214,8 +214,8 @@ export async function slaPartnerFactorOp(partnerId: string, invoer: Omit<Partner
   return veilig(async () => {
     const g = await vereisRecht("bewerken");
     const { reden, ...factor } = invoer;
-    // US-49: goudstandaardwaarden zijn leidend; alleen de beheerder legt ze vast.
-    if (factor.bron === "goudstandaard" && !heeftRecht(g.rol, "beheer")) throw new Error("Alleen een beheerder legt goudstandaardwaarden vast.");
+    // US-49: Blauwdruk-Data-waarden zijn leidend; alleen de beheerder legt ze vast.
+    if (factor.bron === "goudstandaard" && !heeftRecht(g.rol, "beheer")) throw new Error("Alleen een beheerder legt Blauwdruk-Data-waarden vast.");
     await muteer(g, { entiteit: "partner_factor", entiteitId: partnerId, actie: "factorwaarde vastgelegd", details: `${factor.factorId}${factor.optieId ? `/${factor.optieId}` : ""} = ${JSON.stringify(factor.waarde)} (${factor.bron})` }, (db) => {
       const p = db.partners.find((x) => x.id === partnerId);
       if (!p) throw new Error("Partner niet gevonden.");
@@ -1595,7 +1595,7 @@ export async function beoordeelVoorstel(id: string, accepteer: boolean, aangepas
   return veilig(() => beoordeelVoorstelIntern(id, accepteer, aangepast));
 }
 
-/** US-07: meerdere voorstellen tegelijk afhandelen. Een voorstel dat niet kan (bijv. goudstandaard gaat voor) wordt gemeld en overgeslagen. */
+/** US-07: meerdere voorstellen tegelijk afhandelen. Een voorstel dat niet kan (bijv. Blauwdruk-Data gaat voor) wordt gemeld en overgeslagen. */
 export async function beoordeelVoorstellen(ids: string[], accepteer: boolean) {
   return veilig(async () => {
     await vereisRecht("bewerken");
@@ -1641,10 +1641,10 @@ async function beoordeelVoorstelIntern(id: string, accepteer: boolean, aangepast
         v.citaat = `${v.citaat} [aangepast door ${g.naam}]`;
       }
       const p = db.partners.find((x) => x.id === v.partnerId);
-      // US-49: de goudstandaard van Blauwhoed gaat altijd voor; een voorstel uit een lagere bron overschrijft haar nooit.
+      // US-49: de Blauwdruk-Data van Blauwhoed gaat altijd voor; een voorstel uit een lagere bron overschrijft haar nooit.
       const h = p ? huidigeHerkomst(p, v, db.factoren) : undefined;
       if (accepteer && h && isGoudstandaard(h.bron) && !isGoudstandaard(v.bron) && v.aard !== "niet_bevestigd")
-        throw new Error("De huidige waarde komt uit de goudstandaard of een eigen uitgave van Blauwhoed en gaat altijd voor. Dit voorstel blijft als alternatief zichtbaar; wijzig de goudstandaard zo nodig handmatig.");
+        throw new Error("De huidige waarde komt uit de Blauwdruk-Data of een eigen uitgave van Blauwhoed en gaat altijd voor. Dit voorstel blijft als alternatief zichtbaar; wijzig de Blauwdruk-Data zo nodig handmatig.");
       v.status = accepteer ? "geaccepteerd" : "afgewezen";
       if (!accepteer) return;
       if (!p) return;

@@ -1,6 +1,6 @@
 // Verwerking van verrijkingsvoorstellen vóór ze in de wachtrij komen:
 // - conflict met een door een mens gevalideerde waarde (factor én basisveld, US-52);
-// - bronrangorde: hoogste rang wint, lager is 'alternatief'; goudstandaard gaat altijd voor (US-49/US-50);
+// - bronrangorde: hoogste rang wint, lager is 'alternatief'; Blauwdruk-Data gaat altijd voor (US-49/US-50);
 // - velden zonder betrouwbare bron worden gemarkeerd in plaats van gevuld (US-53).
 import { basisveldWaarde, bronRang, effectieveStatus, vergelijkHerkomst, geenBronSleutel, markeerAlternatieven, wisGeenBron, zetBasisveldHerkomst } from "./herkomst";
 import { veldGevuld } from "./goudstandaard";
@@ -63,7 +63,7 @@ export function veldenZonderBron(p: Partner, voorstellen: EnrichmentVoorstel[], 
 // (telt minder zwaar in de matching, een inschatting het minst), mits
 // - het veld leeg is, of de huidige waarde zelf niet geverifieerd is en uit een gelijke of lagere bronrang komt;
 //   een feit vervangt altijd een inschatting, een inschatting vervangt nooit een feit;
-// - er geen conflict is met een geverifieerde waarde of de goudstandaard, en het voorstel geen alternatief is;
+// - er geen conflict is met een geverifieerde waarde of de Blauwdruk-Data, en het voorstel geen alternatief is;
 // - de waarde past bij de schaal van de factor.
 // Al het andere blijft een voorstel in de wachtrij.
 

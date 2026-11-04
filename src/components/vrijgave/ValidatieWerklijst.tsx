@@ -1,5 +1,5 @@
 "use client";
-// US-08: werklijst met waarden die een gebruiker heeft geverifieerd en die volgens de goudstandaard nog een tweede controle
+// US-08: werklijst met waarden die een gebruiker heeft geverifieerd en die volgens de Blauwdruk-Data nog een tweede controle
 // door een beheerder vragen. Per stuk of in bulk valideren (label 'beheerdersgeverifieerd'), of afwijzen met reden.
 import Link from "next/link";
 import { useRouter } from "next/navigation";

@@ -19,7 +19,7 @@ export type Recht =
 const GEBRUIKER_RECHTEN: Recht[] = ["lezen", "bewerken", "evalueren", "discovery_goedkeuren", "prospect_promoveren", "kwalificeren"];
 
 /**
- * Alleen voor de beheerder (US-65): AI-voorstellen vrijgeven, weging, verrijkingsschema, goudstandaard, bronnen, budget en
+ * Alleen voor de beheerder (US-65): AI-voorstellen vrijgeven, weging, verrijkingsschema, Blauwdruk-Data, bronnen, budget en
  * modelinstellingen (recht 'beheer'), definitief verwijderen, volledige export en gebruikersbeheer.
  */
 const RECHTEN: Record<Gebruikersrol, Recht[]> = {

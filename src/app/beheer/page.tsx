@@ -1,5 +1,5 @@
 // Beheer → Instellingen: AI-verrijking en discovery (US-48), rollen en rechten (US-45), volledige export en opslag. De overige
-// beheeronderdelen (factoren, gewichten, goudstandaard, gebruikers, AI-verbruik, audit) staan als eigen pagina in het menu;
+// beheeronderdelen (factoren, gewichten, Blauwdruk-Data, gebruikers, AI-verbruik, audit) staan als eigen pagina in het menu;
 // de datakwaliteit per veld staat op Kwaliteit → Datakwaliteit.
 import Link from "next/link";
 import { bepaalOmgeving, databaseAanduiding, OMGEVING_LABEL } from "@/lib/domain/omgeving";
@@ -20,7 +20,7 @@ const RECHTEN: Array<{ id: Parameters<typeof heeftRecht>[1]; label: string; uitl
   { id: "discovery_goedkeuren", label: "Discovery goedkeuren", uitleg: "Discovery-kandidaten accepteren, parkeren of afwijzen." },
   { id: "prospect_promoveren", label: "Status preferred/geblokkeerd", uitleg: "Partner op preferred of geblokkeerd zetten (na kwalificatie)." },
   { id: "kwalificeren", label: "Kwalificeren", uitleg: "Kwalificatiechecklist en financiële toets afvinken." },
-  { id: "beheer", label: "Beheer", uitleg: "Weging (gewichtsprofielen), goudstandaard, verrijkingsschema, bronnen, budget en modellen, factoren en instellingen." },
+  { id: "beheer", label: "Beheer", uitleg: "Weging (gewichtsprofielen), Blauwdruk-Data, verrijkingsschema, bronnen, budget en modellen, factoren en instellingen." },
   { id: "partners_vrijgeven", label: "AI-voorstellen vrijgeven", uitleg: "Concepten (AI-registratie, discovery, AI-aandraag) vrijgeven of afwijzen." },
   { id: "gebruikers_beheren", label: "Gebruikers beheren", uitleg: "Rollen toekennen en accounts blokkeren." },
   { id: "definitief_verwijderen", label: "Definitief verwijderen", uitleg: "Gearchiveerde partner op verzoek wissen (AVG)." },
@@ -34,7 +34,7 @@ export default async function BeheerPagina() {
 
   return (
     <>
-      <PaginaKop eyebrow="Beheer" titel="Instellingen" intro="AI-verrijking en discovery, rollen en rechten, volledige export en opslag. Factoren, gewichten, goudstandaard, gebruikers, AI-verbruik en auditlog staan in het menu onder Beheer." />
+      <PaginaKop eyebrow="Beheer" titel="Instellingen" intro="AI-verrijking en discovery, rollen en rechten, volledige export en opslag. Factoren, gewichten, Blauwdruk-Data, gebruikers, AI-verbruik en auditlog staan in het menu onder Beheer." />
       {!magBeheren ? <Melding soort="waarschuwing">U bent ingelogd als {gebruiker.naam} ({gebruiker.rol}). Beheerfuncties zijn alleen-lezen; wissel rechtsboven naar Beheerder om te wijzigen.</Melding> : null}
 
 
