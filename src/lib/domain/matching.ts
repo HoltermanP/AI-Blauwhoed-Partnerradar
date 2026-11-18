@@ -152,7 +152,13 @@ export type MatchContext = {
 };
 
 /** Harde filters (US-14): elke uitsluiting krijgt een expliciete reden. */
-export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: MatchContext, factoren: PartnerFactor[]): Uitsluiting | null {
+/** Werkgebied dat de partnerimport zet (partnerimport.ts); een andere waarde is door een mens of bron vastgesteld. */
+const IMPORT_STANDAARD_WERKGEBIED_KM = 150;
+/** Vanaf dit aantal projecten in de historie is de omvangband onderbouwd genoeg om uit te sluiten. */
+const MIN_PROJECTEN_VOOR_BAND = 3;
+
+/** `waarschuwingen` krijgt de punten waar het filter niet uitsluit omdat de data te dun is (komen bij de kandidaat te staan). */
+export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: MatchContext, factoren: PartnerFactor[], waarschuwingen?: string[]): Uitsluiting | null {
   const nu = ctx.nu ?? new Date();
   const { project } = ctx;
   const u = (soort: Uitsluiting["soort"], reden: string, factorId?: string): Uitsluiting => ({ partnerId: partner.id, partnerNaam: partner.naam, reden, soort, factorId });
@@ -164,9 +170,12 @@ export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: Mat
   if (partner.status === "afgewezen") return u("status", `Afgewezen${partner.statusReden ? `: ${partner.statusReden}` : ""}.`, "uitsluiting");
   if (!partner.rollen.includes(eis.rol)) return u("rol", `Vervult de rol ${eis.rol} niet.`);
 
-  // Regio: projectlocatie binnen werkgebied
+  // Regio: projectlocatie binnen werkgebied. Een werkgebied dat de importstandaard is (niet door een mens of bron vastgesteld)
+  // sluit pas uit bij meer dan het dubbele; daarbinnen alleen een waarschuwing, want de grens is dan niet echt bekend.
   const afstand = afstandKm(partner.locatie, project.locatie);
-  if (afstand > partner.werkgebiedKm) return u("regio", `Projectlocatie ligt ${afstand} km van de vestiging, buiten werkgebied van ${partner.werkgebiedKm} km.`, "reisafstand");
+  const werkgebiedIsStandaard = partner.werkgebiedKm === IMPORT_STANDAARD_WERKGEBIED_KM;
+  if (afstand > (werkgebiedIsStandaard ? partner.werkgebiedKm * 2 : partner.werkgebiedKm)) return u("regio", `Projectlocatie ligt ${afstand} km van de vestiging, buiten werkgebied van ${partner.werkgebiedKm} km${werkgebiedIsStandaard ? " (standaardwaarde, ruim overschreden)" : ""}.`, "reisafstand");
+  if (afstand > partner.werkgebiedKm) waarschuwingen?.push(`Projectlocatie ligt ${afstand} km van de vestiging; het werkgebied (${partner.werkgebiedKm} km) is een standaardwaarde en niet vastgesteld, daarom niet uitgesloten.`);
 
   // Capaciteit: projectomvang binnen bandbreedte. Opgave (typische omvang) en historie worden samengevoegd tot één band met marge;
   // een dun profiel (één of twee projecten) sluit dus niet onterecht uit. Buiten de band = harde uitsluiting.
@@ -176,8 +185,14 @@ export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: Mat
   if (partner.typischeProjectomvang) banden.push({ min: partner.typischeProjectomvang.min * 0.5, max: partner.typischeProjectomvang.max * 1.5 });
   if (banden.length) {
     const band = { min: Math.floor(Math.min(...banden.map((b) => b.min))), max: Math.ceil(Math.max(...banden.map((b) => b.max))) };
-    if (project.woningen < band.min || project.woningen > band.max)
-      return u("capaciteit", `Projectomvang ${project.woningen} woningen valt buiten bandbreedte ${band.min}–${band.max} (${omvang ? "projecthistorie" : "opgave"}${omvang && partner.typischeProjectomvang ? " + opgave" : ""}).`, "projectomvang");
+    if (project.woningen < band.min || project.woningen > band.max) {
+      const reden = `Projectomvang ${project.woningen} woningen valt buiten bandbreedte ${band.min}–${band.max} (${omvang ? "projecthistorie" : "opgave"}${omvang && partner.typischeProjectomvang ? " + opgave" : ""})`;
+      // Alleen uitsluiten als de band echt onderbouwd is: een opgave van de partner zelf of minstens drie projecten in de historie.
+      // Een band uit één of twee projecten (of alleen uit een webvondst) is te dun: dan een waarschuwing.
+      const aantalProjecten = ctx.db.engagements.filter((x) => x.partnerId === partner.id).length;
+      if (partner.typischeProjectomvang || aantalProjecten >= MIN_PROJECTEN_VOOR_BAND) return u("capaciteit", `${reden}.`, "projectomvang");
+      waarschuwingen?.push(`${reden}, maar die band rust op weinig projecten (${aantalProjecten}); daarom niet uitgesloten.`);
+    }
   }
   if (partner.maxGelijktijdigeProjecten) {
     const belasting = huidigeBelasting(partner, ctx.db, nu);
@@ -196,6 +211,7 @@ export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: Mat
   for (const e of eis.eisen) {
     const factor = ctx.db.factoren.find((f) => f.id === e.factorId);
     if (!factor || !factor.actief) continue;
+    if (factor.id === "projectomvang") continue; // wordt hierboven als capaciteitsband getoetst (met de onderbouwingsdrempel)
     const isHard = factor.type === "hard" || e.minimumeis;
     if (!isHard) continue;
     const pf = zoekWaarde(factoren, e);
@@ -304,7 +320,8 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
     // US-54: concepten en gearchiveerde partners tellen nergens mee, ook niet als (zichtbare, exporteerbare) uitsluiting.
     if (!zichtbaar(partner)) return;
     const factoren = effectieveFactoren(partner, db, nu);
-    const uitsluiting = hardeFilters(partner, eis, ctx, factoren);
+    const filterWaarschuwingen: string[] = [];
+    const uitsluiting = hardeFilters(partner, eis, ctx, factoren, filterWaarschuwingen);
     if (uitsluiting) {
       uitsluitingen.push(uitsluiting);
       return;
@@ -317,7 +334,7 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
     const score = Math.round(gewogenEff * (1 - semGewicht) + sem.score * 100 * semGewicht);
     const semBronnen = profielBronnen(partner);
     if ((eis.semantischGewicht > 0 || eis.vrijeOmschrijving) && sem.score > 0 && semBronnen.length) sem.treffers.push(`profiel gevoed door: ${semBronnen.join(", ")}`);
-    const waarschuwingen: string[] = [];
+    const waarschuwingen: string[] = [...filterWaarschuwingen];
     if (gewogen.dekkingsgraad < DEKKING_WAARSCHUWING) waarschuwingen.push(`Dekkingsgraad ${gewogen.dekkingsgraad}%: score rust op weinig bekende data.`);
     if (demping && Math.abs(gewogenEff - gewogen.score) >= 5) waarschuwingen.push(`Gecorrigeerd voor lage dekking: gewogen ${gewogen.score} → ${gewogenEff} (ontbrekende criteria tellen als neutraal).`);
     if (gewogen.criteria.some((c) => c.fit !== null) && gewogen.verificatiegraad < VERIFICATIE_WAARSCHUWING) waarschuwingen.push(`Verificatiegraad ${gewogen.verificatiegraad}%: de score rust grotendeels op gegevens die nog niet door een gebruiker of beheerder zijn geverifieerd.`);
