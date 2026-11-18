@@ -1,10 +1,15 @@
 // Factorencatalogus uit backlog hoofdstuk 3. Dit is configuratie: nieuwe factoren zijn een record, geen migratie.
 import type { Factor, FactorOption, Rol } from "./types";
 
+/**
+ * Factoren zonder grondslag in de opdracht of de brondata (Excel-overzicht) staan standaard gearchiveerd: ze tellen niet mee in
+ * nieuwe matchruns, maar de gegevens blijven bewaard en de beheerder kan ze terugzetten (Beheer → Factoren).
+ */
+const ARCHIEF_OP = "2026-11-18T00:00:00.000Z";
+
 const opt = (id: string, label: string): FactorOption => ({ id, label, actief: true });
 
 const ALLE: Rol[] = [];
-const BOUWERS: Rol[] = ["aannemer", "ontwikkelpartner"];
 const ONTWERP: Rol[] = ["architect", "ontwikkelpartner"];
 const TECHNIEK: Rol[] = ["aannemer", "houtbouwer", "installateur", "leverancier", "ontwikkelpartner"];
 /** Leveranciers van (hout)bouwsystemen: kenmerken van het product zelf (US-01). */
@@ -67,7 +72,8 @@ export const FACTOREN: Factor[] = [
     schaal: { soort: "niveau", min: 0, max: 5 },
     opties: [opt("initiatief", "Initiatief"), opt("planvorming", "Planvorming"), opt("realisatie", "Realisatie"), opt("nazorg", "Nazorg")],
     rollen: ALLE,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   // B. Bouwstijl en architectuur
@@ -93,7 +99,8 @@ export const FACTOREN: Factor[] = [
     type: "gewogen",
     schaal: { soort: "niveau", min: 0, max: 5 },
     rollen: ONTWERP,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   {
@@ -117,7 +124,8 @@ export const FACTOREN: Factor[] = [
     type: "semantisch",
     schaal: { soort: "tekst" },
     rollen: ONTWERP,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   // C. Bouwmethode en materialen
@@ -149,7 +157,8 @@ export const FACTOREN: Factor[] = [
     type: "gewogen",
     schaal: { soort: "niveau", min: 0, max: 5 },
     rollen: TECHNIEK.concat("architect"),
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   {
@@ -225,7 +234,8 @@ export const FACTOREN: Factor[] = [
     type: "gewogen",
     schaal: { soort: "niveau", min: 0, max: 5 },
     rollen: ALLE,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   {
@@ -250,7 +260,8 @@ export const FACTOREN: Factor[] = [
     type: "gewogen",
     schaal: { soort: "niveau", min: 0, max: 5 },
     rollen: ALLE,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   // E. Capaciteit en continuïteit
@@ -308,7 +319,7 @@ export const FACTOREN: Factor[] = [
     id: "evaluatiescore",
     code: "F1",
     naam: "Evaluatiescore",
-    omschrijving: "Gemiddelde van kwaliteit, planning, budget en samenwerking; recentere projecten wegen zwaarder.",
+    omschrijving: "Totale tevredenheidsscore (standaard het gemiddelde van de vijf deelscores) uit geaccepteerde evaluaties; recente projecten wegen zwaarder.",
     categorie: "F. Samenwerking en gedrag",
     type: "gewogen",
     schaal: { soort: "getal", eenheid: "1–5", min: 1, max: 5 },
@@ -352,7 +363,8 @@ export const FACTOREN: Factor[] = [
     type: "gewogen",
     schaal: { soort: "niveau", min: 0, max: 5 },
     rollen: ALLE,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   {
@@ -364,7 +376,8 @@ export const FACTOREN: Factor[] = [
     type: "gewogen",
     schaal: { soort: "niveau", min: 0, max: 5 },
     rollen: ALLE,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   // G. Commercieel en risico
@@ -390,7 +403,8 @@ export const FACTOREN: Factor[] = [
     type: "gewogen",
     schaal: { soort: "getal", eenheid: "index", lagerIsBeter: true, min: 80, max: 120 },
     rollen: ALLE,
-    actief: true,
+    actief: false,
+    gearchiveerdOp: ARCHIEF_OP,
     versie: 1
   },
   {

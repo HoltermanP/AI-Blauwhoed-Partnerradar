@@ -25,7 +25,7 @@ export function scoreTeam(leden: Optie[], db: Database, project: Project) {
       const s = samenwerking(db, partners[i].id, partners[j].id);
       if (s.aantal) {
         const kwaliteit = s.gemiddeldeSamenwerking ? s.gemiddeldeSamenwerking / 5 : 0.7;
-        samenScore += Math.min(1, 0.6 + s.aantal * 0.2) * kwaliteit;
+        samenScore += kwaliteit;
         onderbouwing.push(`${partners[i].naam} en ${partners[j].naam} werkten ${s.aantal}× samen${s.gemiddeldeSamenwerking ? ` (samenwerking ${s.gemiddeldeSamenwerking.toFixed(1)}/5)` : ""}.`);
       }
     }
@@ -117,7 +117,7 @@ export function projectGelijkenis(a: Project, b: Project) {
   const type = a.type === b.type ? 1 : 0;
   const omvang = a.woningen && b.woningen ? Math.min(a.woningen, b.woningen) / Math.max(a.woningen, b.woningen) : 0.5;
   const ambitie = 1 - Math.abs(a.ambitieDuurzaamheid - b.ambitieDuurzaamheid) / 4;
-  return Math.round((0.5 * type + 0.3 * omvang + 0.2 * ambitie) * 100) / 100;
+  return Math.round(((type + omvang + ambitie) / 3) * 100) / 100;
 }
 
 /**

@@ -1,16 +1,16 @@
 // Migraties van de opgeslagen database (JSONB-snapshot). Elke migratie is idempotent en verhoogt db.versie.
 import { laadAanvulling } from "./aanvulling";
 import { vulOntbrekendeHerkomst } from "./herkomst";
-import { niveauIsInschatting, rolVanNaam } from "./verificatie";
+import { rolVanNaam } from "./verificatie";
 import { standaardAanvullingInstellingen } from "./instellingen";
 import { kostenEur } from "./kosten";
 import { FACTOREN } from "./factors";
 import { productFactoren } from "./partnerimport";
 import { STANDAARD_BRANCHEBRONNEN, STANDAARD_UPCOMING_BRONNEN, hostVan } from "./bronbeleid";
-import { NIEUWE_TYPES } from "./gewichten";
+import { GEWICHTSPROFIELEN, NIEUWE_TYPES } from "./gewichten";
 import type { Database, Geo, Rol } from "./types";
 
-export const HUIDIGE_VERSIE = 15;
+export const HUIDIGE_VERSIE = 16;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -222,7 +222,8 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
   }
 
   if (van < 14) migreerV14(db, nu);
-  if (van < 15) migreerV15(db);
+  if (van < 15) migreerV15();
+  if (van < 16) migreerV16(db, nu);
 
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });
@@ -239,23 +240,36 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
  * - evaluaties krijgen expliciet status 'geaccepteerd' (US-21: alleen geaccepteerde tellen mee).
  */
 /**
- * v15: feitelijk vs ingeschat. Bestaande niet-geverifieerde niveauwaarden uit internet of documenten (automatisch
- * ingevuld of uit de aanvulling) zijn vrijwel altijd een inschatting: ze krijgen het label 'ingeschat' met onderbouwing.
- * Waarden die een mens heeft geverifieerd of afgewezen, en berekende waarden, blijven ongemoeid.
+ * v15: vervallen. Het onderscheid feitelijk/ingeschat bestaat niet meer; de stap blijft bestaan zodat de versienummering
+ * van bestaande databases klopt. Een eventueel opgeslagen veld `vaststelling` wordt genegeerd.
  */
-export function migreerV15(db: Database) {
-  let aantal = 0;
-  db.partners.forEach((p) =>
-    p.factoren.forEach((f) => {
-      if (f.vaststelling || f.afgeleid || f.status === "gevalideerd" || f.status === "afgewezen") return;
-      if (f.bron !== "web" && f.bron !== "document" && !f.automatisch) return;
-      if (!niveauIsInschatting(db.factoren.find((x) => x.id === f.factorId), f.toelichting)) return;
-      f.vaststelling = "ingeschat";
-      f.onderbouwing = f.onderbouwing ?? `Niveau ${String(f.waarde)} ingeschat: de bron noemt het onderwerp, niet het niveau zelf (bij de migratie zo aangemerkt).`;
-      aantal++;
-    })
-  );
-  return aantal;
+export function migreerV15() {
+  return 0;
+}
+
+/**
+ * v16 (vereenvoudigen): factoren zonder grondslag in de opdracht of de brondata worden gearchiveerd (gegevens blijven staan,
+ * de beheerder kan ze terugzetten) en de ongewijzigde standaardprofielen krijgen de gelijke verdeling. Profielen die een
+ * beheerder heeft aangepast (versie > 1) blijven ongemoeid.
+ */
+export function migreerV16(db: Database, nu = new Date()) {
+  let gearchiveerd = 0;
+  FACTOREN.filter((f) => !f.actief).forEach((nieuw) => {
+    const f = db.factoren.find((x) => x.id === nieuw.id);
+    if (!f || !f.actief) return;
+    f.actief = false;
+    f.gearchiveerdOp = nu.toISOString();
+    f.versie += 1;
+    gearchiveerd++;
+  });
+  let profielen = 0;
+  GEWICHTSPROFIELEN.forEach((nieuw) => {
+    const i = db.gewichtsprofielen.findIndex((p) => p.id === nieuw.id);
+    if (i < 0 || db.gewichtsprofielen[i].versie > 1) return;
+    db.gewichtsprofielen[i] = structuredClone(nieuw);
+    profielen++;
+  });
+  return { gearchiveerd, profielen };
 }
 
 export function migreerV14(db: Database, nu = new Date()) {

@@ -33,6 +33,15 @@ const kolomRuw = (r: ImportRij, ...namen: string[]) => {
 };
 const kolom = kolomRuw;
 
+/**
+ * Een bron zegt zelden hoe sterk een partner is in iets, alleen dát hij het doet. Wat een importrij noemt (woningtype,
+ * bouwsysteem, contractvorm, doelgroep, concept) krijgt daarom overal hetzelfde niveau: 3 = aantoonbare ervaring. Hogere
+ * niveaus komen alleen uit projecthistorie, evaluaties of een mens.
+ */
+const AANWEZIG_NIVEAU = 3;
+/** Bij een minimale projectgrootte zonder maximum: geen bovengrens (woningen). */
+const GEEN_BOVENGRENS = 10000;
+
 const getal = (s: string) => {
   if (!s) return null;
   const direct = Number(s.replace(",", "."));
@@ -108,15 +117,15 @@ export function rijNaarPartner(r: ImportRij, bron: Bron = "opgave", betrouwbaarh
   const zet = (factorId: string, waarde: PartnerFactor["waarde"], optieId?: string, toelichting?: string) => f.push({ factorId, optieId, waarde, bron, betrouwbaarheid, toelichting });
 
   const types = kolom(r, "mogelijke (woning)types", "woningtypes", "projecttype").toLowerCase();
-  if (/grondgebonden/.test(types)) zet("projecttype", 3, "grondgebonden", "Uit import");
-  if (/appartement|gestapeld/.test(types)) zet("projecttype", 3, "appartementen", "Uit import");
-  if (/optop|transform/.test(types)) zet("projecttype", 3, "transformatie", "Uit import");
+  if (/grondgebonden/.test(types)) zet("projecttype", AANWEZIG_NIVEAU, "grondgebonden", "Uit import");
+  if (/appartement|gestapeld/.test(types)) zet("projecttype", AANWEZIG_NIVEAU, "appartementen", "Uit import");
+  if (/optop|transform/.test(types)) zet("projecttype", AANWEZIG_NIVEAU, "transformatie", "Uit import");
 
   const lagen = getal(kolom(r, "maximaal aantal lagen"));
-  if (lagen !== null && lagen >= 8) zet("projecttype", 3, "hoogbouw", `Maximaal ${lagen} lagen`);
+  if (lagen !== null && lagen >= 8) zet("projecttype", AANWEZIG_NIVEAU, "hoogbouw", `Maximaal ${lagen} lagen`);
 
   const minOmvang = getal(kolom(r, "minimale projectgrootte", "min projectgrootte"));
-  if (minOmvang !== null) zet("projectomvang", { min: minOmvang, max: Math.max(minOmvang * 10, 200) }, undefined, `Minimale projectgrootte ${minOmvang} uit import; maximum geschat`);
+  if (minOmvang !== null) zet("projectomvang", { min: minOmvang, max: GEEN_BOVENGRENS }, undefined, `Minimale projectgrootte ${minOmvang} uit import; geen bovengrens opgegeven`);
 
   const mpg = getal(kolom(r, "mpg - totaal a1 tm d", "mpg", "mpg totaal"));
   if (mpg !== null && mpg > 0 && mpg < 3) zet("mpg", Math.round(mpg * 100) / 100, undefined, "MPG uit import (opgave)");
@@ -130,33 +139,28 @@ export function rijNaarPartner(r: ImportRij, bron: Bron = "opgave", betrouwbaarh
   productFactoren(r).forEach((x) => zet(x.factorId, x.waarde, undefined, x.toelichting));
 
   const materialen = [kolom(r, "gesloten geveldelen"), kolom(r, "woningscheidend / dragende wanden"), kolom(r, "verdiepingsvloer"), kolom(r, "bouwsysteem"), kolom(r, "type bouw")].join(" ").toLowerCase();
-  if (/hsb|clt|hout/.test(materialen)) zet("bouwsysteem", 4, "houtbouw", "Materiaalopbouw uit import");
-  if (/beton/.test(materialen) && /prefab|kanaalplaat|ribben/.test(materialen)) zet("bouwsysteem", 3, "prefab_beton", "Materiaalopbouw uit import");
-  if (/staal/.test(materialen)) zet("bouwsysteem", 3, "staalframe", "Materiaalopbouw uit import");
+  if (/hsb|clt|hout/.test(materialen)) zet("bouwsysteem", AANWEZIG_NIVEAU, "houtbouw", "Materiaalopbouw uit import");
+  if (/beton/.test(materialen) && /prefab|kanaalplaat|ribben/.test(materialen)) zet("bouwsysteem", AANWEZIG_NIVEAU, "prefab_beton", "Materiaalopbouw uit import");
+  if (/staal/.test(materialen)) zet("bouwsysteem", AANWEZIG_NIVEAU, "staalframe", "Materiaalopbouw uit import");
 
   const industrialisatie = kolom(r, "mate van industrialisatie", "prefabricagegraad").toLowerCase();
   const fabriek = kolom(r, "eigen fabriek").toLowerCase();
   const bouw2d3d = kolom(r, "2d of 3d bouw").toLowerCase();
-  if (/hoog|volledig|3d/.test(industrialisatie) || /3d/.test(bouw2d3d) || fabriek === "ja") zet("prefabricage", /3d/.test(industrialisatie + bouw2d3d) ? 5 : 4, undefined, "Industrialisatie/eigen fabriek uit import");
-  else if (/2d/.test(bouw2d3d) || /midden|gemiddeld/.test(industrialisatie)) zet("prefabricage", 3, undefined, "2D-elementen uit import");
+  if (/hoog|volledig|midden|gemiddeld|[23]d/.test(industrialisatie + " " + bouw2d3d) || fabriek === "ja") zet("prefabricage", AANWEZIG_NIVEAU, undefined, "Industrialisatie, 2D/3D-bouw of eigen fabriek uit import");
 
   const concept = kolom(r, "concept / maatwerk", "concept").toLowerCase();
-  if (/concept/.test(concept)) zet("conceptbouw", 4, undefined, "Woningconcept uit import");
-  else if (/maatwerk/.test(concept)) zet("conceptbouw", 1, undefined, "Maatwerk uit import");
+  if (/concept/.test(concept)) zet("conceptbouw", AANWEZIG_NIVEAU, undefined, "Woningconcept uit import");
 
   const contract = kolom(r, "contractvorm").toLowerCase();
-  if (/bouwteam/.test(contract)) zet("contractvorm", 4, "bouwteam", "Contractvorm uit import");
-  if (/d&b|design ?& ?build|turnkey/.test(contract)) zet("contractvorm", 4, "design_build", "Contractvorm uit import");
-  if (/uav-?gc/.test(contract)) zet("contractvorm", 4, "uav_gc", "Contractvorm uit import");
+  if (/bouwteam/.test(contract)) zet("contractvorm", AANWEZIG_NIVEAU, "bouwteam", "Contractvorm uit import");
+  if (/d&b|design ?& ?build|turnkey/.test(contract)) zet("contractvorm", AANWEZIG_NIVEAU, "design_build", "Contractvorm uit import");
+  if (/uav-?gc/.test(contract)) zet("contractvorm", AANWEZIG_NIVEAU, "uav_gc", "Contractvorm uit import");
 
   const doelgroep = kolom(r, "doelgroepen", "prijssegment").toLowerCase();
-  if (/sociaal|sociale/.test(doelgroep)) zet("prijssegment", 3, "sociaal");
-  if (/midden/.test(doelgroep)) zet("prijssegment", 3, "middenhuur");
-  if (/koop/.test(doelgroep)) zet("prijssegment", 3, "koop");
-  if (/vrije/.test(doelgroep)) zet("prijssegment", 3, "vrije sector");
-
-  const bio2 = kolom(r, "biodiversiteit").toLowerCase();
-  if (bio2 && !/nee|n\.?v\.?t|geen/.test(bio2)) zet("natuurinclusief", 3, undefined, `Biodiversiteit: ${bio2}`);
+  if (/sociaal|sociale/.test(doelgroep)) zet("prijssegment", AANWEZIG_NIVEAU, "sociaal");
+  if (/midden/.test(doelgroep)) zet("prijssegment", AANWEZIG_NIVEAU, "middenhuur");
+  if (/koop/.test(doelgroep)) zet("prijssegment", AANWEZIG_NIVEAU, "koop");
+  if (/vrije/.test(doelgroep)) zet("prijssegment", AANWEZIG_NIVEAU, "vrije sector");
 
   const omvang = kolom(r, "omvang").toLowerCase();
   const medewerkers = getal(kolom(r, "medewerkers", "aantal medewerkers", "fte"));

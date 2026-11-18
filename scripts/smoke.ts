@@ -51,7 +51,7 @@ import { verwerkVoorstellen, veldenZonderBron } from "../src/lib/domain/voorstel
 import { goudstandaardVoorPartner, gezochteVelden } from "../src/lib/domain/goudstandaard";
 import { basisVeldKwaliteit, statusVerdeling } from "../src/lib/domain/datakwaliteit";
 import { BASISVELDEN } from "../src/lib/domain/webverrijking";
-import { BRON_BETROUWBAARHEID, type Bron, type EnrichmentVoorstel } from "../src/lib/domain/types";
+import { BRON_BETROUWBAARHEID, KWALIFICATIE_ITEMS, type Bron, type EnrichmentVoorstel } from "../src/lib/domain/types";
 
 import { ROLLEN } from "../src/lib/domain/types";
 import { standaardGoudstandaard, veldGevuld } from "../src/lib/domain/goudstandaard";
@@ -69,14 +69,15 @@ import { openstaandeEvaluaties } from "../src/lib/domain/evaluatieproces";
 import { teamCombinaties } from "../src/lib/domain/verbanden";
 import { bewezenTeams } from "../src/lib/domain/team";
 import { importeerProjecten } from "../src/lib/domain/projectimport";
-import { migreerV14, migreerV15 } from "../src/lib/domain/migratie";
+import { migreerV14, migreerV16 } from "../src/lib/domain/migratie";
 import { beoordeelRelevantie, isUitgeslotenDomein, zoektermenVoorProject } from "../src/lib/domain/relevantie";
 import { externeBedrijfsLinks } from "../src/lib/domain/webzoek";
 import { CATEGORIEEN, categorieVan } from "../src/lib/domain/kosten";
 
 import { aiVerwerking } from "../src/lib/aiplatform";
-import { dempVoorDekking } from "../src/lib/domain/matching";
-import { pasErvaringsgewichtToe, teamWeging } from "../src/lib/domain/gewichten";
+import { dempVoorDekking, fitVoor } from "../src/lib/domain/matching";
+import { recentheidsgewicht } from "../src/lib/domain/derive";
+import { GEWICHTSPROFIELEN, gelijkeGewichten, pasErvaringsgewichtToe, teamWeging } from "../src/lib/domain/gewichten";
 import { herinneringDagen, isVerantwoordelijke } from "../src/lib/domain/evaluatieproces";
 import { genoemdePartners, isLinkedIn } from "../src/lib/domain/externprojecten";
 
@@ -605,7 +606,7 @@ const groepD = (async () => {
   const fac = (id: string) => dbV.factoren.find((f) => f.id === id);
   const basis = { factorId: "x", waarde: 3, bron: "web" as const, betrouwbaarheid: 0.6, peildatum: new Date().toISOString().slice(0, 10) };
   check("Verificatie: labels beheerder/gebruiker/niet/berekend", verificatieVan({ ...basis, status: "gevalideerd", gevalideerdDoorRol: "beheerder" }, undefined) === "beheerder" && verificatieVan({ ...basis, status: "gevalideerd" }, undefined) === "gebruiker" && verificatieVan({ ...basis, status: "voorgesteld" }, undefined) === "niet" && verificatieVan({ ...basis, afgeleid: true }, undefined) === "berekend");
-  check("Verificatie: weging beheerder ≥ gebruiker > niet geverifieerd > verouderd", VERIFICATIE_WEGING.beheerder >= VERIFICATIE_WEGING.gebruiker && VERIFICATIE_WEGING.gebruiker > VERIFICATIE_WEGING.niet && VERIFICATIE_WEGING.niet > VERIFICATIE_WEGING.verouderd);
+  check("Verificatie: weging beheerder = gebruiker > niet geverifieerd = verouderd > afgewezen", VERIFICATIE_WEGING.beheerder === VERIFICATIE_WEGING.gebruiker && VERIFICATIE_WEGING.gebruiker > VERIFICATIE_WEGING.niet && VERIFICATIE_WEGING.niet === VERIFICATIE_WEGING.verouderd && VERIFICATIE_WEGING.verouderd > VERIFICATIE_WEGING.afgewezen);
   // Dezelfde waarde scoort hoger als ze geverifieerd is dan als ze dat niet is.
   const project = dbV.projecten.find((p) => p.id === "proj-groene-loper")!;
   const rol = matchProject({ db: dbV, project }).find((x) => x.rol === "aannemer")!;
@@ -641,20 +642,16 @@ const groepD = (async () => {
   ingevuld.status = "voorgesteld";
   ingevuld.bron = "goudstandaard";
   check("Automatisch invullen vervangt geen betere bron (goudstandaard)", !automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4 }), dbV.factoren));
-  // Feitelijk vs ingeschat
+  // Eén weging: niet-geverifieerd telt voor de helft
   ingevuld.bron = "web";
-  ingevuld.vaststelling = "ingeschat";
-  check("Verificatie: ingeschatte, niet-geverifieerde waarde krijgt label 'ingeschat' en telt minder dan feitelijk", verificatieVan(ingevuld, niveau) === "ingeschat" && VERIFICATIE_WEGING.niet > VERIFICATIE_WEGING.ingeschat && VERIFICATIE_WEGING.ingeschat > 0);
-  check("Automatisch invullen: een feit vervangt een inschatting, ook uit een zwakkere bron", automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4, vaststelling: "feitelijk", betrouwbaarheid: 0.2 }), dbV.factoren));
-  ingevuld.vaststelling = "feitelijk";
-  check("Automatisch invullen: een inschatting vervangt nooit een feit", !automatischToepasbaar(p, voorstel(5, { aard: "gewijzigd", huidig: 4, vaststelling: "ingeschat", betrouwbaarheid: 0.9 }), dbV.factoren));
-  const vIng = voorstel(3, { vaststelling: "ingeschat", onderbouwing: "Drie opgeleverde projecten genoemd." });
+  check("Verificatie: niet-geverifieerde waarde telt voor de helft, geverifieerd volledig", verificatieVan(ingevuld, niveau) === "niet" && VERIFICATIE_WEGING.niet === 0.5 && VERIFICATIE_WEGING.gebruiker === 1);
+  const vOnd = voorstel(3, { onderbouwing: "Drie opgeleverde projecten genoemd." });
   p.factoren = p.factoren.filter((f) => f.factorId !== niveau.id);
-  pasAutomatischToe(p, vIng, dbV.factoren);
-  const ingIngevuld = p.factoren.find((f) => f.factorId === niveau.id)!;
-  check("Automatisch ingevuld neemt vaststelling en onderbouwing over", ingIngevuld.vaststelling === "ingeschat" && ingIngevuld.onderbouwing === "Drie opgeleverde projecten genoemd." && verificatieVan(ingIngevuld, niveau) === "ingeschat");
+  pasAutomatischToe(p, vOnd, dbV.factoren);
+  const ingevuldOnd = p.factoren.find((f) => f.factorId === niveau.id)!;
+  check("Automatisch ingevuld neemt de onderbouwing over", ingevuldOnd.onderbouwing === "Drie opgeleverde projecten genoemd." && verificatieVan(ingevuldOnd, niveau) === "niet");
   const regelV = extraheerVoorstellen(p, "Wij bouwen in houtskeletbouw en CLT. MPG 0,62 volgens NMD-berekening.", "https://voorbeeld.nl");
-  check("Regelextractie: vast niveau = ingeschat, gelezen getal = feitelijk", regelV.find((v) => v.factorId === "bouwsysteem")?.vaststelling === "ingeschat" && regelV.find((v) => v.factorId === "mpg")?.vaststelling === "feitelijk", regelV.map((v) => [v.factorId, v.vaststelling]));
+  check("Regelextractie: bouwsysteem en MPG gevonden, met onderbouwing", Boolean(regelV.find((v) => v.factorId === "bouwsysteem")?.onderbouwing) && Boolean(regelV.find((v) => v.factorId === "mpg")), regelV.map((v) => v.factorId));
   // Migratie v13: rol bij bestaande validaties
   const dbM = maakSeedDatabase();
   dbM.versie = 12;
@@ -718,7 +715,7 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
   p2.factoren = [{ factorId: "projecttype", optieId: "zorgwonen", waarde: 4, bron: "web", betrouwbaarheid: 0.4, peildatum: "2026-09-01", status: "afgewezen", afwijzing: { door: "t", rol: "gebruiker", op: "2026-10-01", reden: "geen zorgwoningen" } }];
   check("US-04 afgewezen waarde niet in effectief profiel", !effectieveFactoren(p2, dbU).some((f) => f.factorId === "projecttype" && f.optieId === "zorgwonen"));
   check("US-04 afgewezen waarde telt niet als gevuld", !veldGevuld(p2, "factor:projecttype"));
-  check("US-04 label afgewezen", verificatieVan(p2.factoren[0], dbU.factoren.find((f) => f.id === "projecttype")) === "afgewezen" && VERIFICATIE_LABEL.gebruiker === "gebruikersgeverifieerd" && VERIFICATIE_LABEL.beheerder === "beheerdersgeverifieerd" && VERIFICATIE_LABEL.niet === "niet geverifieerd · feitelijk");
+  check("US-04 label afgewezen", verificatieVan(p2.factoren[0], dbU.factoren.find((f) => f.id === "projecttype")) === "afgewezen" && VERIFICATIE_LABEL.gebruiker === "gebruikersgeverifieerd" && VERIFICATIE_LABEL.beheerder === "beheerdersgeverifieerd" && VERIFICATIE_LABEL.niet === "niet geverifieerd");
   const vZelfde: EnrichmentVoorstel = { id: "v1", partnerId: p2.id, factorId: "projecttype", optieId: "zorgwonen", veld: "Projecttype: Zorgwonen", huidig: 4, voorgesteld: 4, bron: "web", bronUrl: "https://x.nl", betrouwbaarheid: 0.5, soort: "geclaimd", citaat: "zorg", status: "open", gevondenOp: "2026-10-02" };
   check("US-04 afgewezen waarde wordt niet automatisch opnieuw ingevuld", !automatischToepasbaar(p2, vZelfde, dbU.factoren) && automatischToepasbaar(p2, { ...vZelfde, voorgesteld: 2 }, dbU.factoren));
 
@@ -811,20 +808,25 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
   check("US-01 migratie v14: nieuwe factoren, type houtbouwer en productkenmerken uit brondata", dbM.factoren.some((f) => f.id === "paris_proof") && dbM.partners[0].rollen.includes("houtbouwer") && dbM.partners[0].factoren.some((f) => f.factorId === "paris_proof" && f.waarde === 180));
   check("US-12/US-21 migratie v14: branchebronnen en evaluatiestatus", dbM.instellingen.verrijkingsbronnen.some((b) => b.categorie === "branche" && b.rang === 2) && dbM.evaluaties.every((e) => e.status === "geaccepteerd"));
 
-  // Migratie v15: niet-geverifieerde niveauwaarden uit internet worden 'ingeschat'
+  // Vereenvoudigen blok 2: gelijke gewichten, factoren zonder herkomst gearchiveerd, migratie v16
   {
-    const db15 = maakSeedDatabase();
-    const niv = db15.factoren.find((f) => f.schaal.soort === "niveau" && f.actief)!;
-    const co2 = db15.factoren.find((f) => f.id === "co2_ladder");
-    const pp = db15.partners[0];
-    const basis15 = { bron: "web" as const, betrouwbaarheid: 0.5, peildatum: "2026-01-01", status: "voorgesteld" as const };
-    pp.factoren = [
-      { ...basis15, factorId: niv.id, optieId: "a", waarde: 3, automatisch: true, toelichting: "geclaimd: …wij bouwen in hout…" },
-      { ...basis15, factorId: niv.id, optieId: "b", waarde: 4, status: "gevalideerd", toelichting: "geclaimd: …hout…" },
-      ...(co2?.schaal.soort === "niveau" ? [{ ...basis15, factorId: "co2_ladder", waarde: 5, toelichting: "aantoonbaar: CO2-prestatieladder trede 5" }] : [])
-    ] as typeof pp.factoren;
-    const n = migreerV15(db15);
-    check("Migratie v15: niveau van internet → ingeschat; geverifieerd en letterlijk genoemd niveau blijven feitelijk", pp.factoren[0].vaststelling === "ingeschat" && Boolean(pp.factoren[0].onderbouwing) && !pp.factoren[1].vaststelling && (pp.factoren[2] ? !pp.factoren[2].vaststelling : true) && n >= 1, { n, labels: pp.factoren.map((f) => f.vaststelling) });
+    const somKlopt = GEWICHTSPROFIELEN.every((pr) => Object.values(pr.perRol).every((eisen) => eisen!.reduce((t, e) => t + e.gewicht, 0) === 100));
+    const gelijk = GEWICHTSPROFIELEN.every((pr) => Object.values(pr.perRol).every((eisen) => Math.max(...eisen!.map((e) => e.gewicht)) - Math.min(...eisen!.map((e) => e.gewicht)) <= 1));
+    check("Profielen: gewichten per rol tellen op tot 100 en zijn gelijk verdeeld", somKlopt && gelijk);
+    check("gelijkeGewichten: 100 over 3 = 34/33/33", gelijkeGewichten([{ factorId: "a", gevraagd: 1, gewicht: 0 }, { factorId: "b", gevraagd: 1, gewicht: 0 }, { factorId: "c", gevraagd: 1, gewicht: 0 }]).map((e) => e.gewicht).join("/") === "34/33/33");
+    const dbA = maakSeedDatabase();
+    const archief = ["fase_expertise", "welstand", "gevel", "signatuur", "natuurinclusief", "bim", "circulariteit", "bouwteam", "prijsniveau"];
+    check("Factoren zonder grondslag staan gearchiveerd", archief.every((id) => dbA.factoren.find((f) => f.id === id)?.actief === false));
+    const gebruikt = new Set(GEWICHTSPROFIELEN.flatMap((pr) => Object.values(pr.perRol).flatMap((eisen) => eisen!.map((e) => e.factorId))));
+    check("Standaardprofielen gebruiken geen gearchiveerde factor", archief.every((id) => !gebruikt.has(id)));
+    // Oude database: alle factoren actief, profiel met oude gewichten (versie 1) en een door de beheerder aangepast profiel (versie 2)
+    const dbO = maakSeedDatabase();
+    dbO.factoren.forEach((f) => { f.actief = true; f.gearchiveerdOp = undefined; });
+    dbO.gewichtsprofielen[0].perRol.architect![0].gewicht = 55;
+    dbO.gewichtsprofielen[1].versie = 2;
+    dbO.gewichtsprofielen[1].perRol.architect![0].gewicht = 55;
+    const uit = migreerV16(dbO);
+    check("Migratie v16: factoren gearchiveerd, ongewijzigd profiel vervangen, aangepast profiel blijft", uit.gearchiveerd === archief.length && dbO.factoren.find((f) => f.id === "bim")?.actief === false && dbO.gewichtsprofielen[0].perRol.architect![0].gewicht !== 55 && dbO.gewichtsprofielen[1].perRol.architect![0].gewicht === 55, uit);
   }
 
   // Discovery: alleen echte bouwpartners
@@ -879,6 +881,26 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
   check("US-21 eigen ervaring wordt toegevoegd waar ze ontbrak", zonderEv.some((e) => e.factorId === "evaluatiescore" && e.gewicht === 20) && valideerGewichten(zonderEv, dbD.factoren).geldig);
   const tw = teamWeging(40);
   check("US-17 samenwerking in de teamscore instelbaar", Math.abs(tw.kwaliteit + tw.samenwerking + tw.nabijheid + tw.beschikbaarheid - 1) < 1e-9 && tw.samenwerking === 0.4);
+
+  // Vereenvoudigen blok 3: evenredige fit, twee recentheidsniveaus, gelijke teamaandelen
+  {
+    const mpg = fitVoor({ schaal: { soort: "getal", eenheid: "x", lagerIsBeter: true } } as never, 0.5, 0.5).fit === 1 && Math.abs(fitVoor({ schaal: { soort: "getal", eenheid: "x", lagerIsBeter: true } } as never, 0.5, 1).fit - 0.5) < 1e-9;
+    check("Fit: lager-is-beter is evenredig (gevraagd/gemeten), hoger-is-beter ook", mpg && fitVoor({ schaal: { soort: "getal", eenheid: "x" } } as never, 4, 2).fit === 0.5);
+    const nu = new Date("2026-11-18");
+    check("Recentheid: laatste 3 jaar 1, daarna 0,5", recentheidsgewicht("2025-01-01", nu) === 1 && recentheidsgewicht("2020-01-01", nu) === 0.5);
+    const tw2 = teamWeging(25);
+    check("Teamweging: rest gelijk verdeeld over kwaliteit, nabijheid en beschikbaarheid", Math.abs(tw2.kwaliteit - tw2.nabijheid) < 1e-9 && Math.abs(tw2.nabijheid - tw2.beschikbaarheid) < 1e-9 && Math.abs(tw2.kwaliteit - 0.25) < 1e-9);
+  }
+
+  // Vereenvoudigen blok 4: importniveaus en kwalificatie
+  {
+    const imp = rijNaarPartner({ Organisatie: "Testhout BV", "Mogelijke (woning)types": "Grondgebonden", "Minimale projectgrootte": "20", "Gesloten geveldelen": "HSB", "Concept / Maatwerk": "Maatwerk", Contractvorm: "Bouwteam", "Eigen fabriek": "Ja", Ketenrol: "Houtbouwer" });
+    const fw = (id: string, optie?: string) => imp?.factoren.find((f) => f.factorId === id && (optie ? f.optieId === optie : true));
+    check("Import: genoemd = niveau 3 (geen verzonnen hogere niveaus), maatwerk geeft geen waarde", fw("bouwsysteem", "houtbouw")?.waarde === 3 && fw("contractvorm", "bouwteam")?.waarde === 3 && fw("prefabricage")?.waarde === 3 && !fw("conceptbouw"));
+    const om = fw("projectomvang")?.waarde as { min: number; max: number } | undefined;
+    check("Import: minimale projectgrootte zonder verzonnen maximum", om?.min === 20 && om.max === 10000, om);
+    check("Kwalificatie: vier items volgens US-34", KWALIFICATIE_ITEMS.length === 4);
+  }
 
   // US-20: eigenaarschap
   check("US-20 verantwoordelijke op naam of e-mail", isVerantwoordelijke({ verantwoordelijke: "Jan Smit" }, { naam: "jan smit" }) && isVerantwoordelijke({ verantwoordelijke: "j.smit@blauwhoed.nl" }, { naam: "X", email: "J.Smit@blauwhoed.nl" }) && !isVerantwoordelijke({}, { naam: "x" }));

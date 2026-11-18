@@ -2,50 +2,30 @@
 // de bron of ingeschat met onderbouwing), verouderd of berekend uit projecthistorie. Het label weegt mee in de matchscore:
 // een niet-geverifieerde waarde telt minder zwaar, een inschatting nog minder dan een feitelijke vaststelling.
 import { effectieveBasisStatus, effectieveStatus } from "./herkomst";
-import type { Factor, FactorWaarde, Gebruiker, Gebruikersrol, PartnerFactor, VeldHerkomst, Verificatie, Vaststelling } from "./types";
+import type { Factor, FactorWaarde, Gebruiker, Gebruikersrol, PartnerFactor, VeldHerkomst, Verificatie } from "./types";
 
 /** US-04: de statussen per waarde zoals Blauwhoed ze benoemt (voorstel, gebruikers- of beheerdersgeverifieerd, afgewezen). */
 export const VERIFICATIE_LABEL: Record<Verificatie, string> = {
   beheerder: "beheerdersgeverifieerd",
   gebruiker: "gebruikersgeverifieerd",
-  niet: "niet geverifieerd · feitelijk",
-  ingeschat: "niet geverifieerd · ingeschat",
+  niet: "niet geverifieerd",
   verouderd: "verouderd",
   berekend: "berekend uit historie",
   afgewezen: "afgewezen"
 };
 
-export const VERIFICATIE_KLEUR: Record<Verificatie, "groen" | "blauw" | "geel" | "rood" | "mint" | "grijs"> = { beheerder: "groen", gebruiker: "blauw", niet: "geel", ingeschat: "geel", verouderd: "rood", berekend: "mint", afgewezen: "grijs" };
+export const VERIFICATIE_KLEUR: Record<Verificatie, "groen" | "blauw" | "geel" | "rood" | "mint" | "grijs"> = { beheerder: "groen", gebruiker: "blauw", niet: "geel", verouderd: "rood", berekend: "mint", afgewezen: "grijs" };
 
 /**
- * Weging in de matchscore: hoe sterk de fit van een waarde doorwerkt (1 = volledig, 0 = telt als neutraal).
- * Projecthistorie is bewijs en telt volledig. Een waarde die niemand heeft bevestigd telt minder: een feit dat letterlijk
- * op de bron staat voor 60%, een onderbouwde inschatting voor 35%.
+ * Weging in de matchscore: één regel. Een bevestigde waarde (door beheerder of gebruiker) of een waarde uit projecthistorie
+ * telt volledig; een waarde die niemand heeft bevestigd of die verouderd is telt voor de helft. Afgewezen telt niet.
  */
-export const VERIFICATIE_WEGING: Record<Verificatie, number> = { beheerder: 1, gebruiker: 0.85, berekend: 1, niet: 0.6, ingeschat: 0.35, verouderd: 0.3, afgewezen: 0 };
+export const NIET_GEVERIFIEERD_WEGING = 0.5;
+export const VERIFICATIE_WEGING: Record<Verificatie, number> = { beheerder: 1, gebruiker: 1, berekend: 1, niet: NIET_GEVERIFIEERD_WEGING, verouderd: NIET_GEVERIFIEERD_WEGING, afgewezen: 0 };
 
 /** Uitleg van de weging in gewone taal (US-05), voor de matchonderbouwing en de factorenpagina. */
 export const WEGING_UITLEG =
-  "Hoe zeker een waarde is, telt mee in de score. Een waarde die een beheerder heeft geverifieerd of die uit projecthistorie komt, telt volledig; gebruikersgeverifieerd telt voor 85%. Een niet-geverifieerde waarde (bijvoorbeeld door de verrijking ingevuld) telt voor 60% als ze feitelijk op de bron staat en voor 35% als ze is ingeschat; een verouderde waarde telt voor 30%. Daarnaast dempt een lage bronbetrouwbaarheid (de rang van de bron) de waarde richting neutraal. Afgewezen waarden tellen niet mee.";
-
-/** Uitleg van feitelijk en ingeschat, voor tooltips en de factorenpagina. */
-export const VASTSTELLING_UITLEG: Record<Vaststelling, string> = {
-  feitelijk: "Feitelijk: de waarde staat zo op de bron (website, register, document); het citaat is de onderbouwing.",
-  ingeschat: "Ingeschat: de waarde staat niet letterlijk op de bron maar is afgeleid uit aanwijzingen daar (bijvoorbeeld het aantal referentieprojecten); de onderbouwing legt uit hoe."
-};
-
-/** Ontbrekende vaststelling (oude en handmatige waarden) geldt als feitelijk. */
-export function vaststellingVan(x: { vaststelling?: Vaststelling }): Vaststelling {
-  return x.vaststelling === "ingeschat" ? "ingeschat" : "feitelijk";
-}
-
-/**
- * Is een niveau (0–5) uit een openbare bron een inschatting? Een niveau staat zelden letterlijk op een website of in een
- * document; alleen als de bron het niveau of de trede zelf noemt (bijv. CO2-prestatieladder trede 5) is het een feit.
- */
-export function niveauIsInschatting(factor: Factor | undefined, tekst: string | undefined) {
-  return factor?.schaal.soort === "niveau" && !/(niveau|trede|level)\s?[0-5]\b/i.test(tekst ?? "");
-}
+  "Hoe zeker een waarde is, telt mee in de score. Een waarde die een beheerder of gebruiker heeft geverifieerd, of die uit projecthistorie komt, telt volledig. Een niet-geverifieerde of verouderde waarde telt voor 50%. Daarnaast dempt een lage bronbetrouwbaarheid (de rang van de bron) de waarde richting neutraal. Afgewezen waarden tellen niet mee.";
 
 /** Telt als geverifieerd voor de verificatiegraad van een match. */
 export function isGeverifieerd(v: Verificatie | undefined) {
@@ -57,7 +37,7 @@ export function verificatieVan(pf: PartnerFactor, factor: Factor | undefined, nu
   if (!st) return "berekend";
   if (st === "afgewezen") return "afgewezen";
   if (st === "verouderd") return "verouderd";
-  if (st === "voorgesteld") return vaststellingVan(pf) === "ingeschat" ? "ingeschat" : "niet";
+  if (st === "voorgesteld") return "niet";
   return pf.gevalideerdDoorRol === "beheerder" ? "beheerder" : "gebruiker";
 }
 

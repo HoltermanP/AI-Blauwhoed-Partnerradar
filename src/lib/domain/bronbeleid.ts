@@ -1,6 +1,7 @@
 // US-12/US-13: bronbeleid. Vooraf aangewezen branchebronnen (beroepsverenigingen, registers, platforms) krijgen een hogere
 // kwaliteitsrang dan gewone webresultaten; die rang telt mee in de betrouwbaarheid van een gevonden waarde (en daarmee in de
 // matching, US-05). Gebruikers stellen nieuwe bronnen voor; pas na goedkeuring door beheer gebruiken verrijking en discovery ze.
+import { RANG_BETROUWBAARHEID } from "./types";
 import type { EnrichmentVoorstel, VerrijkingsBron } from "./types";
 
 export type BronRang = 1 | 2 | 3;
@@ -12,7 +13,7 @@ export const BRONRANG_LABEL: Record<BronRang, string> = {
 };
 
 /** Betrouwbaarheid die een waarde minimaal krijgt als ze van een bron met deze rang komt. */
-export const RANG_BETROUWBAARHEID: Record<BronRang, number> = { 1: 0.9, 2: 0.7, 3: 0.4 };
+export { RANG_BETROUWBAARHEID };
 
 export function rangVanBron(b: Pick<VerrijkingsBron, "rang" | "categorie">): BronRang {
   if (b.rang) return b.rang;

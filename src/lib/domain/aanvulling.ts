@@ -5,7 +5,6 @@ import aanvulling from "@/data/aanvulling-seed.json";
 import { geocode } from "./geo";
 import { normaliseerNaam } from "./discovery";
 import { vulOntbrekendeHerkomst } from "./herkomst";
-import { niveauIsInschatting } from "./verificatie";
 import type { Bouwstijl, Database, Engagement, Geo, Partner, PartnerFactor, Prijssegment, Projectfase, Projecttype, Rol } from "./types";
 
 type AanvullingPartner = {
@@ -49,19 +48,15 @@ export const AANVULLING = aanvulling as AanvullingData;
 /** Kenmerktrefwoorden → factorwaarden (bron web, lage betrouwbaarheid; niveau 3 = aantoonbare ervaring volgens openbare bron). */
 const KENMERK_FACTOR: Record<string, { factorId: string; optieId?: string; waarde: number | boolean }> = {
   houtbouw: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 3 },
-  clt: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 4 },
+  clt: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 3 },
   hsb: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 3 },
   prefab: { factorId: "prefabricage", waarde: 3 },
-  modulair: { factorId: "prefabricage", waarde: 4 },
+  modulair: { factorId: "prefabricage", waarde: 3 },
   biobased: { factorId: "biobased", waarde: 30 },
-  circulair: { factorId: "circulariteit", waarde: 3 },
   demontabel: { factorId: "demontabel", waarde: 3 },
-  natuurinclusief: { factorId: "natuurinclusief", waarde: 3 },
   hoogbouw: { factorId: "projecttype", optieId: "hoogbouw", waarde: 3 },
   transformatie: { factorId: "projecttype", optieId: "transformatie", waarde: 3 },
   zorgwonen: { factorId: "projecttype", optieId: "zorgwonen", waarde: 3 },
-  bim: { factorId: "bim", waarde: 3 },
-  bouwteam: { factorId: "bouwteam", waarde: 3 }
 };
 
 export function aanvullingPlaatsen(): string[] {
@@ -129,7 +124,6 @@ export function laadAanvulling(db: Database, locaties: Map<string, Geo | null>, 
       if (!m) return;
       const idx = factoren.findIndex((f) => f.factorId === m.factorId && (f.optieId ?? "") === (m.optieId ?? ""));
       const record: PartnerFactor = { factorId: m.factorId, optieId: m.optieId, waarde: m.waarde, bron: "web", betrouwbaarheid: 0.5, status: "voorgesteld", peildatum: AANVULLING.peildatum, bewijs: { soort: "url", ref: a.bronUrl, label: a.bronUrl }, toelichting: `geclaimd: kenmerk '${k}' op openbare bron` };
-      if (niveauIsInschatting(db.factoren.find((f) => f.id === m.factorId), k)) Object.assign(record, { vaststelling: "ingeschat", onderbouwing: `Niveau ${String(m.waarde)} ingeschat omdat de openbare bron het kenmerk '${k}' noemt; het niveau zelf staat er niet.` });
       if (idx < 0) factoren.push(record);
       else if (typeof m.waarde === "number" && m.waarde > Number(factoren[idx].waarde)) factoren[idx] = record;
     });
