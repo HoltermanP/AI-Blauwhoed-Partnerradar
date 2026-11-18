@@ -51,7 +51,7 @@ import { verwerkVoorstellen, veldenZonderBron } from "../src/lib/domain/voorstel
 import { goudstandaardVoorPartner, gezochteVelden } from "../src/lib/domain/goudstandaard";
 import { basisVeldKwaliteit, statusVerdeling } from "../src/lib/domain/datakwaliteit";
 import { BASISVELDEN } from "../src/lib/domain/webverrijking";
-import { BRON_BETROUWBAARHEID, type Bron, type EnrichmentVoorstel } from "../src/lib/domain/types";
+import { BRON_BETROUWBAARHEID, KWALIFICATIE_ITEMS, type Bron, type EnrichmentVoorstel } from "../src/lib/domain/types";
 
 import { ROLLEN } from "../src/lib/domain/types";
 import { standaardGoudstandaard, veldGevuld } from "../src/lib/domain/goudstandaard";
@@ -890,6 +890,16 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
     check("Recentheid: laatste 3 jaar 1, daarna 0,5", recentheidsgewicht("2025-01-01", nu) === 1 && recentheidsgewicht("2020-01-01", nu) === 0.5);
     const tw2 = teamWeging(25);
     check("Teamweging: rest gelijk verdeeld over kwaliteit, nabijheid en beschikbaarheid", Math.abs(tw2.kwaliteit - tw2.nabijheid) < 1e-9 && Math.abs(tw2.nabijheid - tw2.beschikbaarheid) < 1e-9 && Math.abs(tw2.kwaliteit - 0.25) < 1e-9);
+  }
+
+  // Vereenvoudigen blok 4: importniveaus en kwalificatie
+  {
+    const imp = rijNaarPartner({ Organisatie: "Testhout BV", "Mogelijke (woning)types": "Grondgebonden", "Minimale projectgrootte": "20", "Gesloten geveldelen": "HSB", "Concept / Maatwerk": "Maatwerk", Contractvorm: "Bouwteam", "Eigen fabriek": "Ja", Ketenrol: "Houtbouwer" });
+    const fw = (id: string, optie?: string) => imp?.factoren.find((f) => f.factorId === id && (optie ? f.optieId === optie : true));
+    check("Import: genoemd = niveau 3 (geen verzonnen hogere niveaus), maatwerk geeft geen waarde", fw("bouwsysteem", "houtbouw")?.waarde === 3 && fw("contractvorm", "bouwteam")?.waarde === 3 && fw("prefabricage")?.waarde === 3 && !fw("conceptbouw"));
+    const om = fw("projectomvang")?.waarde as { min: number; max: number } | undefined;
+    check("Import: minimale projectgrootte zonder verzonnen maximum", om?.min === 20 && om.max === 10000, om);
+    check("Kwalificatie: vier items volgens US-34", KWALIFICATIE_ITEMS.length === 4);
   }
 
   // US-20: eigenaarschap

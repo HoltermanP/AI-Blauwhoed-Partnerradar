@@ -220,13 +220,12 @@ export type KwalificatieItem =
   | "uittreksel_kvk"
   | "financiele_toets";
 
+/** US-34: de vier items van de kwalificatiechecklist. `uittreksel_kvk` en `financiele_toets` bestaan alleen nog in oude gegevens. */
 export const KWALIFICATIE_ITEMS: Array<{ id: KwalificatieItem; label: string }> = [
   { id: "verzekering", label: "Bedrijfs- en beroepsaansprakelijkheidsverzekering" },
   { id: "kam", label: "KAM-systeem aanwezig en actueel" },
   { id: "gedragscode", label: "Gedragscode Blauwhoed ondertekend" },
-  { id: "ketenaansprakelijkheid", label: "Ketenaansprakelijkheid: G-rekening / WKA-verklaring" },
-  { id: "uittreksel_kvk", label: "Recent KVK-uittreksel" },
-  { id: "financiele_toets", label: "Financiële toets uitgevoerd" }
+  { id: "ketenaansprakelijkheid", label: "Ketenaansprakelijkheid: G-rekening / WKA-verklaring" }
 ];
 
 export type Kwalificatie = {

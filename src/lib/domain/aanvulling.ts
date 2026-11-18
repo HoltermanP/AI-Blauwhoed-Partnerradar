@@ -48,10 +48,10 @@ export const AANVULLING = aanvulling as AanvullingData;
 /** Kenmerktrefwoorden → factorwaarden (bron web, lage betrouwbaarheid; niveau 3 = aantoonbare ervaring volgens openbare bron). */
 const KENMERK_FACTOR: Record<string, { factorId: string; optieId?: string; waarde: number | boolean }> = {
   houtbouw: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 3 },
-  clt: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 4 },
+  clt: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 3 },
   hsb: { factorId: "bouwsysteem", optieId: "houtbouw", waarde: 3 },
   prefab: { factorId: "prefabricage", waarde: 3 },
-  modulair: { factorId: "prefabricage", waarde: 4 },
+  modulair: { factorId: "prefabricage", waarde: 3 },
   biobased: { factorId: "biobased", waarde: 30 },
   demontabel: { factorId: "demontabel", waarde: 3 },
   hoogbouw: { factorId: "projecttype", optieId: "hoogbouw", waarde: 3 },
