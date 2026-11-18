@@ -7,12 +7,11 @@ import { evaluatieTelt } from "./tevredenheid";
 
 const JAAR_MS = 365.25 * 24 * 3600 * 1000;
 
-/** Recentheidsgewicht: 1.0 voor projecten jonger dan 2 jaar, aflopend naar 0.4 na 5 jaar en 0.25 daarna. */
+/** Recentheidsgewicht (US-19): projecten van de laatste drie jaar tellen volledig, oudere voor de helft. */
+export const RECENT_JAREN = 3;
 export function recentheidsgewicht(datum: string, nu = new Date()) {
   const jaren = (nu.getTime() - new Date(datum).getTime()) / JAAR_MS;
-  if (jaren <= 2) return 1;
-  if (jaren <= 5) return 1 - ((jaren - 2) / 3) * 0.6;
-  return 0.25;
+  return jaren <= RECENT_JAREN ? 1 : 0.5;
 }
 
 function gewogenGemiddelde(items: Array<{ waarde: number; gewicht: number }>) {
@@ -172,7 +171,7 @@ export function leidFactorenAf(partner: Partner, db: Pick<Database, "engagements
     });
   }
 
-  // Evaluatiescore (US-21): gemiddelde van vier scores, gewogen naar recentheid
+  // Evaluatiescore (US-21): totale tevredenheidsscore per evaluatie, gewogen naar recentheid
   // US-63: de totale tevredenheidsscore (gemiddelde van de vijf deelscores of handmatig bijgesteld) weegt mee in de matchscore.
   const evals = evaluaties.map((ev) => ({
     waarde: totaalscore(ev),
@@ -185,13 +184,12 @@ export function leidFactorenAf(partner: Partner, db: Pick<Database, "engagements
       factorId: "evaluatiescore",
       waarde: Math.round(evaluatiescore * 10) / 10,
       bron: "evaluatie",
-      betrouwbaarheid: Math.min(0.95, 0.7 + evaluaties.length * 0.08),
+      betrouwbaarheid: BRON_BETROUWBAARHEID.evaluatie,
       bewijs: laatste ? { soort: "evaluatie", ref: laatste.id, label: `Evaluatie ${projectMap.get(laatste.projectId)?.naam ?? ""}`.trim() } : undefined,
       peildatum,
       afgeleid: true,
       toelichting: `${evaluaties.length} evaluatie(s), recente projecten wegen zwaarder.`
     });
-    // Duurzaamheidsprestatie uit evaluaties voedt circulariteit als zwak signaal? Nee: bewust niet, alleen expliciet.
   }
 
   // Afhankelijkheid (US-33): aandeel Blauwhoed in omzet partner, laatste 3 jaar
@@ -205,7 +203,7 @@ export function leidFactorenAf(partner: Partner, db: Pick<Database, "engagements
         factorId: "afhankelijkheid",
         waarde: blauwhoedAandeel,
         bron: "projecthistorie",
-        betrouwbaarheid: 0.8,
+        betrouwbaarheid: BRON_BETROUWBAARHEID.projecthistorie,
         peildatum,
         afgeleid: true,
         toelichting: `Gemiddelde jaarlijkse contractwaarde Blauwhoed (3 jr) gedeeld door jaaromzet.`
@@ -220,7 +218,7 @@ export function leidFactorenAf(partner: Partner, db: Pick<Database, "engagements
       factorId: "co2_ladder",
       waarde: co2.niveau,
       bron: "certificaat",
-      betrouwbaarheid: co2.geverifieerdOp ? 0.98 : 0.85,
+      betrouwbaarheid: BRON_BETROUWBAARHEID.certificaat,
       bewijs: { soort: "certificaat", ref: co2.id, label: `CO2-prestatieladder ${co2.nummer}` },
       peildatum,
       afgeleid: true
@@ -233,7 +231,7 @@ export function leidFactorenAf(partner: Partner, db: Pick<Database, "engagements
       factorId: "financiele_gezondheid",
       waarde: partner.financieel.risicoklasse,
       bron: "opgave",
-      betrouwbaarheid: 0.8,
+      betrouwbaarheid: BRON_BETROUWBAARHEID.opgave,
       peildatum,
       afgeleid: true,
       toelichting: partner.financieel.toelichting

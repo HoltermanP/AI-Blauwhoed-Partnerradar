@@ -75,7 +75,8 @@ import { externeBedrijfsLinks } from "../src/lib/domain/webzoek";
 import { CATEGORIEEN, categorieVan } from "../src/lib/domain/kosten";
 
 import { aiVerwerking } from "../src/lib/aiplatform";
-import { dempVoorDekking } from "../src/lib/domain/matching";
+import { dempVoorDekking, fitVoor } from "../src/lib/domain/matching";
+import { recentheidsgewicht } from "../src/lib/domain/derive";
 import { GEWICHTSPROFIELEN, gelijkeGewichten, pasErvaringsgewichtToe, teamWeging } from "../src/lib/domain/gewichten";
 import { herinneringDagen, isVerantwoordelijke } from "../src/lib/domain/evaluatieproces";
 import { genoemdePartners, isLinkedIn } from "../src/lib/domain/externprojecten";
@@ -880,6 +881,16 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
   check("US-21 eigen ervaring wordt toegevoegd waar ze ontbrak", zonderEv.some((e) => e.factorId === "evaluatiescore" && e.gewicht === 20) && valideerGewichten(zonderEv, dbD.factoren).geldig);
   const tw = teamWeging(40);
   check("US-17 samenwerking in de teamscore instelbaar", Math.abs(tw.kwaliteit + tw.samenwerking + tw.nabijheid + tw.beschikbaarheid - 1) < 1e-9 && tw.samenwerking === 0.4);
+
+  // Vereenvoudigen blok 3: evenredige fit, twee recentheidsniveaus, gelijke teamaandelen
+  {
+    const mpg = fitVoor({ schaal: { soort: "getal", eenheid: "x", lagerIsBeter: true } } as never, 0.5, 0.5).fit === 1 && Math.abs(fitVoor({ schaal: { soort: "getal", eenheid: "x", lagerIsBeter: true } } as never, 0.5, 1).fit - 0.5) < 1e-9;
+    check("Fit: lager-is-beter is evenredig (gevraagd/gemeten), hoger-is-beter ook", mpg && fitVoor({ schaal: { soort: "getal", eenheid: "x" } } as never, 4, 2).fit === 0.5);
+    const nu = new Date("2026-11-18");
+    check("Recentheid: laatste 3 jaar 1, daarna 0,5", recentheidsgewicht("2025-01-01", nu) === 1 && recentheidsgewicht("2020-01-01", nu) === 0.5);
+    const tw2 = teamWeging(25);
+    check("Teamweging: rest gelijk verdeeld over kwaliteit, nabijheid en beschikbaarheid", Math.abs(tw2.kwaliteit - tw2.nabijheid) < 1e-9 && Math.abs(tw2.nabijheid - tw2.beschikbaarheid) < 1e-9 && Math.abs(tw2.kwaliteit - 0.25) < 1e-9);
+  }
 
   // US-20: eigenaarschap
   check("US-20 verantwoordelijke op naam of e-mail", isVerantwoordelijke({ verantwoordelijke: "Jan Smit" }, { naam: "jan smit" }) && isVerantwoordelijke({ verantwoordelijke: "j.smit@blauwhoed.nl" }, { naam: "X", email: "J.Smit@blauwhoed.nl" }) && !isVerantwoordelijke({}, { naam: "x" }));

@@ -102,10 +102,9 @@ export function fitVoor(factor: Factor, gevraagd: FactorWaarde, waarde: FactorWa
       const g = asNumber(gevraagd);
       const w = asNumber(waarde);
       if (g === null || w === null) return { fit: 0, toelichting: "Niet vergelijkbaar." };
-      const bereik = (s.max ?? Math.max(g, w) * 2) - (s.min ?? 0) || 1;
       if (s.lagerIsBeter) {
         if (w <= g) return { fit: 1, toelichting: `${w} ${s.eenheid} ≤ gevraagd ${g}.` };
-        return { fit: Math.max(0, 1 - (w - g) / (bereik * 0.5)), toelichting: `${w} ${s.eenheid} ligt boven gevraagd ${g}.` };
+        return { fit: g > 0 && w > 0 ? g / w : 0, toelichting: `${w} ${s.eenheid} ligt boven gevraagd ${g}.` };
       }
       if (w >= g) return { fit: 1, toelichting: `${w} ${s.eenheid} ≥ gevraagd ${g}.` };
       return { fit: Math.max(0, w / g), toelichting: `${w} ${s.eenheid} onder gevraagd ${g}.` };
@@ -115,7 +114,7 @@ export function fitVoor(factor: Factor, gevraagd: FactorWaarde, waarde: FactorWa
       const w = asNumber(waarde) ?? 0;
       if (s.lagerIsBeter) {
         if (w <= g) return { fit: 1, toelichting: `${w}% ≤ gevraagd ${g}%.` };
-        return { fit: Math.max(0, 1 - (w - g) / Math.max(g, 10) / 2), toelichting: `${w}% boven gevraagd ${g}%.` };
+        return { fit: g > 0 && w > 0 ? g / w : 0, toelichting: `${w}% boven gevraagd ${g}%.` };
       }
       if (w >= g) return { fit: 1, toelichting: `${w}% ≥ gevraagd ${g}%.` };
       return { fit: g ? w / g : 1, toelichting: `${w}% onder gevraagd ${g}%.` };

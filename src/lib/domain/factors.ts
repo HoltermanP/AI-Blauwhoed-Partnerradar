@@ -319,7 +319,7 @@ export const FACTOREN: Factor[] = [
     id: "evaluatiescore",
     code: "F1",
     naam: "Evaluatiescore",
-    omschrijving: "Gemiddelde van kwaliteit, planning, budget en samenwerking; recentere projecten wegen zwaarder.",
+    omschrijving: "Totale tevredenheidsscore (standaard het gemiddelde van de vijf deelscores) uit geaccepteerde evaluaties; recente projecten wegen zwaarder.",
     categorie: "F. Samenwerking en gedrag",
     type: "gewogen",
     schaal: { soort: "getal", eenheid: "1–5", min: 1, max: 5 },

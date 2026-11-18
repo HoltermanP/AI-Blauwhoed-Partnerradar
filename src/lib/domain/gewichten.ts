@@ -109,9 +109,9 @@ export function pasErvaringsgewichtToe(eisen: RequirementFactor[], pct: number, 
   return lijst.filter((e) => !(e === ev && p === 0));
 }
 
-/** Aandelen van de teamscore: kwaliteit, samenwerkingshistorie, nabijheid en beschikbaarheid (som 1). */
+/** Aandelen van de teamscore (som 1): samenwerkingshistorie is instelbaar, de rest wordt gelijk verdeeld over kwaliteit, nabijheid en beschikbaarheid. */
 export function teamWeging(samenwerkingPct = 25) {
   const s = Math.max(0, Math.min(70, samenwerkingPct)) / 100;
-  const rest = 1 - s;
-  return { kwaliteit: (rest * 50) / 75, samenwerking: s, nabijheid: (rest * 15) / 75, beschikbaarheid: (rest * 10) / 75 };
+  const deel = (1 - s) / 3;
+  return { kwaliteit: deel, samenwerking: s, nabijheid: deel, beschikbaarheid: deel };
 }
