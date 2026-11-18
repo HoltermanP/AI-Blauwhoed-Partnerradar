@@ -7,10 +7,10 @@ import { kostenEur } from "./kosten";
 import { FACTOREN } from "./factors";
 import { productFactoren } from "./partnerimport";
 import { STANDAARD_BRANCHEBRONNEN, STANDAARD_UPCOMING_BRONNEN, hostVan } from "./bronbeleid";
-import { NIEUWE_TYPES } from "./gewichten";
+import { GEWICHTSPROFIELEN, NIEUWE_TYPES } from "./gewichten";
 import type { Database, Geo, Rol } from "./types";
 
-export const HUIDIGE_VERSIE = 15;
+export const HUIDIGE_VERSIE = 16;
 
 /** Stabiel, naam-gebaseerd ID (bijv. p-giesbers-wijchen). Gelijk op elke instantie en bij elke herstart. */
 export function stabielId(prefix: string, hint: string) {
@@ -223,6 +223,7 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
 
   if (van < 14) migreerV14(db, nu);
   if (van < 15) migreerV15();
+  if (van < 16) migreerV16(db, nu);
 
   db.versie = HUIDIGE_VERSIE;
   db.audit.unshift({ id: `audit-migratie-${HUIDIGE_VERSIE}`, op: nu.toISOString(), door: "systeem", gebruikersrol: "beheerder", entiteit: "database", entiteitId: "migratie", actie: `database gemigreerd van versie ${van} naar ${HUIDIGE_VERSIE}`, details: `${uitkomst.hernoemd} partner-IDs stabiel gemaakt${uitkomst.aanvulling ? `; aanvulling: ${uitkomst.aanvulling.partnersNieuw} partners, ${uitkomst.aanvulling.projectenNieuw} projecten` : ""}` });
@@ -244,6 +245,31 @@ export function migreerDatabase(db: Database, locaties: Map<string, Geo | null>,
  */
 export function migreerV15() {
   return 0;
+}
+
+/**
+ * v16 (vereenvoudigen): factoren zonder grondslag in de opdracht of de brondata worden gearchiveerd (gegevens blijven staan,
+ * de beheerder kan ze terugzetten) en de ongewijzigde standaardprofielen krijgen de gelijke verdeling. Profielen die een
+ * beheerder heeft aangepast (versie > 1) blijven ongemoeid.
+ */
+export function migreerV16(db: Database, nu = new Date()) {
+  let gearchiveerd = 0;
+  FACTOREN.filter((f) => !f.actief).forEach((nieuw) => {
+    const f = db.factoren.find((x) => x.id === nieuw.id);
+    if (!f || !f.actief) return;
+    f.actief = false;
+    f.gearchiveerdOp = nu.toISOString();
+    f.versie += 1;
+    gearchiveerd++;
+  });
+  let profielen = 0;
+  GEWICHTSPROFIELEN.forEach((nieuw) => {
+    const i = db.gewichtsprofielen.findIndex((p) => p.id === nieuw.id);
+    if (i < 0 || db.gewichtsprofielen[i].versie > 1) return;
+    db.gewichtsprofielen[i] = structuredClone(nieuw);
+    profielen++;
+  });
+  return { gearchiveerd, profielen };
 }
 
 export function migreerV14(db: Database, nu = new Date()) {

@@ -155,9 +155,6 @@ export function rijNaarPartner(r: ImportRij, bron: Bron = "opgave", betrouwbaarh
   if (/koop/.test(doelgroep)) zet("prijssegment", 3, "koop");
   if (/vrije/.test(doelgroep)) zet("prijssegment", 3, "vrije sector");
 
-  const bio2 = kolom(r, "biodiversiteit").toLowerCase();
-  if (bio2 && !/nee|n\.?v\.?t|geen/.test(bio2)) zet("natuurinclusief", 3, undefined, `Biodiversiteit: ${bio2}`);
-
   const omvang = kolom(r, "omvang").toLowerCase();
   const medewerkers = getal(kolom(r, "medewerkers", "aantal medewerkers", "fte"));
   const omzet = getal(kolom(r, "omzet"));

@@ -69,14 +69,14 @@ import { openstaandeEvaluaties } from "../src/lib/domain/evaluatieproces";
 import { teamCombinaties } from "../src/lib/domain/verbanden";
 import { bewezenTeams } from "../src/lib/domain/team";
 import { importeerProjecten } from "../src/lib/domain/projectimport";
-import { migreerV14 } from "../src/lib/domain/migratie";
+import { migreerV14, migreerV16 } from "../src/lib/domain/migratie";
 import { beoordeelRelevantie, isUitgeslotenDomein, zoektermenVoorProject } from "../src/lib/domain/relevantie";
 import { externeBedrijfsLinks } from "../src/lib/domain/webzoek";
 import { CATEGORIEEN, categorieVan } from "../src/lib/domain/kosten";
 
 import { aiVerwerking } from "../src/lib/aiplatform";
 import { dempVoorDekking } from "../src/lib/domain/matching";
-import { pasErvaringsgewichtToe, teamWeging } from "../src/lib/domain/gewichten";
+import { GEWICHTSPROFIELEN, gelijkeGewichten, pasErvaringsgewichtToe, teamWeging } from "../src/lib/domain/gewichten";
 import { herinneringDagen, isVerantwoordelijke } from "../src/lib/domain/evaluatieproces";
 import { genoemdePartners, isLinkedIn } from "../src/lib/domain/externprojecten";
 
@@ -806,6 +806,27 @@ check("OTAP database-aanduiding toont het Neon-endpoint", databaseAanduiding("po
   migreerV14(dbM);
   check("US-01 migratie v14: nieuwe factoren, type houtbouwer en productkenmerken uit brondata", dbM.factoren.some((f) => f.id === "paris_proof") && dbM.partners[0].rollen.includes("houtbouwer") && dbM.partners[0].factoren.some((f) => f.factorId === "paris_proof" && f.waarde === 180));
   check("US-12/US-21 migratie v14: branchebronnen en evaluatiestatus", dbM.instellingen.verrijkingsbronnen.some((b) => b.categorie === "branche" && b.rang === 2) && dbM.evaluaties.every((e) => e.status === "geaccepteerd"));
+
+  // Vereenvoudigen blok 2: gelijke gewichten, factoren zonder herkomst gearchiveerd, migratie v16
+  {
+    const somKlopt = GEWICHTSPROFIELEN.every((pr) => Object.values(pr.perRol).every((eisen) => eisen!.reduce((t, e) => t + e.gewicht, 0) === 100));
+    const gelijk = GEWICHTSPROFIELEN.every((pr) => Object.values(pr.perRol).every((eisen) => Math.max(...eisen!.map((e) => e.gewicht)) - Math.min(...eisen!.map((e) => e.gewicht)) <= 1));
+    check("Profielen: gewichten per rol tellen op tot 100 en zijn gelijk verdeeld", somKlopt && gelijk);
+    check("gelijkeGewichten: 100 over 3 = 34/33/33", gelijkeGewichten([{ factorId: "a", gevraagd: 1, gewicht: 0 }, { factorId: "b", gevraagd: 1, gewicht: 0 }, { factorId: "c", gevraagd: 1, gewicht: 0 }]).map((e) => e.gewicht).join("/") === "34/33/33");
+    const dbA = maakSeedDatabase();
+    const archief = ["fase_expertise", "welstand", "gevel", "signatuur", "natuurinclusief", "bim", "circulariteit", "bouwteam", "prijsniveau"];
+    check("Factoren zonder grondslag staan gearchiveerd", archief.every((id) => dbA.factoren.find((f) => f.id === id)?.actief === false));
+    const gebruikt = new Set(GEWICHTSPROFIELEN.flatMap((pr) => Object.values(pr.perRol).flatMap((eisen) => eisen!.map((e) => e.factorId))));
+    check("Standaardprofielen gebruiken geen gearchiveerde factor", archief.every((id) => !gebruikt.has(id)));
+    // Oude database: alle factoren actief, profiel met oude gewichten (versie 1) en een door de beheerder aangepast profiel (versie 2)
+    const dbO = maakSeedDatabase();
+    dbO.factoren.forEach((f) => { f.actief = true; f.gearchiveerdOp = undefined; });
+    dbO.gewichtsprofielen[0].perRol.architect![0].gewicht = 55;
+    dbO.gewichtsprofielen[1].versie = 2;
+    dbO.gewichtsprofielen[1].perRol.architect![0].gewicht = 55;
+    const uit = migreerV16(dbO);
+    check("Migratie v16: factoren gearchiveerd, ongewijzigd profiel vervangen, aangepast profiel blijft", uit.gearchiveerd === archief.length && dbO.factoren.find((f) => f.id === "bim")?.actief === false && dbO.gewichtsprofielen[0].perRol.architect![0].gewicht !== 55 && dbO.gewichtsprofielen[1].perRol.architect![0].gewicht === 55, uit);
+  }
 
   // Discovery: alleen echte bouwpartners
   {

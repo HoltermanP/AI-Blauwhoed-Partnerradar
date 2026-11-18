@@ -53,14 +53,10 @@ const KENMERK_FACTOR: Record<string, { factorId: string; optieId?: string; waard
   prefab: { factorId: "prefabricage", waarde: 3 },
   modulair: { factorId: "prefabricage", waarde: 4 },
   biobased: { factorId: "biobased", waarde: 30 },
-  circulair: { factorId: "circulariteit", waarde: 3 },
   demontabel: { factorId: "demontabel", waarde: 3 },
-  natuurinclusief: { factorId: "natuurinclusief", waarde: 3 },
   hoogbouw: { factorId: "projecttype", optieId: "hoogbouw", waarde: 3 },
   transformatie: { factorId: "projecttype", optieId: "transformatie", waarde: 3 },
   zorgwonen: { factorId: "projecttype", optieId: "zorgwonen", waarde: 3 },
-  bim: { factorId: "bim", waarde: 3 },
-  bouwteam: { factorId: "bouwteam", waarde: 3 }
 };
 
 export function aanvullingPlaatsen(): string[] {

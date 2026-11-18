@@ -23,13 +23,13 @@ function kiesProfiel(project: Project, profielen: Gewichtsprofiel[]) {
   return { profiel: wil("grondgebonden-uitleg"), reden: "grondgebonden/uitleg programma" };
 }
 
+/** Gelijke verdeling van 100% over de gewogen eisen (de beheerder of gebruiker past het daarna aan). */
 function normaliseer(eisen: RequirementFactor[], factoren: Factor[]) {
   const gewogen = eisen.filter((e) => factoren.find((f) => f.id === e.factorId)?.type === "gewogen");
-  const som = gewogen.reduce((s, e) => s + e.gewicht, 0) || 1;
-  let rest = 100;
+  const basis = Math.floor(100 / (gewogen.length || 1));
+  const rest = 100 - basis * gewogen.length;
   gewogen.forEach((e, i) => {
-    e.gewicht = i === gewogen.length - 1 ? rest : Math.round((e.gewicht / som) * 100);
-    rest -= e.gewicht;
+    e.gewicht = basis + (i < rest ? 1 : 0);
   });
   return eisen;
 }
@@ -92,17 +92,20 @@ export function leidEisenAf(project: Project, factoren: Factor[], profielen: Gew
     });
 
   // Kenmerken voor de partnerfilter
-  kenmerken.push({ factorId: "projecttype", optieId: project.type, min: 2, label: `Ervaring met ${project.type} (≥2)` });
-  if (project.ambitieDuurzaamheid >= 4) kenmerken.push({ factorId: "circulariteit", min: ambitieNiveau - 2, label: `Circulariteit ≥${ambitieNiveau - 2}` });
-  if (project.ambitieDuurzaamheid === 5) kenmerken.push({ factorId: "mpg", min: 0.5, label: "MPG ≤ 0,5" });
-  if (woorden.has("houtbouw")) kenmerken.push({ factorId: "bouwsysteem", optieId: "houtbouw", min: 3, label: "Houtbouw ≥3" });
-  if (woorden.has("demontabel")) kenmerken.push({ factorId: "demontabel", min: 3, label: "Demontabel ≥3" });
-  if (woorden.has("prefab")) kenmerken.push({ factorId: "prefabricage", min: 3, label: "Prefabricage ≥3" });
-  if (woorden.has("welstand")) kenmerken.push({ factorId: "welstand", min: 3, label: "Welstandservaring ≥3" });
-  if (woorden.has("natuurinclusief")) kenmerken.push({ factorId: "natuurinclusief", min: 3, label: "Natuurinclusief ≥3" });
+  const kenmerk = (k: AfgeleideEisen["kenmerken"][number]) => {
+    if (heeft(k.factorId)) kenmerken.push(k);
+  };
+  kenmerk({ factorId: "projecttype", optieId: project.type, min: 2, label: `Ervaring met ${project.type} (≥2)` });
+  if (project.ambitieDuurzaamheid >= 4) kenmerk({ factorId: "circulariteit", min: ambitieNiveau - 2, label: `Circulariteit ≥${ambitieNiveau - 2}` });
+  if (project.ambitieDuurzaamheid === 5) kenmerk({ factorId: "mpg", min: 0.5, label: "MPG ≤ 0,5" });
+  if (woorden.has("houtbouw")) kenmerk({ factorId: "bouwsysteem", optieId: "houtbouw", min: 3, label: "Houtbouw ≥3" });
+  if (woorden.has("demontabel")) kenmerk({ factorId: "demontabel", min: 3, label: "Demontabel ≥3" });
+  if (woorden.has("prefab")) kenmerk({ factorId: "prefabricage", min: 3, label: "Prefabricage ≥3" });
+  if (woorden.has("welstand")) kenmerk({ factorId: "welstand", min: 3, label: "Welstandservaring ≥3" });
+  if (woorden.has("natuurinclusief")) kenmerk({ factorId: "natuurinclusief", min: 3, label: "Natuurinclusief ≥3" });
 
   toelichting.push(`Projecttype '${project.type}' en omvang ${project.woningen} woningen zijn als eis gezet; bouwstijl '${project.bouwstijl}' voor de architect.`);
-  if (project.ambitieDuurzaamheid >= 4) toelichting.push(`Duurzaamheidsambitie ${project.ambitieDuurzaamheid}/5 vertaald naar drempels op circulariteit${project.ambitieDuurzaamheid === 5 ? ", MPG ≤ 0,5" : ""} en BENG.`);
+  if (project.ambitieDuurzaamheid >= 4) toelichting.push(`Duurzaamheidsambitie ${project.ambitieDuurzaamheid}/5 vertaald naar drempels op ${project.ambitieDuurzaamheid === 5 ? "MPG (≤ 0,5) en " : ""}BENG.`);
   const gevonden = ["houtbouw", "prefab", "demontabel", "natuurinclusief", "welstand", "bouwteam"].filter((w) => woorden.has(w));
   if (gevonden.length) toelichting.push(`Uit de omschrijving herkend: ${gevonden.join(", ")}.`);
   toelichting.push("Gewichten zijn per rol herverdeeld tot 100%. Controleer en pas aan voordat u opslaat.");

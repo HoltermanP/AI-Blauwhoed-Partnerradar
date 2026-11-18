@@ -1,21 +1,25 @@
 // Standaard gewichtsprofielen (US-10). Gewichten per rol tellen op tot 100.
 import type { Gewichtsprofiel, RequirementFactor, Rol } from "./types";
 
-const r = (factorId: string, gewicht: number, gevraagd: RequirementFactor["gevraagd"], optieId?: string, minimumeis?: boolean): RequirementFactor => ({
-  factorId,
-  optieId,
-  gevraagd,
-  gewicht,
-  minimumeis
-});
+/** Eis zonder gewicht: het gewicht volgt uit `gelijkeGewichten`. */
+const r = (factorId: string, gevraagd: RequirementFactor["gevraagd"], optieId?: string): RequirementFactor => ({ factorId, optieId, gevraagd, gewicht: 0 });
+
+/** Standaardweging: 100% gelijk verdeeld over de gekozen factoren (de rest van de verdeling gaat naar de eerste). Aanpasbaar per project. */
+export function gelijkeGewichten(eisen: RequirementFactor[]): RequirementFactor[] {
+  const n = eisen.length || 1;
+  const basis = Math.floor(100 / n);
+  const rest = 100 - basis * n;
+  return eisen.map((e, i) => ({ ...e, gewicht: basis + (i < rest ? 1 : 0) }));
+}
 
 function profiel(
   id: string,
   naam: string,
   omschrijving: string,
-  perRol: Partial<Record<Rol, RequirementFactor[]>>,
+  invoer: Partial<Record<Rol, RequirementFactor[]>>,
   semantischGewicht = 15
 ): Gewichtsprofiel {
+  const perRol = Object.fromEntries(Object.entries(invoer).map(([rol, eisen]) => [rol, gelijkeGewichten(eisen)])) as Partial<Record<Rol, RequirementFactor[]>>;
   return {
     id,
     naam,
@@ -29,87 +33,48 @@ function profiel(
 }
 
 /**
- * Houtbouwer en constructeur (demo oktober 2026, US-01/US-14): in elk standaardprofiel dezelfde startweging. Voorlopig; de
- * definitieve standaardweging wacht op de criteriadefinitie van het team (US-17).
+ * Houtbouwer en constructeur (demo oktober 2026, US-01/US-14): in elk standaardprofiel dezelfde startweging, gelijk verdeeld.
+ * De definitieve standaardweging wacht op de criteriadefinitie van het team (US-17).
  */
 export const NIEUWE_TYPES: Partial<Record<Rol, RequirementFactor[]>> = {
-  houtbouwer: [r("mpg", 15, 0.8), r("paris_proof", 20, 250), r("levertijd", 15, 26), r("productietijd", 10, 16), r("kosten_m2", 15, 1800), r("evaluatiescore", 25, 4)],
-  constructeur: [r("bouwsysteem", 35, 3, "houtbouw"), r("bim", 25, 3), r("demontabel", 15, 2), r("evaluatiescore", 25, 4)]
+  houtbouwer: gelijkeGewichten([r("mpg", 0.8), r("paris_proof", 250), r("levertijd", 26), r("productietijd", 16), r("kosten_m2", 1800), r("evaluatiescore", 4)]),
+  constructeur: gelijkeGewichten([r("bouwsysteem", 3, "houtbouw"), r("demontabel", 2), r("evaluatiescore", 4)])
 };
 
+// De vier standaardprofielen uit US-10. Per rol de bepalende factoren, gelijk gewogen; de gevraagde niveaus (4 = specialisme,
+// 3 = aantoonbare ervaring) en drempels zijn startwaarden die de gebruiker per project aanpast.
 export const GEWICHTSPROFIELEN: Gewichtsprofiel[] = [
-  profiel(
-    "binnenstedelijk-hoogbouw",
-    "Binnenstedelijk hoogbouw",
-    "Complexe stedelijke context: hoogbouwervaring, planningsbetrouwbaarheid en BIM wegen zwaar.",
-    {
-      architect: [
-        r("projecttype", 30, 4, "hoogbouw"),
-        r("architectuurstijl", 20, 3, "hoogstedelijk"),
-        r("welstand", 15, 3),
-        r("bim", 15, 3),
-        r("evaluatiescore", 20, 4)
-      ],
-      aannemer: [
-        r("projecttype", 25, 4, "hoogbouw"),
-        r("planningsbetrouwbaarheid", 20, 80),
-        r("kostenvastheid", 15, 5),
-        r("bim", 10, 3),
-        r("evaluatiescore", 20, 4),
-        r("reisafstand", 10, 50)
-      ],
-      installateur: [r("projecttype", 30, 3, "hoogbouw"), r("beng", 25, 30), r("bim", 20, 3), r("evaluatiescore", 25, 4)],
-      adviseur: [r("projecttype", 35, 3, "hoogbouw"), r("fase_expertise", 25, 3, "planvorming"), r("bim", 15, 3), r("evaluatiescore", 25, 4)],
-      leverancier: [r("prefabricage", 40, 3), r("projecttype", 30, 3, "hoogbouw"), r("evaluatiescore", 30, 4)]
-    }
-  ),
-  profiel(
-    "grondgebonden-uitleg",
-    "Grondgebonden uitleg",
-    "Uitleglocatie met grondgebonden woningen: conceptbouw, prijsniveau en kostenvastheid bepalend.",
-    {
-      architect: [r("projecttype", 30, 4, "grondgebonden"), r("conceptbouw", 25, 3), r("architectuurstijl", 20, 3, "dorps"), r("evaluatiescore", 25, 4)],
-      aannemer: [
-        r("projecttype", 25, 4, "grondgebonden"),
-        r("conceptbouw", 20, 3),
-        r("prijsniveau", 20, 100),
-        r("kostenvastheid", 15, 5),
-        r("evaluatiescore", 20, 4)
-      ],
-      installateur: [r("projecttype", 35, 3, "grondgebonden"), r("prijsniveau", 25, 100), r("beng", 20, 30), r("evaluatiescore", 20, 4)],
-      adviseur: [r("projecttype", 40, 3, "grondgebonden"), r("fase_expertise", 30, 3, "planvorming"), r("evaluatiescore", 30, 4)],
-      leverancier: [r("conceptbouw", 40, 3), r("prefabricage", 30, 3), r("prijsniveau", 30, 100)]
-    }
-  ),
-  profiel(
-    "transformatie",
-    "Transformatie",
-    "Herbestemming van bestaand vastgoed: welstand, transformatie-ervaring en flexibiliteit.",
-    {
-      architect: [r("projecttype", 35, 4, "transformatie"), r("welstand", 25, 3), r("circulariteit", 15, 3), r("evaluatiescore", 25, 4)],
-      aannemer: [r("projecttype", 35, 4, "transformatie"), r("bouwteam", 20, 3), r("kostenvastheid", 20, 5), r("evaluatiescore", 25, 4)],
-      installateur: [r("projecttype", 40, 3, "transformatie"), r("beng", 25, 35), r("evaluatiescore", 35, 4)],
-      adviseur: [r("projecttype", 40, 3, "transformatie"), r("welstand", 30, 3), r("evaluatiescore", 30, 4)],
-      leverancier: [r("projecttype", 50, 3, "transformatie"), r("evaluatiescore", 50, 4)]
-    }
-  ),
+  profiel("binnenstedelijk-hoogbouw", "Binnenstedelijk hoogbouw", "Complexe stedelijke context: hoogbouwervaring en planningsbetrouwbaarheid wegen mee.", {
+    architect: [r("projecttype", 4, "hoogbouw"), r("architectuurstijl", 3, "hoogstedelijk"), r("evaluatiescore", 4)],
+    aannemer: [r("projecttype", 4, "hoogbouw"), r("planningsbetrouwbaarheid", 80), r("kostenvastheid", 5), r("evaluatiescore", 4), r("reisafstand", 50)],
+    installateur: [r("projecttype", 3, "hoogbouw"), r("beng", 30), r("evaluatiescore", 4)],
+    adviseur: [r("projecttype", 3, "hoogbouw"), r("evaluatiescore", 4)],
+    leverancier: [r("prefabricage", 3), r("projecttype", 3, "hoogbouw"), r("evaluatiescore", 4)]
+  }),
+  profiel("grondgebonden-uitleg", "Grondgebonden uitleg", "Uitleglocatie met grondgebonden woningen: conceptbouw en kostenvastheid bepalend.", {
+    architect: [r("projecttype", 4, "grondgebonden"), r("conceptbouw", 3), r("architectuurstijl", 3, "dorps"), r("evaluatiescore", 4)],
+    aannemer: [r("projecttype", 4, "grondgebonden"), r("conceptbouw", 3), r("kostenvastheid", 5), r("evaluatiescore", 4)],
+    installateur: [r("projecttype", 3, "grondgebonden"), r("beng", 30), r("evaluatiescore", 4)],
+    adviseur: [r("projecttype", 3, "grondgebonden"), r("evaluatiescore", 4)],
+    leverancier: [r("conceptbouw", 3), r("prefabricage", 3), r("evaluatiescore", 4)]
+  }),
+  profiel("transformatie", "Transformatie", "Herbestemming van bestaand vastgoed: transformatie-ervaring en kostenvastheid.", {
+    architect: [r("projecttype", 4, "transformatie"), r("evaluatiescore", 4)],
+    aannemer: [r("projecttype", 4, "transformatie"), r("kostenvastheid", 5), r("evaluatiescore", 4)],
+    installateur: [r("projecttype", 3, "transformatie"), r("beng", 35), r("evaluatiescore", 4)],
+    adviseur: [r("projecttype", 3, "transformatie"), r("evaluatiescore", 4)],
+    leverancier: [r("projecttype", 3, "transformatie"), r("evaluatiescore", 4)]
+  }),
   profiel(
     "houtbouw-biobased",
     "Houtbouw / biobased",
-    "Duurzaamheid als hoofdambitie: houtbouw, MPG, biobased en circulariteit wegen zwaar.",
+    "Duurzaamheid als hoofdambitie: houtbouw, MPG en biobased wegen zwaar.",
     {
-      architect: [r("bouwsysteem", 30, 4, "houtbouw"), r("mpg", 20, 0.5), r("biobased", 20, 40), r("circulariteit", 15, 3), r("evaluatiescore", 15, 4)],
-      aannemer: [
-        r("bouwsysteem", 30, 4, "houtbouw"),
-        r("mpg", 20, 0.5),
-        r("biobased", 15, 40),
-        r("prefabricage", 10, 3),
-        r("evaluatiescore", 15, 4),
-        r("kostenvastheid", 10, 5)
-      ],
-      installateur: [r("beng", 35, 25), r("bouwsysteem", 25, 3, "houtbouw"), r("bim", 15, 3), r("evaluatiescore", 25, 4)],
-      adviseur: [r("mpg", 35, 0.5), r("circulariteit", 25, 3), r("bouwsysteem", 20, 3, "houtbouw"), r("evaluatiescore", 20, 4)],
-      leverancier: [r("bouwsysteem", 40, 4, "houtbouw"), r("biobased", 30, 50), r("prefabricage", 30, 4)]
+      architect: [r("bouwsysteem", 4, "houtbouw"), r("mpg", 0.5), r("biobased", 40), r("evaluatiescore", 4)],
+      aannemer: [r("bouwsysteem", 4, "houtbouw"), r("mpg", 0.5), r("biobased", 40), r("prefabricage", 3), r("kostenvastheid", 5), r("evaluatiescore", 4)],
+      installateur: [r("beng", 25), r("bouwsysteem", 3, "houtbouw"), r("evaluatiescore", 4)],
+      adviseur: [r("mpg", 0.5), r("bouwsysteem", 3, "houtbouw"), r("evaluatiescore", 4)],
+      leverancier: [r("bouwsysteem", 4, "houtbouw"), r("biobased", 50), r("prefabricage", 4)]
     },
     20
   )

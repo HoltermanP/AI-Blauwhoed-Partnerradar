@@ -12,10 +12,10 @@ import type { BasisVeld, Database, Factor, GoudstandaardProfiel, GoudstandaardVe
 const STANDAARD_FACTOREN: Record<Rol, { verplicht: string[]; gewenst: string[] }> = {
   houtbouwer: { verplicht: ["mpg", "paris_proof", "productietijd", "levertijd", "kosten_m2", "productinformatie"], gewenst: ["bouwsysteem", "prefabricage", "biobased", "demontabel"] },
   architect: { verplicht: ["projecttype"], gewenst: ["architectuurstijl", "biobased"] },
-  aannemer: { verplicht: ["projecttype", "bouwsysteem"], gewenst: ["prefabricage", "mpg", "co2_ladder", "bouwteam"] },
-  installateur: { verplicht: ["projecttype", "beng"], gewenst: ["co2_ladder", "bim"] },
-  adviseur: { verplicht: ["projecttype"], gewenst: ["circulariteit", "bim"] },
-  constructeur: { verplicht: ["projecttype", "bouwsysteem"], gewenst: ["demontabel", "bim"] },
+  aannemer: { verplicht: ["projecttype", "bouwsysteem"], gewenst: ["prefabricage", "mpg", "co2_ladder"] },
+  installateur: { verplicht: ["projecttype", "beng"], gewenst: ["co2_ladder"] },
+  adviseur: { verplicht: ["projecttype"], gewenst: [] },
+  constructeur: { verplicht: ["projecttype", "bouwsysteem"], gewenst: ["demontabel"] },
   leverancier: { verplicht: ["bouwsysteem", "productinformatie"], gewenst: ["prefabricage", "biobased", "levertijd", "kosten_m2"] },
   ontwikkelpartner: { verplicht: ["projecttype"], gewenst: ["prijssegment", "conceptbouw"] }
 };
@@ -30,7 +30,7 @@ const STANDAARD_BASIS = (rol: Rol): GoudstandaardVeld[] => [
 ];
 
 export function standaardGoudstandaard(rol: Rol, factoren: Factor[], nu = new Date()): GoudstandaardProfiel {
-  const bestaand = new Set(factoren.map((f) => f.id));
+  const bestaand = new Set(factoren.filter((f) => f.actief).map((f) => f.id));
   const set = STANDAARD_FACTOREN[rol];
   const velden: GoudstandaardVeld[] = [
     ...STANDAARD_BASIS(rol),

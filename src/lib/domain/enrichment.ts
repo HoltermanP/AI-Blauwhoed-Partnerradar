@@ -17,9 +17,6 @@ const REGELS: Regel[] = [
   { factorId: "bouwsysteem", optieId: "prefab_beton", veld: "Bouwsysteem: prefab beton", patroon: /prefab\s?beton/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
   { factorId: "prefabricage", veld: "Prefabricagegraad", patroon: /(modulair|fabrieksmatig|prefab|industrieel bouwen)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(\d{2,3}\s?%|fabriek)/i.test(ctx) },
   { factorId: "demontabel", veld: "Demontabel bouwen", patroon: /(demontabel|remontabel|losmaakbaar)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(materialenpaspoort|madaster|losmaakbaarheidsindex)/i.test(ctx) },
-  { factorId: "circulariteit", veld: "Circulariteit", patroon: /(circulair|materialenpaspoort|madaster)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(materialenpaspoort|madaster|gerealiseerd)/i.test(ctx) },
-  { factorId: "natuurinclusief", veld: "Natuurinclusief", patroon: /(natuurinclusief|klimaatadaptief|biodiversiteit)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(gerealiseerd|opgeleverd|scan|rapport)/i.test(ctx) },
-  { factorId: "bim", veld: "BIM-niveau", patroon: /bim[^0-9]{0,15}(niveau|level)\s?([0-3])/i, waarde: (m) => Number(m[2]) + 1, aantoonbaar: (_m, ctx) => /(certificaat|protocol|ilS)/i.test(ctx) },
   { factorId: "projecttype", optieId: "hoogbouw", veld: "Projecttype: hoogbouw", patroon: /(hoogbouw|woontoren)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
   { factorId: "projecttype", optieId: "transformatie", veld: "Projecttype: transformatie", patroon: /(transformatie|herbestemming)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) },
   { factorId: "projecttype", optieId: "zorgwonen", veld: "Projecttype: zorgwonen", patroon: /(zorgwon|zorgcomplex|seniorenwon)/i, waarde: () => 3, aantoonbaar: (_m, ctx) => /(opgeleverd|gerealiseerd|referentie)/i.test(ctx) }
