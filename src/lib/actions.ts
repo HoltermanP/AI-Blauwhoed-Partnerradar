@@ -28,7 +28,7 @@ import { gezochteVelden } from "./domain/goudstandaard";
 import { heeftBronEnOnderbouwing, isGoedgekeurd, pasBronrangToe } from "./domain/bronbeleid";
 import { aanvullingPlaatsen, laadAanvulling } from "./domain/aanvulling";
 import { maakSeedIdGenerator } from "./domain/migratie";
-import { aiBeschikbaar, aiChatOpgemaakt, aiZoekBedrijfswebsites, aiZoekUpcoming, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
+import { aiBeschikbaar, aiChatOpgemaakt, aiZoekBedrijfswebsites, aiZoekUpcoming, aiFactorExtractie, aiPartnerRegistratie, aiProjectExtractie, aiProjectVerrijking, aiSamenvatting, alsAIBewerking, providerLabel, zetAanroepDoel } from "./ai";
 import { toetsKandidaten, type Weggefilterd } from "./discoveryToets";
 import { beoordeelRelevantie, zoektermenVoorProject } from "./domain/relevantie";
 import { zichtbaar } from "./domain/zichtbaarheid";
@@ -65,6 +65,7 @@ import type {
   PartnerStatus,
   Project,
   ProjectRequirement,
+  ProjectVerrijking,
   RequirementFactor,
   Rol,
   VerrijkingsBron,
@@ -578,6 +579,70 @@ export async function extraheerProject(tekst: string) {
       herkomst: ai.herkomst.length ? ai.herkomst : regels.herkomst,
       provider: await providerLabel("extractie")
     };
+  });
+}
+
+/** Staat een citaat letterlijk (op spaties, hoofdletters en aanhalingstekens na) in de brontekst? "…" in het citaat scheidt delen. */
+function citaatStaatInBron(citaat: string, tekst: string) {
+  const plat = (t: string) => t.toLowerCase().replace(/[“”„"'’‘`´]/g, "").replace(/\s+/g, " ").trim();
+  const bron = plat(tekst);
+  const delen = citaat.split(/…|\.{3}/).map(plat).filter((d) => d.length > 0);
+  return delen.length > 0 && delen.every((d) => d.length >= 6 && bron.includes(d)) && plat(citaat).length >= 8;
+}
+
+/**
+ * Een project verrijken uit zijn bronpagina's (de URL's in de herkomst): kenmerken en betrokken partijen, elk met een letterlijk
+ * citaat dat aantoonbaar in de brontekst staat. Betrokken partijen worden gekoppeld aan partners in de database (op genormaliseerde
+ * naam). Eén verrijking = één AI-bewerking.
+ */
+export async function verrijkProject(projectId: string) {
+  return veilig(async () => {
+    const g = await vereisRecht("bewerken");
+    const db = await getDb();
+    const p = db.projecten.find((x) => x.id === projectId);
+    if (!p) throw new Error("Project niet gevonden.");
+    if (!db.instellingen.externeBronnenToegestaan) throw new Error("Externe bronnen staan uit (Beheer); het project kan niet uit internet worden verrijkt.");
+    if (!aiBeschikbaar()) throw new Error("Er is geen AI-sleutel ingesteld; projectverrijking is niet beschikbaar.");
+    const urls = Array.from(new Set((p.herkomst ?? []).map((h) => h.citaat.trim()).filter((c) => /^https?:\/\/\S+$/.test(c))));
+    if (!urls.length) throw new Error("Dit project heeft geen bron-URL in de herkomst; voeg een bron toe om het te kunnen verrijken.");
+    const gelezen = await Promise.all(urls.map(async (url) => ({ url, tekst: await haalDetailTekst(url) })));
+    const bronnen = gelezen.filter((b): b is { url: string; tekst: string } => Boolean(b.tekst));
+    if (!bronnen.length) throw new Error("De bronpagina's zijn niet bereikbaar of leveren geen tekst.");
+    const ai = await alsAIBewerking("projectextractie", g.naam, `projectverrijking ${p.naam}`, () => {
+      zetAanroepDoel(`projectverrijking ${p.naam}`);
+      return aiProjectVerrijking(p.naam, p.locatie.plaats, bronnen);
+    }, "extractie");
+    if (!ai) throw new Error("Het model gaf geen antwoord; probeer het later opnieuw.");
+    let weggelaten = 0;
+    // De bron van een punt is de pagina waarin het citaat echt staat; staat het nergens, dan valt het punt af.
+    const bronVan = (citaat: string, opgegeven: string) => {
+      const voorkeur = bronnen.find((b) => b.url === opgegeven);
+      if (voorkeur && citaatStaatInBron(citaat, voorkeur.tekst)) return voorkeur.url;
+      return bronnen.find((b) => citaatStaatInBron(citaat, b.tekst))?.url;
+    };
+    const kenmerken: ProjectVerrijking["kenmerken"] = [];
+    for (const k of ai.kenmerken ?? []) {
+      const url = bronVan(k.citaat, k.bronUrl);
+      if (!url || !k.label?.trim() || !k.waarde?.trim()) { weggelaten++; continue; }
+      kenmerken.push({ label: k.label.trim(), waarde: k.waarde.trim(), citaat: k.citaat.trim(), bronUrl: url });
+    }
+    const partijen: ProjectVerrijking["betrokkenPartijen"] = [];
+    for (const b of ai.betrokkenPartijen ?? []) {
+      const url = bronVan(b.citaat, b.bronUrl);
+      if (!url || !b.naam?.trim()) { weggelaten++; continue; }
+      const n = normaliseerNaam(b.naam);
+      const partner = n ? db.partners.find((x) => normaliseerNaam(x.naam) === n) : undefined;
+      partijen.push({ naam: b.naam.trim(), rol: b.rol?.trim() || "betrokken", citaat: b.citaat.trim(), bronUrl: url, partnerId: partner?.id });
+    }
+    const verrijking: ProjectVerrijking = { opgehaaldOp: new Date().toISOString(), bronnen: bronnen.map((b) => ({ url: b.url, tekstLengte: b.tekst.length })), samenvatting: ai.samenvatting?.trim() || undefined, adres: ai.adres?.trim() || undefined, kenmerken, betrokkenPartijen: partijen, weggelaten: weggelaten || undefined };
+    await muteer(g, { entiteit: "project", entiteitId: projectId, actie: "project verrijkt uit bronpagina's", details: `${kenmerken.length} kenmerken, ${partijen.length} partijen uit ${bronnen.length} bron(nen)${weggelaten ? `; ${weggelaten} zonder letterlijk citaat weggelaten` : ""}` }, (d) => {
+      const pr = d.projecten.find((x) => x.id === projectId);
+      if (!pr) throw new Error("Project niet gevonden.");
+      pr.verrijking = verrijking;
+      pr.bijgewerktOp = new Date().toISOString();
+    });
+    revalidatePath(`/projecten/${projectId}`);
+    return { kenmerken: kenmerken.length, partijen: partijen.length, weggelaten, bronnen: bronnen.length };
   });
 }
 

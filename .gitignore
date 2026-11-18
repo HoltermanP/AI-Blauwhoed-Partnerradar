@@ -10,3 +10,6 @@ dist
 .vercel
 .env*.local
 .deploys.json
+
+# oude build-uitvoer (lokaal, niet nodig in git)
+.next-ai-group-oud/

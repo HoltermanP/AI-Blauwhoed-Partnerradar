@@ -222,6 +222,38 @@ export async function aiProjectExtractie(tekst: string): Promise<AIProjectExtrac
   );
 }
 
+export type AIProjectVerrijking = {
+  samenvatting?: string;
+  adres?: string;
+  kenmerken: Array<{ label: string; waarde: string; citaat: string; bronUrl: string }>;
+  betrokkenPartijen: Array<{ naam: string; rol: string; citaat: string; bronUrl: string }>;
+};
+
+/**
+ * Extra gegevens over één project uit de teksten van zijn bronpagina's: kenmerken (woningtypes, oplevering, bouwsysteem,
+ * duurzaamheid, voorzieningen) en betrokken partijen (architect, aannemer, opdrachtgever). Elk punt heeft een letterlijk citaat
+ * en de bron-URL waaruit het komt; de aanroeper controleert of het citaat echt in de brontekst staat.
+ */
+export async function aiProjectVerrijking(naam: string, plaats: string, bronnen: Array<{ url: string; tekst: string }>): Promise<AIProjectVerrijking | null> {
+  const bronTekst = bronnen.map((b, i) => `[Bron ${i + 1}: ${b.url}]\n${b.tekst.slice(0, 9000)}`).join("\n\n");
+  return jsonAntwoord<AIProjectVerrijking>(
+    "extractie",
+    "Je haalt feiten over één woningbouwproject uit openbare bronpagina's. Neem alleen op wat de tekst over dit project zegt (let op: een pagina kan ook over andere projecten gaan). Elk kenmerk en elke betrokken partij krijgt een citaat: een korte, LETTERLIJK overgenomen passage uit de tekst (maximaal 200 tekens, niet herschreven) en de URL van de bron waaruit die komt. Geen citaat = niet opnemen. Verzin niets en gebruik geen algemene kennis. Kenmerken zijn bijvoorbeeld: aantal en soort woningen, huur/koop en prijsklasse, startbouw en oplevering, bouwsysteem of materiaal (houtbouw, CLT, prefab), duurzaamheid (MPG, BENG, GPR, Paris Proof, gasloos), parkeren, voorzieningen, bijzonderheden. Betrokken partijen: architect, aannemer, installateur, adviseur, opdrachtgever, gemeente, belegger; geef de rol zoals de tekst die noemt. De samenvatting is maximaal twee zinnen in het Nederlands, alleen op basis van de tekst. Het adres alleen als de tekst een straat of locatie noemt.",
+    `Project: ${naam}${plaats ? ` (${plaats})` : ""}\n\n${bronTekst}`,
+    {
+      type: "object",
+      additionalProperties: false,
+      required: ["kenmerken", "betrokkenPartijen"],
+      properties: {
+        samenvatting: { type: "string" },
+        adres: { type: "string" },
+        kenmerken: { type: "array", items: { type: "object", additionalProperties: false, required: ["label", "waarde", "citaat", "bronUrl"], properties: { label: { type: "string" }, waarde: { type: "string" }, citaat: { type: "string" }, bronUrl: { type: "string" } } } },
+        betrokkenPartijen: { type: "array", items: { type: "object", additionalProperties: false, required: ["naam", "rol", "citaat", "bronUrl"], properties: { naam: { type: "string" }, rol: { type: "string" }, citaat: { type: "string" }, bronUrl: { type: "string" } } } }
+      }
+    }
+  );
+}
+
 export type AIPartnerRegistratie = {
   naam?: string;
   kvk?: string;

@@ -420,8 +420,25 @@ export type Herkomst = { veld: string; citaat: string; betrouwbaarheid: number }
 /** US-26: herkomst van een project. Het ERP (Business Central) is leidend; webbronnen vullen aan. */
 export type ProjectBron = "erp" | "web" | "handmatig" | "tender";
 
+/**
+ * Extra projectgegevens uit de bronpagina's van een project (herkomst-URL's). Elk kenmerk en elke betrokken partij heeft een
+ * letterlijk citaat dat aantoonbaar in de brontekst voorkomt; wat niet te citeren is, wordt niet opgenomen.
+ */
+export type ProjectVerrijking = {
+  opgehaaldOp: string;
+  bronnen: Array<{ url: string; tekstLengte: number }>;
+  samenvatting?: string;
+  adres?: string;
+  kenmerken: Array<{ label: string; waarde: string; citaat: string; bronUrl: string }>;
+  betrokkenPartijen: Array<{ naam: string; rol: string; citaat: string; bronUrl: string; /** gekoppeld aan een partner in de database */ partnerId?: string }>;
+  /** Aantal door het model genoemde punten dat is weggelaten omdat het citaat niet in de bron stond. */
+  weggelaten?: number;
+};
+
 export type Project = {
   id: string;
+  /** Extra gegevens uit de bronpagina's (zie ProjectVerrijking). */
+  verrijking?: ProjectVerrijking;
   /** US-63: Blauwhoed-projectnummer (uniek, doorzoekbaar, importeerbaar via de historie-CSV). */
   projectnummer?: string;
   /** US-26: waar het project vandaan komt; ontbreekt = handmatig. */

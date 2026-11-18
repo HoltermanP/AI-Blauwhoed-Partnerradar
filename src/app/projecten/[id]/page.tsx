@@ -8,6 +8,7 @@ import { Badge, Definities, Kaart, Knop, PaginaKop } from "@/components/ui";
 import EisenEditor from "@/components/projecten/EisenEditor";
 import EngagementFormulier from "@/components/projecten/EngagementFormulier";
 import ProjectClassificatie from "@/components/projecten/ProjectClassificatie";
+import ProjectVerrijken from "@/components/projecten/ProjectVerrijken";
 import { PROJECTBRON_LABEL } from "@/lib/domain/projectimport";
 
 export default async function ProjectPagina({ params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +22,10 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
   const bouwsysteem = db.factoren.find((f) => f.id === "bouwsysteem");
   const bouwsystemen = (bouwsysteem?.opties ?? []).filter((o) => o.actief);
   const profiel = p.gewichtsprofielId ? db.gewichtsprofielen.find((g) => g.id === p.gewichtsprofielId) : undefined;
+  const v = p.verrijking;
+  const laatsteRun = [...runs].sort((a, b) => b.gestartOp.localeCompare(a.gestartOp))[0];
+  const looptijdMaanden = Math.max(0, Math.round((new Date(p.planning.eind).getTime() - new Date(p.planning.start).getTime()) / (30.44 * 24 * 3600 * 1000)));
+  const host = (url: string) => { try { return new URL(url).host.replace(/^www\./, ""); } catch { return url; } };
   const partners = db.partners.filter((x) => x.status !== "geblokkeerd").map((x) => ({ id: x.id, naam: x.naam, rollen: x.rollen })).sort((a, b) => a.naam.localeCompare(b.naam, "nl"));
 
   return (
@@ -106,6 +111,58 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
               </ul>
             </details>
           ) : null}
+        </Kaart>
+
+        <Kaart titel="Over dit project">
+          <Definities
+            items={[
+              ["Locatie", <span key="loc">{p.locatie.plaats}{p.locatie.adres ? `, ${p.locatie.adres}` : ""}{v?.adres && v.adres !== p.locatie.adres ? ` (bron: ${v.adres})` : ""} · <a href={`https://www.openstreetmap.org/?mlat=${p.locatie.lat}&mlon=${p.locatie.lng}#map=14/${p.locatie.lat}/${p.locatie.lng}`} target="_blank" rel="noreferrer">kaart</a></span>],
+              ["Looptijd", looptijdMaanden ? `${looptijdMaanden} maanden (${datum(p.planning.start)} – ${datum(p.planning.eind)})` : "–"],
+              ["Gemiddeld per jaar", looptijdMaanden >= 12 ? `${getal(Math.round(p.woningen / (looptijdMaanden / 12)))} woningen` : "–"],
+              ["Betrokken partners in de database", `${engagements.length} (${new Set(engagements.map((e) => e.partnerId)).size} verschillende)`],
+              ["Matching", laatsteRun ? <span key="m">{runs.length} run(s); laatste {datumTijd(laatsteRun.gestartOp)} — {laatsteRun.resultaat.map((r) => `${ROL_LABEL[r.rol]} ${r.kandidaten.length}`).join(", ")}</span> : "nog niet gedraaid"]
+            ]}
+          />
+          {v?.samenvatting ? <p style={{ marginTop: 12 }}>{v.samenvatting}</p> : null}
+          {v?.kenmerken.length ? (
+            <>
+              <h4 style={{ marginTop: 16 }}>Kenmerken uit de bronnen</h4>
+              <ul className="lijst">
+                {v.kenmerken.map((k, i) => (
+                  <li key={i}>
+                    <b>{k.label}:</b> {k.waarde}{" "}
+                    <span className="muted klein-tekst" title={`Letterlijk uit de bron: „${k.citaat}”`}>
+                      · <a href={k.bronUrl} target="_blank" rel="noreferrer">{host(k.bronUrl)}</a>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {v?.betrokkenPartijen.length ? (
+            <>
+              <h4 style={{ marginTop: 16 }}>Betrokken partijen volgens de bronnen</h4>
+              <ul className="lijst">
+                {v.betrokkenPartijen.map((b, i) => (
+                  <li key={i}>
+                    {b.partnerId ? <Link href={`/partners/${b.partnerId}`}>{b.naam}</Link> : b.naam} — {b.rol}{" "}
+                    {b.partnerId ? <Badge kleur="groen" titel="Deze partij staat in de partnerdatabase">in database</Badge> : <Badge kleur="grijs" titel="Deze partij staat (nog) niet in de partnerdatabase">niet in database</Badge>}{" "}
+                    <span className="muted klein-tekst" title={`Letterlijk uit de bron: „${b.citaat}”`}>
+                      · <a href={b.bronUrl} target="_blank" rel="noreferrer">{host(b.bronUrl)}</a>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {v ? (
+            <p className="muted klein-tekst" style={{ marginTop: 12 }}>
+              Verrijkt op {datumTijd(v.opgehaaldOp)} uit {v.bronnen.map((b, i) => <span key={b.url}>{i ? ", " : ""}<a href={b.url} target="_blank" rel="noreferrer">{host(b.url)}</a></span>)}. Alleen punten met een letterlijk citaat uit de bron zijn opgenomen{v.weggelaten ? ` (${v.weggelaten} weggelaten)` : ""}.
+            </p>
+          ) : (
+            <p className="muted klein-tekst" style={{ marginTop: 12 }}>Nog niet verrijkt uit de bronpagina&apos;s van dit project.</p>
+          )}
+          {magBewerken ? <ProjectVerrijken projectId={p.id} heeftVerrijking={Boolean(v)} /> : null}
         </Kaart>
 
         <Kaart titel="Rollen, eisen en gewichten">
