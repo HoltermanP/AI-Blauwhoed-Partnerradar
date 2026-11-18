@@ -1385,6 +1385,9 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
     (ai ?? []).forEach((a) => {
       const f = db.factoren.find((x) => x.id === a.factorId);
       if (!f) return;
+      // De uitkomst van het model moet bij de schaal van de factor passen (niveau 0–5, percentage, getal, bereik, keuze); anders
+      // komt er geen voorstel (voorheen "groot" als projectomvang of "innovatief" als biobased-aandeel).
+      if (!waardePastBijFactor(f, a.waarde as FactorWaarde, a.optieId)) return;
       const optieLabel = a.optieId ? f.opties?.find((o) => o.id === a.optieId)?.label : undefined;
       const huidig = p.factoren.find((x) => x.factorId === a.factorId && (x.optieId ?? "") === (a.optieId ?? ""));
       if (huidig && JSON.stringify(huidig.waarde) === JSON.stringify(a.waarde)) return;

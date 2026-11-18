@@ -199,10 +199,9 @@ export function hardeFilters(partner: Partner, eis: ProjectRequirement, ctx: Mat
     const isHard = factor.type === "hard" || e.minimumeis;
     if (!isHard) continue;
     const pf = zoekWaarde(factoren, e);
-    if (!pf) {
-      if (factor.type === "hard") return u("factor", `Harde eis '${factor.naam}' kan niet worden getoetst: waarde ontbreekt.`, factor.id);
-      continue; // minimumeis op gewogen factor zonder data: niet uitsluiten, wel lage dekking
-    }
+    // Weinig data is geen reden om een partij af te wijzen: een ontbrekende waarde sluit niet uit, maar wordt in matchRol als
+    // waarschuwing "niet getoetst" getoond. Alleen een aanwezige waarde die niet voldoet sluit uit.
+    if (!pf) continue;
     const { fit } = fitVoor(factor, e.gevraagd, pf.waarde);
     if (fit < 1) {
       const soort = factor.id === "co2_ladder" || factor.id === "uitsluiting" ? "certificaat" : "factor";
@@ -327,6 +326,10 @@ export function matchRol(eis: ProjectRequirement, ctx: MatchContext): RolResulta
       const factor = db.factoren.find((f) => f.id === e.factorId);
       if (!factor || !factor.actief || !(factor.type === "hard" || e.minimumeis)) return;
       const pf = zoekWaarde(factoren, e);
+      if (!pf) {
+        waarschuwingen.push(`${e.minimumeis ? "Minimumeis" : "Harde eis"} '${factor.naam}' is niet getoetst: er is nog geen waarde bekend.`);
+        return;
+      }
       const v = pf ? verificatieVan(pf, factor, nu) : undefined;
       if (v && !isGeverifieerd(v)) waarschuwingen.push(`${e.minimumeis ? "Minimumeis" : "Harde eis"} '${factor.naam}' is getoetst op een ${VERIFICATIE_LABEL[v]} waarde; laat deze verifiëren.`);
     });

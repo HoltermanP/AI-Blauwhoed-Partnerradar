@@ -125,13 +125,27 @@ export async function aiSamenvatting(kandidaat: DiscoveryCandidate, project: Pro
   return { ...r, gegenereerdOp: new Date().toISOString(), provider: await providerLabel("aandragen") };
 }
 
-export type AIFactorVoorstel = { factorId: string; optieId?: string; waarde: number | string | boolean; citaat: string; aantoonbaar: boolean; onderbouwing: string };
+export type AIFactorVoorstel = { factorId: string; optieId?: string; waarde: number | string | boolean | { min: number; max: number }; citaat: string; aantoonbaar: boolean; onderbouwing: string };
+
+/** Welke waarde het model per factor moet geven; zonder deze uitleg leverde het tekst ("groot", "innovatief") waar een getal hoort. */
+function schaalUitleg(f: Factor): string {
+  const s = f.schaal;
+  switch (s.soort) {
+    case "niveau": return "waarde = geheel getal 0–5; bij opties één voorstel per optie";
+    case "percentage": return "waarde = getal 0–100 (procent)";
+    case "getal": return `waarde = getal${"eenheid" in s && s.eenheid ? ` in ${s.eenheid}` : ""}${s.min !== undefined || s.max !== undefined ? ` tussen ${s.min ?? "−∞"} en ${s.max ?? "∞"}` : ""}`;
+    case "bereik": return `waarde = object {"min": getal, "max": getal}${"eenheid" in s && s.eenheid ? ` in ${s.eenheid}` : ""}, alleen op basis van genoemde aantallen in de tekst (kleinste en grootste project)`;
+    case "boolean": return "waarde = true of false";
+    case "keuze": return "waarde = één optie-id uit de lijst";
+    case "tekst": return "waarde = korte tekst";
+  }
+}
 
 /** US-29/30: factorwaarden uit openbare tekst volgens de taxonomie, met citaat en aantoonbaar/geclaimd. */
 export async function aiFactorExtractie(naam: string, tekst: string, factoren: Factor[]): Promise<AIFactorVoorstel[] | null> {
   const taxonomie = factoren
     .filter((f) => f.actief && f.type !== "semantisch" && !f.afgeleid)
-    .map((f) => `- ${f.id}: ${f.naam} (${f.schaal.soort}${"eenheid" in f.schaal ? `, ${f.schaal.eenheid}` : ""})${f.opties?.length ? ` opties: ${f.opties.map((o) => o.id).join("|")}` : ""}`)
+    .map((f) => `- ${f.id}: ${f.naam} (${schaalUitleg(f)})${f.opties?.length ? ` opties: ${f.opties.map((o) => o.id).join("|")}` : ""}`)
     .join("\n");
   const r = await jsonAntwoord<{ voorstellen: AIFactorVoorstel[] }>(
     "extractie",
@@ -151,7 +165,7 @@ export async function aiFactorExtractie(naam: string, tekst: string, factoren: F
             properties: {
               factorId: { type: "string" },
               optieId: { type: "string" },
-              waarde: { anyOf: [{ type: "number" }, { type: "string" }, { type: "boolean" }] },
+              waarde: { anyOf: [{ type: "number" }, { type: "string" }, { type: "boolean" }, { type: "object", additionalProperties: false, required: ["min", "max"], properties: { min: { type: "number" }, max: { type: "number" } } }] },
               citaat: { type: "string" },
               aantoonbaar: { type: "boolean" },
               onderbouwing: { type: "string" }
