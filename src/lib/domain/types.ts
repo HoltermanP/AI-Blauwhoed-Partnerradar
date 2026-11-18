@@ -111,19 +111,11 @@ export const BRON_LABEL: Record<Bron, string> = {
   web: "Internet"
 };
 
-/** Standaardbetrouwbaarheid per bron (bewijs boven zelfbeeld). */
-export const BRON_BETROUWBAARHEID: Record<Bron, number> = {
-  goudstandaard: 1,
-  eigen_uitgave: 0.95,
-  certificaat: 0.95,
-  kvk: 0.9,
-  register: 0.9,
-  projecthistorie: 0.9,
-  evaluatie: 0.9,
-  document: 0.75,
-  opgave: 0.6,
-  web: 0.4
-};
+/** Betrouwbaarheid per bronrang: de enige tabel. Rang 1 = 0,9 (hoog), rang 2 = 0,7 (hoog/midden), rang 3 = 0,4 (laag). */
+export const RANG_BETROUWBAARHEID: Record<1 | 2 | 3, number> = { 1: 0.9, 2: 0.7, 3: 0.4 };
+
+/** Standaardbetrouwbaarheid van een bron, afgeleid uit de rang (bewijs boven zelfbeeld). */
+export const BRON_BETROUWBAARHEID: Record<Bron, number> = Object.fromEntries(BRONNEN.map((b) => [b, RANG_BETROUWBAARHEID[BRON_RANG[b]]])) as Record<Bron, number>;
 
 export type Bewijs = {
   soort: "project" | "evaluatie" | "certificaat" | "document" | "url" | "factuur";
@@ -132,12 +124,6 @@ export type Bewijs = {
 };
 
 export type FactorWaarde = number | string | boolean | string[] | { min: number; max: number };
-
-/**
- * Hoe een niet-geverifieerde waarde is vastgesteld: feitelijk (staat zo op de bron, met citaat) of ingeschat
- * (afgeleid uit aanwijzingen op de bron, met onderbouwing). Ingeschat telt in de matching minder zwaar.
- */
-export type Vaststelling = "feitelijk" | "ingeschat";
 
 /**
  * Dwarsdoorsnijdende eis 1: status per veldwaarde. Alleen een mens zet een waarde op 'gevalideerd' of 'afgewezen'.
@@ -168,9 +154,7 @@ export type PartnerFactor = {
   gevalideerdOp?: string;
   /** Door de verrijking (AI/internet/registers) automatisch ingevuld; blijft 'niet geverifieerd' tot een mens het bevestigt. */
   automatisch?: boolean;
-  /** Feitelijk vastgesteld of ingeschat; ontbreekt = feitelijk (oude en handmatige waarden). */
-  vaststelling?: Vaststelling;
-  /** Waarom deze waarde: bij een inschatting de redenering, bij een feit wat de bron precies zegt. */
+  /** Waarom deze waarde: wat de bron precies zegt. */
   onderbouwing?: string;
   /** true = automatisch afgeleid uit historie; false/undefined = handmatig vastgelegd. */
   afgeleid?: boolean;
@@ -680,8 +664,6 @@ export type EnrichmentVoorstel = {
   bronUrl?: string;
   betrouwbaarheid: number;
   soort: "aantoonbaar" | "geclaimd";
-  /** Feitelijk (staat zo op de bron) of ingeschat (afgeleid, met onderbouwing); ontbreekt = feitelijk. */
-  vaststelling?: Vaststelling;
   onderbouwing?: string;
   /** Verschiltype in het rondeoverzicht: nieuw gevonden, gewijzigd t.o.v. huidige waarde, of niet langer bevestigd op de bron. */
   aard?: "nieuw" | "gewijzigd" | "niet_bevestigd";
@@ -826,10 +808,10 @@ export type VerrijkingsSchema = {
 export type Gebruikersrol = "gebruiker" | "beheerder";
 
 /**
- * Verificatielabel per waarde: door wie bevestigd, nog niet bevestigd (feitelijk = "niet", of "ingeschat"),
+ * Verificatielabel per waarde: door wie bevestigd, nog niet bevestigd ("niet"),
  * verouderd of berekend uit projecthistorie.
  */
-export type Verificatie = "beheerder" | "gebruiker" | "niet" | "ingeschat" | "verouderd" | "berekend" | "afgewezen";
+export type Verificatie = "beheerder" | "gebruiker" | "niet" | "verouderd" | "berekend" | "afgewezen";
 
 export type Gebruiker = {
   id: string;

@@ -1388,8 +1388,7 @@ async function verzamelVoorstellen(p: Partner, db: Database, tekst?: string, ext
       const optieLabel = a.optieId ? f.opties?.find((o) => o.id === a.optieId)?.label : undefined;
       const huidig = p.factoren.find((x) => x.factorId === a.factorId && (x.optieId ?? "") === (a.optieId ?? ""));
       if (huidig && JSON.stringify(huidig.waarde) === JSON.stringify(a.waarde)) return;
-      const ingeschat = a.vaststelling === "ingeschat";
-      voorstellen.push({ id: nieuwId("ev-ai"), partnerId: p.id, factorId: a.factorId, optieId: a.optieId, veld: optieLabel ? `${f.naam}: ${optieLabel}` : f.naam, huidig: huidig?.waarde ?? null, voorgesteld: a.waarde, bron: "web", bronUrl, betrouwbaarheid: ingeschat ? 0.3 : a.aantoonbaar ? 0.6 : 0.35, soort: a.aantoonbaar && !ingeschat ? "aantoonbaar" : "geclaimd", vaststelling: ingeschat ? "ingeschat" : "feitelijk", onderbouwing: a.onderbouwing?.trim() || undefined, citaat: `[Claude] ${a.citaat}`, status: "open", gevondenOp: new Date().toISOString() });
+      voorstellen.push({ id: nieuwId("ev-ai"), partnerId: p.id, factorId: a.factorId, optieId: a.optieId, veld: optieLabel ? `${f.naam}: ${optieLabel}` : f.naam, huidig: huidig?.waarde ?? null, voorgesteld: a.waarde, bron: "web", bronUrl, betrouwbaarheid: a.aantoonbaar ? 0.6 : BRON_BETROUWBAARHEID.web, soort: a.aantoonbaar ? "aantoonbaar" : "geclaimd", onderbouwing: a.onderbouwing?.trim() || undefined, citaat: `[Claude] ${a.citaat}`, status: "open", gevondenOp: new Date().toISOString() });
     });
   }
   // 'Niet langer bevestigd': eerder van het web overgenomen waarden waarvan geen enkel patroon meer op de bron matcht.
@@ -1695,7 +1694,7 @@ async function beoordeelVoorstelIntern(id: string, accepteer: boolean, aangepast
       // Acceptatie is een menselijke beoordeling: de nieuwe waarde is daarmee gevalideerd (eis 1).
       wisGeenBron(p, geenBronSleutel({ factorId: v.factorId }));
       // US-07: acceptatie = gebruikersgeverifieerd; de beheerdersvalidatie is een aparte, tweede controle (US-08).
-      const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronNaam ?? v.bronUrl ?? v.bron }, peildatum: v.gevondenOp.slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdDoorRol: "gebruiker", gevalideerdOp: nu.slice(0, 10), vaststelling: v.vaststelling, onderbouwing: v.onderbouwing, toelichting: `${v.soort}: ${v.citaat}`, aangepast: isAangepast || undefined };
+      const record: PartnerFactor = { factorId: v.factorId, optieId: optie, waarde: v.voorgesteld as FactorWaarde, bron: v.bron, betrouwbaarheid: v.betrouwbaarheid, bewijs: { soort: v.bron === "document" ? "document" : "url", ref: v.bronUrl ?? "", label: v.bronNaam ?? v.bronUrl ?? v.bron }, peildatum: v.gevondenOp.slice(0, 10), status: "gevalideerd", gevalideerdDoor: g.naam, gevalideerdDoorRol: "gebruiker", gevalideerdOp: nu.slice(0, 10), onderbouwing: v.onderbouwing, toelichting: `${v.soort}: ${v.citaat}`, aangepast: isAangepast || undefined };
       const idx = p.factoren.findIndex((x) => x.factorId === record.factorId && (x.optieId ?? "") === (record.optieId ?? ""));
       if (idx >= 0) p.factoren[idx] = record;
       else p.factoren.push(record);
