@@ -13,7 +13,6 @@ import { SignaalLijst } from "@/components/dashboard/SignaalLijst";
 import { zichtbaar } from "@/lib/domain/zichtbaarheid";
 import { dataSignalen, statusVerdeling } from "@/lib/domain/datakwaliteit";
 import StartZoeker from "@/components/chat/StartZoeker";
-import ProjectKiezer from "@/components/dashboard/ProjectKiezer";
 import { semantischZoeken } from "@/lib/domain/matching";
 import { zoekProjecten } from "@/lib/domain/chat";
 import { aiAan } from "@/lib/aiplatform";
@@ -68,69 +67,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const recenteRuns = [...db.matchRuns].sort((a, b) => b.gestartOp.localeCompare(a.gestartOp)).slice(0, 6);
   const recenteAudit = db.audit.slice(0, 5);
 
-  // VE-01: projecten voor de kiezer en de recent gebruikte projecten met hun laatste matchresultaat.
-  const eigenProjecten = db.projecten.filter((p) => !p.extern);
-  const kiesbaar = [...eigenProjecten].sort((a, b) => a.naam.localeCompare(b.naam, "nl")).map((p) => ({ id: p.id, label: p.projectnummer ? `${p.projectnummer} · ${p.naam}` : p.naam }));
-  const laatsteRun = (projectId: string) => db.matchRuns.filter((r) => r.projectId === projectId).sort((a, b) => b.gestartOp.localeCompare(a.gestartOp))[0];
-  const recenteProjecten = eigenProjecten
-    .map((p) => ({ p, run: laatsteRun(p.id) }))
-    .sort((a, b) => (b.run?.gestartOp ?? "").localeCompare(a.run?.gestartOp ?? "") || a.p.naam.localeCompare(b.p.naam, "nl"))
-    .slice(0, 6);
-
   return (
     <>
-      <Kaart className="matchStart" titel="Partners zoeken bij een project" acties={magBewerken ? <Knop href="/projecten/nieuw" variant="secundair">Nieuw project</Knop> : null}>
-        <p className="muted">Kies een project om de best passende partners per rol te zien, met score en onderbouwing.</p>
-        {kiesbaar.length ? <ProjectKiezer projecten={kiesbaar} /> : <Leeg titel="Nog geen projecten" tekst="Maak eerst een project aan; daarna zoekt de database er geschikte partners bij." actie={magBewerken ? <Knop href="/projecten/nieuw">Nieuw project</Knop> : undefined} />}
-        {recenteProjecten.length ? (
-          <div className="tabelWrap" style={{ marginTop: 14 }}>
-            <table className="tabel">
-              <thead>
-                <tr>
-                  <th>Recente projecten</th>
-                  <th>Laatste match</th>
-                  <th>Beste partner per rol</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {recenteProjecten.map(({ p, run }) => (
-                  <tr key={p.id}>
-                    <td data-label="Project">
-                      <Link href={`/projecten/${p.id}`}>{p.naam}</Link>
-                      <small className="muted"> {p.locatie.plaats || ""}</small>
-                    </td>
-                    <td data-label="Laatste match">{run ? datumTijd(run.gestartOp) : <span className="muted">Nog niet gematcht</span>}</td>
-                    <td data-label="Beste partner per rol">
-                      {run && run.resultaat.some((r) => r.kandidaten.length) ? (
-                        <ul className="lijst">
-                          {run.resultaat
-                            .filter((r) => r.kandidaten.length)
-                            .map((r) => (
-                              <li key={r.rol}>
-                                <small className="muted">{ROL_LABEL[r.rol]}: </small>
-                                <Link href={`/partners/${r.kandidaten[0].partnerId}`}>{r.kandidaten[0].partnerNaam}</Link> <Badge>{Math.round(r.kandidaten[0].score)}</Badge>
-                              </li>
-                            ))}
-                        </ul>
-                      ) : (
-                        <span className="muted">–</span>
-                      )}
-                    </td>
-                    <td>
-                      <Knop href={run ? `/projecten/${p.id}/match?run=${run.id}` : `/projecten/${p.id}/match`} variant="secundair" klein>
-                        {run ? "Bekijk partners" : "Partners zoeken"}
-                      </Knop>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-      </Kaart>
-
-      <h2 className="sectieKop">Zoeken en vragen stellen</h2>
       <StartZoeker
         q={q}
         web={web === "1"}
