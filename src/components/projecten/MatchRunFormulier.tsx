@@ -18,7 +18,7 @@ export default function MatchRunFormulier({ projectId, heeftEisen }: { projectId
     start(async () => {
       const r = await voerMatchUit(projectId, naam.trim() || undefined, omschrijving.trim() || undefined);
       if (!r.ok) return setFout(r.fout);
-      router.push(`/projecten/${projectId}/match?run=${r.data}`);
+      router.push(`/projecten/${projectId}?tab=partners&run=${r.data}`);
       router.refresh();
     });
   }

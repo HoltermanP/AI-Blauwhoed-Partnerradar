@@ -1,0 +1,154 @@
+// VE-04: tab Team op de projectpagina (voorheen /projecten/[id]/team). Epic 8: teamsamenstelling. US-35 t/m US-38.
+import Link from "next/link";
+import type { Database, TeamVoorstel } from "@/lib/domain/types";
+import { ROL_LABEL, datum, datumTijd } from "@/lib/format";
+import { Badge, Kaart, Knop, Leeg, ScoreBalk } from "@/components/ui";
+import TeamPaneel from "@/components/projecten/TeamPaneel";
+import { bewezenTeams } from "@/lib/domain/team";
+import { teamWeging } from "@/lib/domain/gewichten";
+
+function TeamKaart({ team, ander, w }: { team: TeamVoorstel; ander?: TeamVoorstel; w: ReturnType<typeof teamWeging> }) {
+  const verschilt = (rol: string, partnerId: string) => Boolean(ander && ander.leden.find((l) => l.rol === rol)?.partnerId !== partnerId);
+  return (
+    <Kaart titel={team.variant === "voorkeur" ? "Voorkeursteam" : "Alternatief team"} className="teamKaart">
+      <p className="muted klein-tekst">Gemaakt {datumTijd(team.gemaaktOp)}</p>
+      <div className="teamScore">
+        <ScoreBalk score={team.teamScore} label="Teamscore" />
+        <span className="muted klein-tekst">Teamscore: kwaliteit {Math.round(w.kwaliteit * 100)}%, samenwerkingshistorie {Math.round(w.samenwerking * 100)}%, nabijheid {Math.round(w.nabijheid * 100)}%, beschikbaarheid {Math.round(w.beschikbaarheid * 100)}%</span>
+      </div>
+      <div className="raster raster-2 teamOnderdelen">
+        <div>
+          <small>Gemiddelde kwaliteit</small>
+          <ScoreBalk score={team.onderdelen.gemiddeldeKwaliteit} klein />
+        </div>
+        <div>
+          <small>Samenwerkingshistorie</small>
+          <ScoreBalk score={team.onderdelen.samenwerkingshistorie} klein />
+        </div>
+        <div>
+          <small>Regionale nabijheid</small>
+          <ScoreBalk score={team.onderdelen.nabijheid} klein />
+        </div>
+        <div>
+          <small>Gezamenlijke beschikbaarheid</small>
+          <ScoreBalk score={team.onderdelen.beschikbaarheid} klein />
+        </div>
+      </div>
+      <table className="tabel">
+        <thead>
+          <tr>
+            <th>Rol</th>
+            <th>Partner</th>
+            <th className="num">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          {team.leden.map((l) => (
+            <tr key={l.rol} className={verschilt(l.rol, l.partnerId) ? "teamVerschil" : ""}>
+              <td>{ROL_LABEL[l.rol]}</td>
+              <td>
+                <Link href={`/partners/${l.partnerId}`}>{l.partnerNaam}</Link>
+                {verschilt(l.rol, l.partnerId) ? (
+                  <>
+                    {" "}
+                    <Badge kleur="geel">wijkt af</Badge>
+                  </>
+                ) : null}
+              </td>
+              <td className="num">{l.score}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <h4 className="subkop">Onderbouwing per keuze</h4>
+      <ul className="lijst klein-tekst">
+        {team.onderbouwing.map((o, i) => (
+          <li key={i}>{o}</li>
+        ))}
+      </ul>
+    </Kaart>
+  );
+}
+
+export default function TeamTab({ db, projectId, runId }: { db: Database; projectId: string; runId?: string }) {
+  const p = db.projecten.find((x) => x.id === projectId)!;
+  const runs = db.matchRuns.filter((r) => r.projectId === p.id).sort((a, b) => b.gestartOp.localeCompare(a.gestartOp));
+  const run = runs.find((r) => r.id === runId) ?? runs[0];
+  const teams = run ? db.teams.filter((t) => t.matchRunId === run.id) : [];
+  const voorkeur = teams.find((t) => t.variant === "voorkeur");
+  const alternatief = teams.find((t) => t.variant === "alternatief");
+  const bewezen = run ? bewezenTeams(run, db, p) : [];
+
+  return (
+    <>
+      <div className="printOnly">
+        <h1>Teamvoorstel {p.naam}</h1>
+        <p>
+          {p.locatie.plaats} · {p.woningen} woningen · planning {datum(p.planning.start)} – {datum(p.planning.eind)} · afgedrukt {datumTijd(new Date().toISOString())}
+          {run ? ` · op basis van matchrun „${run.naam}” (${datumTijd(run.gestartOp)})` : ""}
+        </p>
+      </div>
+      <p className="muted klein-tekst geenPrint">Je matcht een team, geen losse partij: samenwerkingshistorie, nabijheid en gezamenlijke beschikbaarheid wegen mee.</p>
+      {run ? (
+        <>
+          <Kaart titel="Matchrun" className="geenPrint">
+            <div className="formulierActies">
+              <span className="klein-tekst">Kies run:</span>
+              {runs.map((r) => (
+                <Link key={r.id} href={`/projecten/${p.id}?tab=team&run=${r.id}`} className={`knop klein ${r.id === run.id ? "" : "knop-secundair"}`}>
+                  {r.naam}
+                </Link>
+              ))}
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <TeamPaneel runId={run.id} heeftVoorkeur={Boolean(voorkeur)} />
+            </div>
+          </Kaart>
+          <Kaart titel={`Bewezen teams: eerder samen aan vergelijkbare projecten (${bewezen.length})`}>
+            <p className="muted klein-tekst">Naast losse partners: complete teams (architect, adviseur, installatieadviseur, constructeur) die eerder samenwerkten. Teamscore = matchscore van de leden in deze run, aantal gedeelde projecten (gewicht volgens de standaardweging voor samenwerking) en vergelijkbaarheid van die projecten met dit project (25%). Een voorstel, geen advies om te contracteren.</p>
+            {bewezen.length ? (
+              <div className="raster raster-2">
+                {bewezen.map((t) => (
+                  <section key={t.sleutel} className="kaart teamKaart">
+                    <ScoreBalk score={t.teamScore} label="Teamscore" />
+                    <ul className="lijst klein-tekst">
+                      {t.leden.map((l) => (
+                        <li key={l.id}>
+                          <Link href={`/partners/${l.id}`}>{l.naam}</Link> <span className="muted">{ROL_LABEL[l.rol]}</span> {l.score !== null ? <Badge kleur="blauw">match {l.score}</Badge> : <Badge>niet in run</Badge>}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="klein-tekst muted">
+                      Match {t.onderdelen.match} · historie {t.onderdelen.historie} · vergelijkbaarheid {t.onderdelen.vergelijkbaarheid}
+                    </p>
+                    <ul className="lijst klein-tekst">
+                      {t.onderbouwing.map((o, i) => (
+                        <li key={i}>{o}</li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="muted">Geen teams die eerder samenwerkten en in deze run als kandidaat voorkomen. Zodra projecthistorie vastligt (wie werkte samen op welk project), verschijnen ze hier.</p>
+            )}
+          </Kaart>
+          {teams.length ? (
+            <div className={`raster ${voorkeur && alternatief ? "raster-2" : ""}`}>
+              {voorkeur ? <TeamKaart team={voorkeur} ander={alternatief} w={teamWeging(db.instellingen.standaardweging?.samenwerking)} /> : null}
+              {alternatief ? <TeamKaart team={alternatief} ander={voorkeur} w={teamWeging(db.instellingen.standaardweging?.samenwerking)} /> : null}
+            </div>
+          ) : (
+            <Kaart>
+              <Leeg titel="Nog geen teamvoorstel voor deze run" tekst="Genereer een voorkeursteam; daarna kunt u een bewust afwijkend alternatief laten maken." />
+            </Kaart>
+          )}
+        </>
+      ) : (
+        <Kaart>
+          <Leeg titel="Nog geen matchrun" tekst="Zoek eerst geschikte partners (tab Partners); het teamvoorstel wordt uit die ranglijsten samengesteld." actie={<Knop href={`/projecten/${p.id}?tab=partners`}>Naar partners</Knop>} />
+        </Kaart>
+      )}
+    </>
+  );
+}

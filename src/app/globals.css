@@ -1935,3 +1935,8 @@ button.menuKnop.sluit { display: none; }
 .erdKolomKoppen span:nth-child(2) { text-align: center; }
 .erdKolomKoppen span:last-child { text-align: right; }
 .dbIndeling.zonderZijbalk { grid-template-columns: minmax(0, 1fr); }
+
+/* VE-01: startblok 'Partners zoeken bij een project' */
+.matchStart { border-left: 4px solid var(--blue, #1f4e79); }
+.projectKiezer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-top: 10px; }
+@media (max-width: 720px) { .projectKiezer { grid-template-columns: 1fr; } }

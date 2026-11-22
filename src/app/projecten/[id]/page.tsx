@@ -4,16 +4,22 @@ import { notFound } from "next/navigation";
 import { heeftRecht, huidigeGebruiker } from "@/lib/auth";
 import { getDb } from "@/lib/store";
 import { ROL_LABEL, datum, datumTijd, euro, getal, hoofdletter } from "@/lib/format";
-import { Badge, Definities, Kaart, Knop, PaginaKop } from "@/components/ui";
+import { Badge, Definities, Kaart, Knop, PaginaKop, Tabs } from "@/components/ui";
+import PartnersTab from "@/components/projecten/tabs/PartnersTab";
+import TeamTab from "@/components/projecten/tabs/TeamTab";
+import EvaluatiesTab from "@/components/projecten/tabs/EvaluatiesTab";
 import EisenEditor from "@/components/projecten/EisenEditor";
 import EngagementFormulier from "@/components/projecten/EngagementFormulier";
 import ProjectClassificatie from "@/components/projecten/ProjectClassificatie";
 import ProjectVerrijken from "@/components/projecten/ProjectVerrijken";
 import { PROJECTBRON_LABEL } from "@/lib/domain/projectimport";
 
-export default async function ProjectPagina({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+const TABS = ["partners", "beschrijving", "team", "evaluaties", "historie"] as const;
+
+export default async function ProjectPagina({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | undefined>> }) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const [db, gebruiker] = await Promise.all([getDb(), huidigeGebruiker()]);
+  const tab = (TABS as readonly string[]).includes(sp.tab ?? "") ? (sp.tab as (typeof TABS)[number]) : "partners";
   const p = db.projecten.find((x) => x.id === id);
   if (!p) notFound();
   const magBewerken = heeftRecht(gebruiker.rol, "bewerken");
@@ -41,19 +47,60 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
                 Bewerken
               </Knop>
             ) : null}
-            <Knop href={`/projecten/${p.id}/match`} variant="secundair">
-              Matching{runs.length ? ` (${runs.length})` : ""}
-            </Knop>
-            <Knop href={`/projecten/${p.id}/team`} variant="secundair">
-              Team
-            </Knop>
-            <Knop href={`/projecten/${p.id}/evaluaties`} variant="secundair">
-              Evaluaties
-            </Knop>
           </>
         }
       />
 
+      <Tabs
+        basis={`/projecten/${p.id}`}
+        actief={tab}
+        items={[
+          { id: "partners", label: "Partners" },
+          { id: "beschrijving", label: "Beschrijving" },
+          { id: "team", label: "Team" },
+          { id: "evaluaties", label: "Evaluaties", aantal: engagements.length },
+          { id: "historie", label: "Historie", aantal: runs.length }
+        ]}
+      />
+
+      {tab === "partners" ? <PartnersTab db={db} projectId={p.id} runId={sp.run} magFeedback={magBewerken} /> : null}
+      {tab === "team" ? <TeamTab db={db} projectId={p.id} runId={sp.run} /> : null}
+      {tab === "evaluaties" ? <EvaluatiesTab db={db} projectId={p.id} engagementId={sp.engagement} magEvalueren={heeftRecht(gebruiker.rol, "evalueren")} /> : null}
+      {tab === "historie" ? (
+        <div className="raster">
+          <Kaart titel={`Matchruns (${runs.length})`}>
+            {runs.length ? (
+              <ul className="lijst klein-tekst">
+                {[...runs].sort((a, b) => b.gestartOp.localeCompare(a.gestartOp)).map((r) => (
+                  <li key={r.id}>
+                    <Link href={`/projecten/${p.id}?tab=partners&run=${r.id}`}>{r.naam}</Link>
+                    <br />
+                    <span className="muted">{datumTijd(r.gestartOp)} · {r.door} · {r.resultaat.map((x) => `${ROL_LABEL[x.rol]} ${x.kandidaten.length}`).join(", ")}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted">Nog geen matchruns.</p>
+            )}
+          </Kaart>
+          <Kaart titel="Wijzigingen aan dit project">
+            <p className="muted klein-tekst">Bijgewerkt {datumTijd(p.bijgewerktOp)}{v ? ` · verrijkt ${datumTijd(v.opgehaaldOp)}` : ""}{p.erpImportOp ? ` · ERP-import ${datum(p.erpImportOp)}` : ""}</p>
+            {p.correcties?.length ? (
+              <ul className="lijst klein-tekst">
+                {p.correcties.map((c, i) => (
+                  <li key={i}>
+                    {c.veld}: {c.van} → <b>{c.naar}</b> door {c.door} op {datum(c.op)} — {c.reden}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted klein-tekst">Geen correcties van classificaties.</p>
+            )}
+          </Kaart>
+        </div>
+      ) : null}
+
+      {tab === "beschrijving" ? (
       <div className="raster">
         <Kaart titel="Projectprofiel">
           <Definities
@@ -169,7 +216,7 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
           <EisenEditor projectId={p.id} eisen={p.eisen} gewichtsprofielId={p.gewichtsprofielId ?? (p.eisen.length ? undefined : db.instellingen.standaardGewichtsprofielId)} profielen={db.gewichtsprofielen} factoren={db.factoren} magBewerken={magBewerken} />
         </Kaart>
 
-        <Kaart titel="Betrokken partners" acties={magBewerken ? <Link href={`/projecten/${p.id}/evaluaties`} className="knop knop-tekst klein">Naar evaluaties</Link> : undefined}>
+        <Kaart titel="Betrokken partners" acties={magBewerken ? <Link href={`/projecten/${p.id}?tab=evaluaties`} className="knop knop-tekst klein">Naar evaluaties</Link> : undefined}>
           {engagements.length ? (
             <div className="tabelWrap">
               <table className="tabel">
@@ -204,7 +251,7 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
                         </td>
                         <td>{bouwsystemen.find((o) => o.id === e.bouwsysteem)?.label ?? e.bouwsysteem ?? "–"}</td>
                         <td className="muted klein-tekst">{e.bron}</td>
-                        <td>{ev ? <Badge kleur="groen">{((ev.kwaliteit + ev.planning + ev.budget + ev.samenwerking + ev.duurzaamheid) / 5).toFixed(1)}/5</Badge> : <Link href={`/projecten/${p.id}/evaluaties?engagement=${e.id}`}>invullen</Link>}</td>
+                        <td>{ev ? <Badge kleur="groen">{((ev.kwaliteit + ev.planning + ev.budget + ev.samenwerking + ev.duurzaamheid) / 5).toFixed(1)}/5</Badge> : <Link href={`/projecten/${p.id}?tab=evaluaties&engagement=${e.id}`}>invullen</Link>}</td>
                       </tr>
                     );
                   })}
@@ -217,6 +264,7 @@ export default async function ProjectPagina({ params }: { params: Promise<{ id: 
           <div style={{ marginTop: 12 }}>{magBewerken ? <EngagementFormulier projectId={p.id} partners={partners} bouwsystemen={bouwsystemen} /> : <span className="muted klein-tekst">Engagements toevoegen vereist recht &apos;bewerken&apos;.</span>}</div>
         </Kaart>
       </div>
+      ) : null}
     </>
   );
 }
